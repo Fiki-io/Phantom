@@ -78,6 +78,9 @@ dependencies {
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("com.google.code.gson:gson:2.10.1")
 
+    // Battle-tested YouTube IFrame WebView Engine (Handles Error 150/152/153 and custom UI)
+    implementation("com.pierfrancescosoffritti.androidyoutubeplayer:core:13.0.0")
+
     // Room Database for Local History & Bookmarks
     val roomVersion = "2.6.1"
     implementation("androidx.room:room-runtime:$roomVersion")
