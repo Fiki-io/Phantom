@@ -4,15 +4,16 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Color
 import android.view.ViewGroup
+import android.webkit.ConsoleMessage
+import android.webkit.CookieManager
 import android.webkit.WebChromeClient
+import android.webkit.WebResourceError
+import android.webkit.WebResourceRequest
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
 
 class PhantomPlayerController(context: Context) {
@@ -22,12 +23,18 @@ class PhantomPlayerController(context: Context) {
     private var pendingStartSeconds: Float = 0f
 
     @SuppressLint("SetJavaScriptEnabled")
-    fun attachWebView(view: WebView, bridge: PhantomPlayerBridge) {
+    fun attachWebView(
+        view: WebView,
+        bridge: PhantomPlayerBridge,
+        videoId: String = "",
+        startSeconds: Float = 0f
+    ) {
         this.webView = view
         view.setBackgroundColor(Color.BLACK)
+
         // Enable cookies and third-party cookies for seamless YouTube embed session
         try {
-            val cookieManager = android.webkit.CookieManager.getInstance()
+            val cookieManager = CookieManager.getInstance()
             cookieManager.setAcceptCookie(true)
             cookieManager.setAcceptThirdPartyCookies(view, true)
         } catch (e: Exception) {
@@ -54,26 +61,36 @@ class PhantomPlayerController(context: Context) {
             }
         }
 
-        view.webChromeClient = WebChromeClient()
+        view.webChromeClient = object : WebChromeClient() {
+            override fun onConsoleMessage(consoleMessage: ConsoleMessage?): Boolean {
+                android.util.Log.d("PhantomJS", "${consoleMessage?.message()} (${consoleMessage?.lineNumber()})")
+                return true
+            }
+        }
+
         view.webViewClient = object : WebViewClient() {
-            override fun onPageFinished(view: WebView?, url: String?) {
-                super.onPageFinished(view, url)
+            override fun onReceivedError(view: WebView?, request: WebResourceRequest?, error: WebResourceError?) {
+                super.onReceivedError(view, request, error)
+                android.util.Log.e("PhantomWeb", "Resource error: ${error?.description}")
             }
         }
 
         view.addJavascriptInterface(bridge, "PhantomBridge")
 
-        // Load HTML with base URL 'https://www.youtube-nocookie.com' to provide valid Origin & Referer headers
-        // This permanently eliminates Error 153 (Video Player Configuration Error: missing/invalid referrer)
-        val htmlContent = try {
+        // Load HTML with base URL 'https://www.youtube.com' to provide valid Origin & Referer headers
+        val rawHtml = try {
             view.context.assets.open("player.html").bufferedReader().use { it.readText() }
         } catch (e: Exception) {
             e.printStackTrace()
             ""
         }
 
+        val htmlContent = rawHtml
+            .replace("__VIDEO_ID__", videoId)
+            .replace("__START_SECONDS__", startSeconds.toInt().toString())
+
         view.loadDataWithBaseURL(
-            "https://www.youtube-nocookie.com",
+            "https://www.youtube.com",
             htmlContent,
             "text/html",
             "UTF-8",
@@ -138,12 +155,12 @@ class PhantomPlayerController(context: Context) {
 
 @Composable
 fun PhantomGhostSurface(
+    videoId: String,
+    startSeconds: Float = 0f,
     modifier: Modifier = Modifier,
     controller: PhantomPlayerController,
     bridge: PhantomPlayerBridge
 ) {
-    val context = LocalContext.current
-
     AndroidView(
         modifier = modifier,
         factory = { ctx ->
@@ -152,7 +169,7 @@ fun PhantomGhostSurface(
                     ViewGroup.LayoutParams.MATCH_PARENT,
                     ViewGroup.LayoutParams.MATCH_PARENT
                 )
-                controller.attachWebView(this, bridge)
+                controller.attachWebView(this, bridge, videoId, startSeconds)
             }
         },
         update = { /* controller maintains internal state */ }

@@ -23,7 +23,6 @@
             height: 100vh;
             display: block;
         }
-        /* Completely strip away YouTube overlays, chrome, watermark, badges */
         .ytp-chrome-top,
         .ytp-chrome-bottom,
         .ytp-gradient-top,
@@ -47,17 +46,23 @@
     <script>
         var player = null;
         var timeTicker = null;
+        var currentVideoId = "__VIDEO_ID__";
+        var startSeconds = __START_SECONDS__;
 
         var tag = document.createElement('script');
-        tag.src = "https://www.youtube-nocookie.com/iframe_api";
+        tag.src = "https://www.youtube.com/iframe_api";
+        tag.onerror = function() {
+            if (window.PhantomBridge) {
+                window.PhantomBridge.onError(999);
+            }
+        };
         var firstScriptTag = document.getElementsByTagName('script')[0];
         firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
 
         function onYouTubeIframeAPIReady() {
-            player = new YT.Player('player', {
+            var playerConfig = {
                 height: '100%',
                 width: '100%',
-                host: 'https://www.youtube-nocookie.com',
                 playerVars: {
                     'autoplay': 1,
                     'controls': 0,
@@ -68,15 +73,24 @@
                     'iv_load_policy': 3,
                     'playsinline': 1,
                     'enablejsapi': 1,
-                    'origin': 'https://www.youtube-nocookie.com',
-                    'widget_referrer': 'https://www.youtube-nocookie.com'
+                    'origin': 'https://www.youtube.com',
+                    'widget_referrer': 'https://www.youtube.com'
                 },
                 events: {
                     'onReady': onPlayerReady,
                     'onStateChange': onPlayerStateChange,
                     'onError': onPlayerError
                 }
-            });
+            };
+
+            if (currentVideoId && currentVideoId !== "__VIDEO_ID__" && currentVideoId.length > 2) {
+                playerConfig.videoId = currentVideoId;
+                if (startSeconds > 0) {
+                    playerConfig.playerVars.start = startSeconds;
+                }
+            }
+
+            player = new YT.Player('player', playerConfig);
         }
 
         function onPlayerReady(event) {
@@ -84,11 +98,13 @@
                 window.PhantomBridge.onReady();
             }
             startTimeTicker();
+            if (event.target && event.target.playVideo) {
+                event.target.playVideo();
+            }
         }
 
         function onPlayerStateChange(event) {
             if (window.PhantomBridge) {
-                // -1 unstarted, 0 ended, 1 playing, 2 paused, 3 buffering, 5 video cued
                 window.PhantomBridge.onStateChange(event.data);
             }
         }
@@ -102,45 +118,60 @@
         function startTimeTicker() {
             if (timeTicker) clearInterval(timeTicker);
             timeTicker = setInterval(function() {
-                if (player && player.getCurrentTime && player.getDuration) {
-                    var current = player.getCurrentTime() || 0;
-                    var duration = player.getDuration() || 0;
-                    var loaded = (player.getVideoLoadedFraction ? player.getVideoLoadedFraction() : 0) || 0;
-                    if (window.PhantomBridge) {
-                        window.PhantomBridge.onTimeUpdate(current, duration, loaded);
+                try {
+                    if (player && typeof player.getCurrentTime === 'function' && typeof player.getDuration === 'function') {
+                        var current = player.getCurrentTime() || 0;
+                        var duration = player.getDuration() || 0;
+                        var loaded = (typeof player.getVideoLoadedFraction === 'function' ? player.getVideoLoadedFraction() : 0) || 0;
+                        if (window.PhantomBridge) {
+                            window.PhantomBridge.onTimeUpdate(current, duration, loaded);
+                        }
                     }
-                }
+                } catch(e) {}
             }, 250);
         }
 
-        // Bridge methods callable from Android Kotlin
-        window.loadVideo = function(videoId, startSeconds) {
-            if (player && player.loadVideoById) {
-                player.loadVideoById({
-                    'videoId': videoId,
-                    'startSeconds': startSeconds || 0
-                });
+        window.loadVideo = function(videoId, startSec) {
+            try {
+                if (player && typeof player.loadVideoById === 'function') {
+                    player.loadVideoById({
+                        'videoId': videoId,
+                        'startSeconds': startSec || 0
+                    });
+                }
+            } catch(e) {
+                console.error("loadVideo error: " + e);
             }
         };
 
         window.playVideo = function() {
-            if (player && player.playVideo) player.playVideo();
+            try {
+                if (player && typeof player.playVideo === 'function') player.playVideo();
+            } catch(e) {}
         };
 
         window.pauseVideo = function() {
-            if (player && player.pauseVideo) player.pauseVideo();
+            try {
+                if (player && typeof player.pauseVideo === 'function') player.pauseVideo();
+            } catch(e) {}
         };
 
         window.seekTo = function(seconds) {
-            if (player && player.seekTo) player.seekTo(seconds, true);
+            try {
+                if (player && typeof player.seekTo === 'function') player.seekTo(seconds, true);
+            } catch(e) {}
         };
 
         window.setPlaybackRate = function(rate) {
-            if (player && player.setPlaybackRate) player.setPlaybackRate(rate);
+            try {
+                if (player && typeof player.setPlaybackRate === 'function') player.setPlaybackRate(rate);
+            } catch(e) {}
         };
 
         window.setPlaybackQuality = function(quality) {
-            if (player && player.setPlaybackQuality) player.setPlaybackQuality(quality);
+            try {
+                if (player && typeof player.setPlaybackQuality === 'function') player.setPlaybackQuality(quality);
+            } catch(e) {}
         };
     </script>
 </body>

@@ -241,6 +241,7 @@ fun PlayerScreen(
         ) {
             // Layer 0: The Ghost WebView (pure video rendering)
             PhantomGhostSurface(
+                videoId = video.id,
                 modifier = Modifier.matchParentSize(),
                 controller = controller,
                 bridge = bridge
