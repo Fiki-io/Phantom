@@ -50,6 +50,19 @@ android {
     }
 }
 
+configurations.all {
+    resolutionStrategy {
+        force(
+            "androidx.lifecycle:lifecycle-runtime-ktx:2.8.0",
+            "androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.0",
+            "androidx.lifecycle:lifecycle-common:2.8.0",
+            "org.jetbrains.kotlin:kotlin-stdlib:1.9.23",
+            "org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.9.23",
+            "org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.9.23"
+        )
+    }
+}
+
 dependencies {
     implementation("androidx.core:core-ktx:1.13.1")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.0")
@@ -79,7 +92,10 @@ dependencies {
     implementation("com.google.code.gson:gson:2.10.1")
 
     // Battle-tested YouTube IFrame WebView Engine (Handles Error 150/152/153 and custom UI)
-    implementation("com.pierfrancescosoffritti.androidyoutubeplayer:core:13.0.0")
+    implementation("com.pierfrancescosoffritti.androidyoutubeplayer:core:13.0.0") {
+        exclude(group = "androidx.lifecycle")
+        exclude(group = "org.jetbrains.kotlin")
+    }
 
     // Room Database for Local History & Bookmarks
     val roomVersion = "2.6.1"
