@@ -25,6 +25,15 @@ class PhantomPlayerController(context: Context) {
     fun attachWebView(view: WebView, bridge: PhantomPlayerBridge) {
         this.webView = view
         view.setBackgroundColor(Color.BLACK)
+        // Enable cookies and third-party cookies for seamless YouTube embed session
+        try {
+            val cookieManager = android.webkit.CookieManager.getInstance()
+            cookieManager.setAcceptCookie(true)
+            cookieManager.setAcceptThirdPartyCookies(view, true)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+
         view.settings.apply {
             javaScriptEnabled = true
             domStorageEnabled = true
@@ -33,6 +42,16 @@ class PhantomPlayerController(context: Context) {
             cacheMode = WebSettings.LOAD_DEFAULT
             loadsImagesAutomatically = true
             mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+            allowFileAccess = true
+            allowContentAccess = true
+
+            // Use clean Chrome mobile User-Agent (strips WebView indicators to prevent Google embed blocks)
+            val defaultUa = userAgentString
+            if (defaultUa != null) {
+                userAgentString = defaultUa
+                    .replace("; wv", "")
+                    .replace("Version/4.0 ", "")
+            }
         }
 
         view.webChromeClient = WebChromeClient()
@@ -43,7 +62,23 @@ class PhantomPlayerController(context: Context) {
         }
 
         view.addJavascriptInterface(bridge, "PhantomBridge")
-        view.loadUrl("file:///android_asset/player.html")
+
+        // Load HTML with base URL 'https://www.youtube-nocookie.com' to provide valid Origin & Referer headers
+        // This permanently eliminates Error 153 (Video Player Configuration Error: missing/invalid referrer)
+        val htmlContent = try {
+            view.context.assets.open("player.html").bufferedReader().use { it.readText() }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            ""
+        }
+
+        view.loadDataWithBaseURL(
+            "https://www.youtube-nocookie.com",
+            htmlContent,
+            "text/html",
+            "UTF-8",
+            null
+        )
     }
 
     fun markBridgeReady() {

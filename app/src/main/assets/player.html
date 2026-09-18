@@ -2,6 +2,7 @@
 <html>
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="referrer" content="strict-origin-when-cross-origin">
     <style>
         * {
             margin: 0;
@@ -48,7 +49,7 @@
         var timeTicker = null;
 
         var tag = document.createElement('script');
-        tag.src = "https://www.youtube.com/iframe_api";
+        tag.src = "https://www.youtube-nocookie.com/iframe_api";
         var firstScriptTag = document.getElementsByTagName('script')[0];
         firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
 
@@ -56,6 +57,7 @@
             player = new YT.Player('player', {
                 height: '100%',
                 width: '100%',
+                host: 'https://www.youtube-nocookie.com',
                 playerVars: {
                     'autoplay': 1,
                     'controls': 0,
@@ -66,7 +68,8 @@
                     'iv_load_policy': 3,
                     'playsinline': 1,
                     'enablejsapi': 1,
-                    'origin': 'https://www.youtube.com'
+                    'origin': 'https://www.youtube-nocookie.com',
+                    'widget_referrer': 'https://www.youtube-nocookie.com'
                 },
                 events: {
                     'onReady': onPlayerReady,

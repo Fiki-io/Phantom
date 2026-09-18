@@ -173,8 +173,8 @@ fun PlayerScreen(
                     }
                 }
             },
-            onErrorCallback = { _ ->
-                playerState = playerState.copy(isBuffering = false)
+            onErrorCallback = { errorCode ->
+                playerState = playerState.copy(isBuffering = false, errorCode = errorCode)
             }
         )
     }
@@ -270,7 +270,7 @@ fun PlayerScreen(
                     }
             )
 
-            // Layer 2: Buffering Indicator
+            // Layer 2: Buffering & Error Indicator
             if (playerState.isBuffering) {
                 CircularProgressIndicator(
                     color = NeonCyan,
@@ -279,6 +279,25 @@ fun PlayerScreen(
                         .size(48.dp)
                         .align(Alignment.Center)
                 )
+            } else if (playerState.errorCode != null) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .liquidGlass(
+                            shape = RoundedCornerShape(16.dp),
+                            borderWidth = 1.dp,
+                            tintColor = Color(0xFF261010),
+                            glassAlpha = 0.85f
+                        )
+                        .padding(horizontal = 16.dp, vertical = 10.dp)
+                ) {
+                    Text(
+                        text = "Video tidak dapat diputar (Error ${playerState.errorCode})",
+                        color = Color.White,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
             }
 
             // Layer 3: Floating Sponsor Skip Pill
