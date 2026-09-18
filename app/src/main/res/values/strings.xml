@@ -1,0 +1,12 @@
+<resources>
+    <string name="app_name">Phantom</string>
+    <string name="home_title">Beranda</string>
+    <string name="search_hint">Cari video di YouTube...</string>
+    <string name="history_title">Riwayat</string>
+    <string name="library_title">Koleksi</string>
+    <string name="sponsor_skipped">Bagian sponsor dilewati</string>
+    <string name="undo">Batalkan</string>
+    <string name="up_next">Video Berikutnya</string>
+    <string name="empty_history">Belum ada riwayat tontonan</string>
+    <string name="empty_search">Ketik kata kunci untuk mencari video</string>
+</resources>

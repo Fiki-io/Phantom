@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            background-color: #000000;
+            overflow: hidden;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        html, body {
+            width: 100%;
+            height: 100%;
+            background: #000000;
+        }
+        #player {
+            width: 100vw;
+            height: 100vh;
+            display: block;
+        }
+        /* Completely strip away YouTube overlays, chrome, watermark, badges */
+        .ytp-chrome-top,
+        .ytp-chrome-bottom,
+        .ytp-gradient-top,
+        .ytp-gradient-bottom,
+        .ytp-watermark,
+        .ytp-pause-overlay,
+        .ytp-youtube-button,
+        .ytp-show-cards-title,
+        .ytp-share-panel,
+        .ytp-contextmenu {
+            display: none !important;
+            opacity: 0 !important;
+            visibility: hidden !important;
+            pointer-events: none !important;
+        }
+    </style>
+</head>
+<body>
+    <div id="player"></div>
+
+    <script>
+        var player = null;
+        var timeTicker = null;
+
+        var tag = document.createElement('script');
+        tag.src = "https://www.youtube.com/iframe_api";
+        var firstScriptTag = document.getElementsByTagName('script')[0];
+        firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+
+        function onYouTubeIframeAPIReady() {
+            player = new YT.Player('player', {
+                height: '100%',
+                width: '100%',
+                playerVars: {
+                    'autoplay': 1,
+                    'controls': 0,
+                    'disablekb': 1,
+                    'fs': 0,
+                    'modestbranding': 1,
+                    'rel': 0,
+                    'iv_load_policy': 3,
+                    'playsinline': 1,
+                    'enablejsapi': 1,
+                    'origin': 'https://www.youtube.com'
+                },
+                events: {
+                    'onReady': onPlayerReady,
+                    'onStateChange': onPlayerStateChange,
+                    'onError': onPlayerError
+                }
+            });
+        }
+
+        function onPlayerReady(event) {
+            if (window.PhantomBridge) {
+                window.PhantomBridge.onReady();
+            }
+            startTimeTicker();
+        }
+
+        function onPlayerStateChange(event) {
+            if (window.PhantomBridge) {
+                // -1 unstarted, 0 ended, 1 playing, 2 paused, 3 buffering, 5 video cued
+                window.PhantomBridge.onStateChange(event.data);
+            }
+        }
+
+        function onPlayerError(event) {
+            if (window.PhantomBridge) {
+                window.PhantomBridge.onError(event.data);
+            }
+        }
+
+        function startTimeTicker() {
+            if (timeTicker) clearInterval(timeTicker);
+            timeTicker = setInterval(function() {
+                if (player && player.getCurrentTime && player.getDuration) {
+                    var current = player.getCurrentTime() || 0;
+                    var duration = player.getDuration() || 0;
+                    var loaded = (player.getVideoLoadedFraction ? player.getVideoLoadedFraction() : 0) || 0;
+                    if (window.PhantomBridge) {
+                        window.PhantomBridge.onTimeUpdate(current, duration, loaded);
+                    }
+                }
+            }, 250);
+        }
+
+        // Bridge methods callable from Android Kotlin
+        window.loadVideo = function(videoId, startSeconds) {
+            if (player && player.loadVideoById) {
+                player.loadVideoById({
+                    'videoId': videoId,
+                    'startSeconds': startSeconds || 0
+                });
+            }
+        };
+
+        window.playVideo = function() {
+            if (player && player.playVideo) player.playVideo();
+        };
+
+        window.pauseVideo = function() {
+            if (player && player.pauseVideo) player.pauseVideo();
+        };
+
+        window.seekTo = function(seconds) {
+            if (player && player.seekTo) player.seekTo(seconds, true);
+        };
+
+        window.setPlaybackRate = function(rate) {
+            if (player && player.setPlaybackRate) player.setPlaybackRate(rate);
+        };
+
+        window.setPlaybackQuality = function(quality) {
+            if (player && player.setPlaybackQuality) player.setPlaybackQuality(quality);
+        };
+    </script>
+</body>
+</html>
