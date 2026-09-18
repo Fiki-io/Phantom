@@ -295,7 +295,7 @@ fun PlayerScreen(
             )
 
             // Layer 4: 100% Native Liquid Glass Controls Overlay
-            AnimatedVisibility(
+            androidx.compose.animation.AnimatedVisibility(
                 visible = isControlsVisible,
                 enter = fadeIn(),
                 exit = fadeOut(),
