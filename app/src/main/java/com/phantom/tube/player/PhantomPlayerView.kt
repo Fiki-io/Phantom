@@ -1,48 +1,43 @@
 package com.phantom.tube.player
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Color
 import android.view.ViewGroup
+import android.webkit.WebChromeClient
+import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
+import android.webkit.WebSettings
+import android.webkit.WebView
+import android.webkit.WebViewClient
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.AndroidView
-import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.PlayerConstants
-import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.YouTubePlayer
-import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.listeners.AbstractYouTubePlayerListener
-import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.options.IFramePlayerOptions
-import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.views.YouTubePlayerView
+import androidx.webkit.WebViewAssetLoader
 
 class PhantomPlayerController(context: Context) {
-    var youTubePlayer: YouTubePlayer? = null
-        private set
-    private var playerView: YouTubePlayerView? = null
-    private var isPlayerReady = false
+    private var webView: WebView? = null
+    private var isReady = false
     private var pendingVideoId: String? = null
     private var pendingStartSeconds: Float = 0f
-    var currentVideoId: String? = null
-        private set
 
-    fun attachView(view: YouTubePlayerView) {
-        this.playerView = view
+    fun attachWebView(view: WebView) {
+        this.webView = view
     }
 
-    fun onReady(player: YouTubePlayer) {
-        this.youTubePlayer = player
-        this.isPlayerReady = true
+    fun onReady() {
+        isReady = true
         val targetId = pendingVideoId
         if (targetId != null) {
-            currentVideoId = targetId
-            player.loadVideo(targetId, pendingStartSeconds)
+            loadVideo(targetId, pendingStartSeconds)
             pendingVideoId = null
             pendingStartSeconds = 0f
         }
     }
 
     fun loadVideo(videoId: String, startSeconds: Float = 0f) {
-        val player = youTubePlayer
-        if (player != null && isPlayerReady) {
-            currentVideoId = videoId
-            player.loadVideo(videoId, startSeconds)
+        if (isReady && webView != null) {
+            evaluateJs("window.loadVideo('$videoId', $startSeconds);")
         } else {
             pendingVideoId = videoId
             pendingStartSeconds = startSeconds
@@ -50,102 +45,93 @@ class PhantomPlayerController(context: Context) {
     }
 
     fun play() {
-        youTubePlayer?.play()
+        evaluateJs("window.playVideo();")
     }
 
     fun pause() {
-        youTubePlayer?.pause()
+        evaluateJs("window.pauseVideo();")
     }
 
     fun seekTo(seconds: Float) {
-        youTubePlayer?.seekTo(seconds)
+        evaluateJs("window.seekTo($seconds);")
     }
 
     fun setPlaybackRate(rate: Float) {
-        val pbRate = when (rate) {
-            0.25f -> PlayerConstants.PlaybackRate.RATE_0_25
-            0.5f -> PlayerConstants.PlaybackRate.RATE_0_5
-            1.5f -> PlayerConstants.PlaybackRate.RATE_1_5
-            2.0f -> PlayerConstants.PlaybackRate.RATE_2
-            else -> PlayerConstants.PlaybackRate.RATE_1
+        evaluateJs("window.setPlaybackRate($rate);")
+    }
+
+    private fun evaluateJs(script: String) {
+        webView?.post {
+            webView?.evaluateJavascript(script, null)
         }
-        youTubePlayer?.setPlaybackRate(pbRate)
     }
 
     fun release() {
-        try {
-            playerView?.release()
-        } catch (e: Exception) {
-            e.printStackTrace()
+        webView?.apply {
+            stopLoading()
+            loadUrl("about:blank")
+            destroy()
         }
-        playerView = null
-        youTubePlayer = null
-        isPlayerReady = false
+        webView = null
+        isReady = false
         pendingVideoId = null
-        currentVideoId = null
     }
 }
 
+@SuppressLint("SetJavaScriptEnabled")
 @Composable
 fun PhantomGhostSurface(
     videoId: String,
     startSeconds: Float = 0f,
     modifier: Modifier = Modifier,
     controller: PhantomPlayerController,
-    onCurrentSecond: (Float) -> Unit,
-    onVideoDuration: (Float) -> Unit,
-    onLoadedFraction: (Float) -> Unit,
-    onStateChange: (PlayerConstants.PlayerState) -> Unit,
-    onError: (PlayerConstants.PlayerError) -> Unit
+    bridge: PhantomPlayerBridge
 ) {
     AndroidView(
         modifier = modifier,
         factory = { ctx ->
-            YouTubePlayerView(ctx).apply {
-                enableAutomaticInitialization = false
+            val assetLoader = WebViewAssetLoader.Builder()
+                .addPathHandler("/assets/", WebViewAssetLoader.AssetsPathHandler(ctx))
+                .build()
+
+            WebView(ctx).apply {
                 setBackgroundColor(Color.BLACK)
                 layoutParams = ViewGroup.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT,
                     ViewGroup.LayoutParams.MATCH_PARENT
                 )
-                controller.attachView(this)
 
-                val iFrameOptions = IFramePlayerOptions.Builder()
-                    .controls(0)
-                    .rel(0)
-                    .ivLoadPolicy(3)
-                    .ccLoadPolicy(0)
-                    .origin("https://${ctx.packageName}")
-                    .build()
+                settings.apply {
+                    javaScriptEnabled = true
+                    domStorageEnabled = true
+                    databaseEnabled = true
+                    mediaPlaybackRequiresUserGesture = false
+                    cacheMode = WebSettings.LOAD_DEFAULT
+                    mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+                    allowFileAccess = false
+                    allowContentAccess = false
 
-                initialize(object : AbstractYouTubePlayerListener() {
-                    override fun onReady(youTubePlayer: YouTubePlayer) {
-                        controller.onReady(youTubePlayer)
-                        if (controller.currentVideoId == null) {
-                            controller.loadVideo(videoId, startSeconds)
-                        }
+                    // Clean Chrome User-Agent
+                    userAgentString = "Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Mobile Safari/537.36"
+                }
+
+                webChromeClient = WebChromeClient()
+
+                webViewClient = object : WebViewClient() {
+                    override fun shouldInterceptRequest(
+                        view: WebView,
+                        request: WebResourceRequest
+                    ): WebResourceResponse? {
+                        return assetLoader.shouldInterceptRequest(request.url)
                     }
+                }
 
-                    override fun onCurrentSecond(youTubePlayer: YouTubePlayer, second: Float) {
-                        onCurrentSecond(second)
-                    }
+                addJavascriptInterface(bridge, "PhantomBridge")
+                controller.attachWebView(this)
 
-                    override fun onVideoDuration(youTubePlayer: YouTubePlayer, duration: Float) {
-                        onVideoDuration(duration)
-                    }
-
-                    override fun onVideoLoadedFraction(youTubePlayer: YouTubePlayer, loadedFraction: Float) {
-                        onLoadedFraction(loadedFraction)
-                    }
-
-                    override fun onStateChange(youTubePlayer: YouTubePlayer, state: PlayerConstants.PlayerState) {
-                        onStateChange(state)
-                    }
-
-                    override fun onError(youTubePlayer: YouTubePlayer, error: PlayerConstants.PlayerError) {
-                        onError(error)
-                    }
-                }, iFrameOptions)
+                // Load with official HTTPS domain via WebViewAssetLoader
+                val startInt = startSeconds.toInt()
+                loadUrl("https://appassets.androidplatform.net/assets/player.html?v=$videoId&start=$startInt")
             }
         },
         update = { /* controller maintains internal state */ }

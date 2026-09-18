@@ -77,9 +77,9 @@ import com.phantom.tube.data.model.SponsorSegment
 import com.phantom.tube.data.model.VideoItem
 import com.phantom.tube.data.repository.PhantomRepository
 import com.phantom.tube.player.PhantomGhostSurface
+import com.phantom.tube.player.PhantomPlayerBridge
 import com.phantom.tube.player.PhantomPlayerController
 import com.phantom.tube.player.PlayerState
-import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.PlayerConstants
 import com.phantom.tube.ui.components.LiquidGlassIconButton
 import com.phantom.tube.ui.components.LiquidGlassScrubber
 import com.phantom.tube.ui.components.LiquidGlassVideoCard
@@ -116,6 +116,71 @@ fun PlayerScreen(
     val isFavorite by repository.isFavorite(video.id).collectAsState(initial = false)
 
     val controller = remember { PhantomPlayerController(context) }
+
+    val bridge = remember {
+        PhantomPlayerBridge(
+            onReadyCallback = {
+                controller.onReady()
+            },
+            onStateChangeCallback = { state ->
+                // 1 = PLAYING, 2 = PAUSED, 3 = BUFFERING, 0 = ENDED
+                when (state) {
+                    1 -> playerState = playerState.copy(isPlaying = true, isBuffering = false, isEnded = false, errorCode = null)
+                    2 -> playerState = playerState.copy(isPlaying = false, isBuffering = false)
+                    3 -> playerState = playerState.copy(isBuffering = true)
+                    0 -> {
+                        playerState = playerState.copy(isPlaying = false, isEnded = true)
+                        nextQueue?.upNext?.firstOrNull()?.let { nextVid ->
+                            onPlayNextVideo(nextVid)
+                        }
+                    }
+                }
+            },
+            onTimeUpdateCallback = { current, duration, buffered ->
+                playerState = playerState.copy(
+                    currentTimeSec = current,
+                    durationSec = duration,
+                    bufferedFraction = buffered
+                )
+
+                // Record watch history
+                if (current > 2f) {
+                    scope.launch {
+                        repository.recordWatch(
+                            video = video,
+                            positionMs = (current * 1000).toLong(),
+                            durationMs = (duration * 1000).toLong()
+                        )
+                    }
+                }
+
+                // Check SponsorBlock segments
+                sponsorSegments.forEach { seg ->
+                    if (current >= seg.startSecond && current < (seg.startSecond + 1.5f)) {
+                        lastSkippedFromSec = current
+                        lastSkippedSeconds = (seg.endSecond - seg.startSecond).toInt()
+                        controller.seekTo(seg.endSecond)
+                        showSponsorPill = true
+                        scope.launch {
+                            delay(4000)
+                            showSponsorPill = false
+                        }
+                    }
+                }
+            },
+            onErrorCallback = { errorCode ->
+                val msg = when (errorCode) {
+                    100 -> "Video tidak ditemukan (100)"
+                    101, 150 -> "Pemilik video membatasi pemutaran di aplikasi lain (150)"
+                    152 -> "Pemutaran dibatasi oleh YouTube (Error 152)"
+                    2 -> "Parameter request tidak valid (2)"
+                    5 -> "Kesalahan pemutar HTML5 (5)"
+                    else -> "Error pemutaran ($errorCode)"
+                }
+                playerState = playerState.copy(isBuffering = false, errorCode = msg)
+            }
+        )
+    }
 
     // Keep screen on during playback
     DisposableEffect(Unit) {
@@ -181,79 +246,12 @@ fun PlayerScreen(
             }
                 .background(Color.Black)
         ) {
-            // Layer 0: The Battle-tested YouTube Ghost Surface
+            // Layer 0: The Ghost Surface (backed by WebViewAssetLoader)
             PhantomGhostSurface(
                 videoId = video.id,
                 modifier = Modifier.matchParentSize(),
                 controller = controller,
-                onCurrentSecond = { current ->
-                    playerState = playerState.copy(currentTimeSec = current)
-
-                    // Record watch history
-                    if (current > 2f) {
-                        scope.launch {
-                            repository.recordWatch(
-                                video = video,
-                                positionMs = (current * 1000).toLong(),
-                                durationMs = (playerState.durationSec * 1000).toLong()
-                            )
-                        }
-                    }
-
-                    // Check SponsorBlock segments
-                    sponsorSegments.forEach { seg ->
-                        if (current >= seg.startSecond && current < (seg.startSecond + 1.5f)) {
-                            lastSkippedFromSec = current
-                            lastSkippedSeconds = (seg.endSecond - seg.startSecond).toInt()
-                            controller.seekTo(seg.endSecond)
-                            showSponsorPill = true
-                            scope.launch {
-                                delay(4000)
-                                showSponsorPill = false
-                            }
-                        }
-                    }
-                },
-                onVideoDuration = { duration ->
-                    playerState = playerState.copy(durationSec = duration)
-                },
-                onLoadedFraction = { fraction ->
-                    playerState = playerState.copy(bufferedFraction = fraction)
-                },
-                onStateChange = { state ->
-                    when (state) {
-                        PlayerConstants.PlayerState.PLAYING -> {
-                            playerState = playerState.copy(isPlaying = true, isBuffering = false, isEnded = false, errorCode = null)
-                        }
-                        PlayerConstants.PlayerState.PAUSED -> {
-                            playerState = playerState.copy(isPlaying = false, isBuffering = false)
-                        }
-                        PlayerConstants.PlayerState.BUFFERING -> {
-                            playerState = playerState.copy(isBuffering = true)
-                        }
-                        PlayerConstants.PlayerState.ENDED -> {
-                            playerState = playerState.copy(isPlaying = false, isEnded = true)
-                            nextQueue?.upNext?.firstOrNull()?.let { nextVid ->
-                                onPlayNextVideo(nextVid)
-                            }
-                        }
-                        else -> {}
-                    }
-                },
-                onError = { error ->
-                    val msg = when (error) {
-                        PlayerConstants.PlayerError.VIDEO_NOT_PLAYABLE_IN_EMBEDDED_PLAYER ->
-                            "Pemilik video membatasi pemutaran di aplikasi pihak ketiga (150/152)"
-                        PlayerConstants.PlayerError.VIDEO_NOT_FOUND ->
-                            "Video tidak ditemukan (100)"
-                        PlayerConstants.PlayerError.INVALID_PARAMETER_IN_REQUEST ->
-                            "Parameter request tidak valid (2)"
-                        PlayerConstants.PlayerError.HTML_5_PLAYER ->
-                            "Kesalahan pemutar HTML5 (5)"
-                        else -> "Error pemutaran (${error.name})"
-                    }
-                    playerState = playerState.copy(isBuffering = false, errorCode = msg)
-                }
+                bridge = bridge
             )
 
             // Layer 1: Transparent Gesture Touch Handler

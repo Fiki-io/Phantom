@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Phantom Player Engine</title>
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #000000;
+            overflow: hidden;
+        }
+        #player {
+            width: 100%;
+            height: 100%;
+            pointer-events: none; /* Touches pass through to Jetpack Compose Liquid Glass UI */
+        }
+    </style>
+</head>
+<body>
+    <div id="player"></div>
+
+    <script>
+        var player = null;
+        var timeTicker = null;
+
+        // Parse videoId and start timestamp from URL query parameters
+        var urlParams = new URLSearchParams(window.location.search);
+        var initialVideoId = urlParams.get('v') || '';
+        var initialStartSeconds = parseFloat(urlParams.get('start') || '0');
+
+        // Load YouTube IFrame API
+        var tag = document.createElement('script');
+        tag.src = "https://www.youtube.com/iframe_api";
+        tag.onerror = function() {
+            if (window.PhantomBridge) {
+                window.PhantomBridge.onError(999);
+            }
+        };
+        var firstScriptTag = document.getElementsByTagName('script')[0];
+        firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+
+        function onYouTubeIframeAPIReady() {
+            var playerConfig = {
+                height: '100%',
+                width: '100%',
+                playerVars: {
+                    'autoplay': 1,
+                    'controls': 0,
+                    'disablekb': 1,
+                    'fs': 0,
+                    'modestbranding': 1,
+                    'rel': 0,
+                    'iv_load_policy': 3,
+                    'playsinline': 1,
+                    'enablejsapi': 1,
+                    // Served under AndroidX WebViewAssetLoader genuine HTTPS virtual domain
+                    'origin': 'https://appassets.androidplatform.net',
+                    'widget_referrer': 'https://appassets.androidplatform.net'
+                },
+                events: {
+                    'onReady': onPlayerReady,
+                    'onStateChange': onPlayerStateChange,
+                    'onError': onPlayerError
+                }
+            };
+
+            if (initialVideoId && initialVideoId.length > 2) {
+                playerConfig.videoId = initialVideoId;
+                if (initialStartSeconds > 0) {
+                    playerConfig.playerVars.start = Math.floor(initialStartSeconds);
+                }
+            }
+
+            player = new YT.Player('player', playerConfig);
+        }
+
+        function onPlayerReady(event) {
+            if (window.PhantomBridge) {
+                window.PhantomBridge.onReady();
+            }
+            startTimeTicker();
+            if (event.target && typeof event.target.playVideo === 'function') {
+                event.target.playVideo();
+            }
+        }
+
+        function onPlayerStateChange(event) {
+            if (window.PhantomBridge) {
+                window.PhantomBridge.onStateChange(event.data);
+            }
+        }
+
+        function onPlayerError(event) {
+            if (window.PhantomBridge) {
+                window.PhantomBridge.onError(event.data);
+            }
+        }
+
+        function startTimeTicker() {
+            if (timeTicker) clearInterval(timeTicker);
+            timeTicker = setInterval(function() {
+                try {
+                    if (player && typeof player.getCurrentTime === 'function' && typeof player.getDuration === 'function') {
+                        var current = player.getCurrentTime() || 0;
+                        var duration = player.getDuration() || 0;
+                        var loaded = (typeof player.getVideoLoadedFraction === 'function' ? player.getVideoLoadedFraction() : 0) || 0;
+                        if (window.PhantomBridge) {
+                            window.PhantomBridge.onTimeUpdate(current, duration, loaded);
+                        }
+                    }
+                } catch(e) {}
+            }, 250);
+        }
+
+        // Bridge methods callable from Kotlin
+        window.loadVideo = function(videoId, startSec) {
+            try {
+                if (player && typeof player.loadVideoById === 'function') {
+                    player.loadVideoById({
+                        'videoId': videoId,
+                        'startSeconds': startSec || 0
+                    });
+                }
+            } catch(e) {
+                console.error("loadVideo error: " + e);
+            }
+        };
+
+        window.playVideo = function() {
+            try {
+                if (player && typeof player.playVideo === 'function') player.playVideo();
+            } catch(e) {}
+        };
+
+        window.pauseVideo = function() {
+            try {
+                if (player && typeof player.pauseVideo === 'function') player.pauseVideo();
+            } catch(e) {}
+        };
+
+        window.seekTo = function(seconds) {
+            try {
+                if (player && typeof player.seekTo === 'function') player.seekTo(seconds, true);
+            } catch(e) {}
+        };
+
+        window.setPlaybackRate = function(rate) {
+            try {
+                if (player && typeof player.setPlaybackRate === 'function') player.setPlaybackRate(rate);
+            } catch(e) {}
+        };
+    </script>
+</body>
+</html>
