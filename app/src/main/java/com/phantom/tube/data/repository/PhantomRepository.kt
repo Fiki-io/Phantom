@@ -7,6 +7,7 @@ import com.phantom.tube.core.database.SearchHistoryEntity
 import com.phantom.tube.core.database.WatchHistoryDao
 import com.phantom.tube.core.database.WatchHistoryEntity
 import com.phantom.tube.data.innertube.InnerTubeClient
+import com.phantom.tube.data.model.FeedResult
 import com.phantom.tube.data.model.NextQueue
 import com.phantom.tube.data.model.SponsorSegment
 import com.phantom.tube.data.model.VideoItem
@@ -20,6 +21,10 @@ class PhantomRepository(
     private val favoriteDao: FavoriteDao,
     private val searchHistoryDao: SearchHistoryDao
 ) {
+    suspend fun getFeedPage(query: String? = null, continuation: String? = null): FeedResult {
+        return innerTubeClient.fetchFeedPage(query, continuation)
+    }
+
     suspend fun getFeed(query: String = "trending"): List<VideoItem> {
         return innerTubeClient.fetchFeed(query)
     }

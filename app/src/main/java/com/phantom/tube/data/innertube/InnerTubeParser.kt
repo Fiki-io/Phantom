@@ -1,5 +1,6 @@
 package com.phantom.tube.data.innertube
 
+import com.phantom.tube.data.model.FeedResult
 import com.phantom.tube.data.model.NextQueue
 import com.phantom.tube.data.model.VideoDetail
 import com.phantom.tube.data.model.VideoItem
@@ -9,29 +10,93 @@ import org.json.JSONObject
 object InnerTubeParser {
 
     fun parseSearchResults(jsonString: String): List<VideoItem> {
+        return parseFeedWithContinuation(jsonString).videos
+    }
+
+    fun parseFeedWithContinuation(jsonString: String): FeedResult {
         val items = mutableListOf<VideoItem>()
+        var continuationToken: String? = null
+
         try {
             val root = JSONObject(jsonString)
-            val contents = root.optJSONObject("contents") ?: return emptyList()
-            val twoCol = contents.optJSONObject("twoColumnSearchResultsRenderer")
+
+            // 1. Initial page format: contents.twoColumnSearchResultsRenderer.primaryContents.sectionListRenderer.contents
+            val contents = root.optJSONObject("contents")
+            val twoCol = contents?.optJSONObject("twoColumnSearchResultsRenderer")
             val primary = twoCol?.optJSONObject("primaryContents")
             val sectionList = primary?.optJSONObject("sectionListRenderer")
             val sections = sectionList?.optJSONArray("contents") ?: JSONArray()
 
             for (i in 0 until sections.length()) {
                 val sec = sections.optJSONObject(i) ?: continue
-                val itemSection = sec.optJSONObject("itemSectionRenderer") ?: continue
-                val contentsArray = itemSection.optJSONArray("contents") ?: JSONArray()
 
-                for (j in 0 until contentsArray.length()) {
-                    val rawItem = contentsArray.optJSONObject(j) ?: continue
-                    parseVideoItem(rawItem)?.let { items.add(it) }
+                // Check for continuation token in initial page
+                val continuationItem = sec.optJSONObject("continuationItemRenderer")
+                if (continuationItem != null) {
+                    val token = continuationItem
+                        .optJSONObject("continuationEndpoint")
+                        ?.optJSONObject("continuationCommand")
+                        ?.optString("token")
+                    if (!token.isNullOrBlank()) {
+                        continuationToken = token
+                    }
+                }
+
+                // Check videos in itemSectionRenderer
+                val itemSection = sec.optJSONObject("itemSectionRenderer")
+                if (itemSection != null) {
+                    val contentsArray = itemSection.optJSONArray("contents") ?: JSONArray()
+                    for (j in 0 until contentsArray.length()) {
+                        val rawItem = contentsArray.optJSONObject(j) ?: continue
+                        parseVideoItem(rawItem)?.let { items.add(it) }
+                    }
+                }
+            }
+
+            // 2. Continuation page format: onResponseReceivedCommands
+            val commands = root.optJSONArray("onResponseReceivedCommands") ?: JSONArray()
+            for (i in 0 until commands.length()) {
+                val cmd = commands.optJSONObject(i) ?: continue
+                val appendAction = cmd.optJSONObject("appendContinuationItemsAction") ?: continue
+                val continuationItems = appendAction.optJSONArray("continuationItems") ?: JSONArray()
+
+                for (j in 0 until continuationItems.length()) {
+                    val cItem = continuationItems.optJSONObject(j) ?: continue
+
+                    // Check for next continuation token
+                    val nextTokenItem = cItem.optJSONObject("continuationItemRenderer")
+                    if (nextTokenItem != null) {
+                        val token = nextTokenItem
+                            .optJSONObject("continuationEndpoint")
+                            ?.optJSONObject("continuationCommand")
+                            ?.optString("token")
+                        if (!token.isNullOrBlank()) {
+                            continuationToken = token
+                        }
+                    }
+
+                    // Check videos in itemSectionRenderer
+                    val itemSection = cItem.optJSONObject("itemSectionRenderer")
+                    if (itemSection != null) {
+                        val subContents = itemSection.optJSONArray("contents") ?: JSONArray()
+                        for (k in 0 until subContents.length()) {
+                            val subItem = subContents.optJSONObject(k) ?: continue
+                            parseVideoItem(subItem)?.let { items.add(it) }
+                        }
+                    } else {
+                        // Direct video item or lockupViewModel
+                        parseVideoItem(cItem)?.let { items.add(it) }
+                    }
                 }
             }
         } catch (e: Exception) {
             e.printStackTrace()
         }
-        return items
+
+        return FeedResult(
+            videos = items,
+            continuationToken = continuationToken
+        )
     }
 
     fun parseWatchNext(jsonString: String, currentVideoId: String): NextQueue? {

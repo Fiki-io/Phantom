@@ -1,5 +1,6 @@
 package com.phantom.tube.data.innertube
 
+import com.phantom.tube.data.model.FeedResult
 import com.phantom.tube.data.model.NextQueue
 import com.phantom.tube.data.model.VideoItem
 import kotlinx.coroutines.Dispatchers
@@ -33,8 +34,37 @@ class InnerTubeClient(
         }
     }
 
+    suspend fun fetchFeedPage(
+        query: String? = null,
+        continuation: String? = null
+    ): FeedResult = withContext(Dispatchers.IO) {
+        try {
+            val bodyJson = JSONObject().apply {
+                put("context", createClientContext())
+                if (!continuation.isNullOrBlank()) {
+                    put("continuation", continuation)
+                } else {
+                    put("query", query ?: "trending indonesia")
+                }
+            }
+            val request = Request.Builder()
+                .url("https://www.youtube.com/youtubei/v1/search?prettyPrint=false")
+                .header("Content-Type", "application/json")
+                .header("User-Agent", userAgent)
+                .post(bodyJson.toString().toRequestBody(jsonMediaType))
+                .build()
+
+            val response = httpClient.newCall(request).execute()
+            val responseBody = response.body?.string() ?: return@withContext FeedResult()
+            return@withContext InnerTubeParser.parseFeedWithContinuation(responseBody)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            return@withContext FeedResult()
+        }
+    }
+
     suspend fun fetchFeed(query: String = "trending"): List<VideoItem> = withContext(Dispatchers.IO) {
-        return@withContext search(query)
+        return@withContext fetchFeedPage(query = query).videos
     }
 
     suspend fun search(query: String): List<VideoItem> = withContext(Dispatchers.IO) {

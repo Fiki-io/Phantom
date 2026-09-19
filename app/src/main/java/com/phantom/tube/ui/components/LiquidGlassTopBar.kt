@@ -19,6 +19,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -43,6 +44,7 @@ fun LiquidGlassTopBar(
     categories: List<String>,
     onCategorySelected: (String) -> Unit,
     onSearchClick: () -> Unit,
+    onRefreshClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -89,33 +91,47 @@ fun LiquidGlassTopBar(
                 )
             }
 
-            // Glass Search Pill
-            Box(
-                modifier = Modifier
-                    .liquidGlass(
-                        shape = RoundedCornerShape(20.dp),
-                        borderWidth = 1.dp,
-                        glassAlpha = 0.5f
+            // Actions: Refresh + Search
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (onRefreshClick != null) {
+                    LiquidGlassIconButton(
+                        icon = Icons.Default.Refresh,
+                        contentDescription = "Segarkan Beranda",
+                        size = 36.dp,
+                        iconSize = 18.dp,
+                        onClick = onRefreshClick
                     )
-                    .clickable(onClick = onSearchClick)
-                    .padding(horizontal = 14.dp, vertical = 8.dp)
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically
+                    Spacer(modifier = Modifier.width(8.dp))
+                }
+
+                // Glass Search Pill
+                Box(
+                    modifier = Modifier
+                        .liquidGlass(
+                            shape = RoundedCornerShape(20.dp),
+                            borderWidth = 1.dp,
+                            glassAlpha = 0.5f
+                        )
+                        .clickable(onClick = onSearchClick)
+                        .padding(horizontal = 14.dp, vertical = 8.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Search,
-                        contentDescription = "Cari",
-                        tint = NeonCyan,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = "Cari...",
-                        color = TextSecondary,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Medium
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Search,
+                            contentDescription = "Cari",
+                            tint = NeonCyan,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "Cari...",
+                            color = TextSecondary,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
                 }
             }
         }
