@@ -37,6 +37,7 @@ class MainActivity : ComponentActivity() {
 
     private var isInPipMode by mutableStateOf(false)
     private var activeVideo by mutableStateOf<VideoItem?>(null)
+    private val previousVideos = mutableListOf<VideoItem>()
 
     private val notificationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -65,9 +66,24 @@ class MainActivity : ComponentActivity() {
                         PlayerScreen(
                             video = activeVideo!!,
                             repository = repository,
-                            onBackClick = { activeVideo = null },
+                            onBackClick = {
+                                activeVideo = null
+                                previousVideos.clear()
+                            },
                             onPlayNextVideo = { nextVideo ->
+                                activeVideo?.let { current ->
+                                    previousVideos.add(current)
+                                }
                                 activeVideo = nextVideo
+                            },
+                            onPlayPreviousVideo = {
+                                if (previousVideos.isNotEmpty()) {
+                                    val prev = previousVideos.removeAt(previousVideos.lastIndex)
+                                    activeVideo = prev
+                                    true
+                                } else {
+                                    false
+                                }
                             }
                         )
                     } else {
@@ -76,21 +92,41 @@ class MainActivity : ComponentActivity() {
                                 when (tab) {
                                     NavTab.HOME -> HomeScreen(
                                         repository = repository,
-                                        onVideoClick = { activeVideo = it },
+                                        onVideoClick = { video ->
+                                            activeVideo?.let { current ->
+                                                if (current.id != video.id) previousVideos.add(current)
+                                            }
+                                            activeVideo = video
+                                        },
                                         onSearchClick = { currentTab = NavTab.SEARCH }
                                     )
                                     NavTab.SEARCH -> SearchScreen(
                                         repository = repository,
-                                        onVideoClick = { activeVideo = it },
+                                        onVideoClick = { video ->
+                                            activeVideo?.let { current ->
+                                                if (current.id != video.id) previousVideos.add(current)
+                                            }
+                                            activeVideo = video
+                                        },
                                         onBackClick = { currentTab = NavTab.HOME }
                                     )
                                     NavTab.HISTORY -> HistoryScreen(
                                         repository = repository,
-                                        onVideoClick = { activeVideo = it }
+                                        onVideoClick = { video ->
+                                            activeVideo?.let { current ->
+                                                if (current.id != video.id) previousVideos.add(current)
+                                            }
+                                            activeVideo = video
+                                        }
                                     )
                                     NavTab.LIBRARY -> LibraryScreen(
                                         repository = repository,
-                                        onVideoClick = { activeVideo = it }
+                                        onVideoClick = { video ->
+                                            activeVideo?.let { current ->
+                                                if (current.id != video.id) previousVideos.add(current)
+                                            }
+                                            activeVideo = video
+                                        }
                                     )
                                 }
                             }

@@ -8,6 +8,8 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.os.Binder
 import android.os.Build
 import android.os.IBinder
@@ -18,6 +20,15 @@ import android.support.v4.media.session.PlaybackStateCompat
 import androidx.core.app.NotificationCompat
 import com.phantom.tube.MainActivity
 import com.phantom.tube.R
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import java.util.concurrent.TimeUnit
 
 class PhantomMediaService : Service() {
 
@@ -28,11 +39,31 @@ class PhantomMediaService : Service() {
     private var currentChannel: String = ""
     private var isPlaying: Boolean = false
 
+    private var currentDurationMs: Long = 0L
+
+    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+    private var currentBitmap: Bitmap? = null
+    private var currentThumbnailUrl: String = ""
+    private val httpClient = OkHttpClient.Builder()
+        .connectTimeout(5, TimeUnit.SECONDS)
+        .readTimeout(5, TimeUnit.SECONDS)
+        .build()
+
     var onPlayAction: (() -> Unit)? = null
     var onPauseAction: (() -> Unit)? = null
     var onNextAction: (() -> Unit)? = null
     var onPreviousAction: (() -> Unit)? = null
     var onSeekAction: ((Long) -> Unit)? = null
+
+    companion object {
+        const val CHANNEL_ID = "phantom_media_playback"
+        const val NOTIFICATION_ID = 1001
+        const val ACTION_PLAY = "com.phantom.tube.ACTION_PLAY"
+        const val ACTION_PAUSE = "com.phantom.tube.ACTION_PAUSE"
+        const val ACTION_NEXT = "com.phantom.tube.ACTION_NEXT"
+        const val ACTION_PREVIOUS = "com.phantom.tube.ACTION_PREVIOUS"
+        const val ACTION_STOP = "com.phantom.tube.ACTION_STOP"
+    }
 
     inner class LocalBinder : Binder() {
         fun getService(): PhantomMediaService = this@PhantomMediaService
@@ -43,8 +74,7 @@ class PhantomMediaService : Service() {
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
-        initMediaSession()
-        // Immediately establish foreground status within 5 seconds of service launch
+        setupMediaSession()
         startForegroundCompat(buildNotification())
     }
 
@@ -63,21 +93,15 @@ class PhantomMediaService : Service() {
         }
     }
 
-    private fun initMediaSession() {
+    private fun setupMediaSession() {
         mediaSession = MediaSessionCompat(this, "PhantomMediaSession").apply {
-            setFlags(
-                MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS or
-                MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS
-            )
             setCallback(object : MediaSessionCompat.Callback() {
                 override fun onPlay() {
                     onPlayAction?.invoke()
-                    updatePlaybackState(true)
                 }
 
                 override fun onPause() {
                     onPauseAction?.invoke()
-                    updatePlaybackState(false)
                 }
 
                 override fun onSkipToNext() {
@@ -100,21 +124,68 @@ class PhantomMediaService : Service() {
         title: String,
         channel: String,
         durationMs: Long = 0L,
-        playing: Boolean
+        playing: Boolean,
+        thumbnailUrl: String = ""
     ) {
         currentTitle = title
         currentChannel = channel
         isPlaying = playing
+        if (durationMs > 0L) {
+            currentDurationMs = durationMs
+        }
 
-        val metadata = MediaMetadataCompat.Builder()
-            .putString(MediaMetadataCompat.METADATA_KEY_TITLE, title)
-            .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, channel)
-            .putLong(MediaMetadataCompat.METADATA_KEY_DURATION, durationMs)
-            .build()
-        mediaSession?.setMetadata(metadata)
-        updatePlaybackState(playing)
+        if (thumbnailUrl.isNotBlank() && thumbnailUrl != currentThumbnailUrl) {
+            currentThumbnailUrl = thumbnailUrl
+            currentBitmap = null
+            loadThumbnail(thumbnailUrl)
+        } else {
+            applyMetadata(currentBitmap)
+            updatePlaybackState(playing)
+            startForegroundCompat(buildNotification())
+        }
+    }
 
+    private fun loadThumbnail(url: String) {
+        applyMetadata(null)
+        updatePlaybackState(isPlaying)
         startForegroundCompat(buildNotification())
+
+        serviceScope.launch(Dispatchers.IO) {
+            try {
+                val request = Request.Builder().url(url).build()
+                val response = httpClient.newCall(request).execute()
+                if (response.isSuccessful) {
+                    response.body?.byteStream()?.use { stream ->
+                        val bitmap = BitmapFactory.decodeStream(stream)
+                        if (bitmap != null) {
+                            withContext(Dispatchers.Main) {
+                                if (currentThumbnailUrl == url) {
+                                    currentBitmap = bitmap
+                                    applyMetadata(bitmap)
+                                    val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+                                    notificationManager.notify(NOTIFICATION_ID, buildNotification())
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    private fun applyMetadata(bitmap: Bitmap?) {
+        val metadataBuilder = MediaMetadataCompat.Builder()
+            .putString(MediaMetadataCompat.METADATA_KEY_TITLE, currentTitle)
+            .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, currentChannel)
+            .putLong(MediaMetadataCompat.METADATA_KEY_DURATION, currentDurationMs)
+
+        if (bitmap != null) {
+            metadataBuilder.putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, bitmap)
+            metadataBuilder.putBitmap(MediaMetadataCompat.METADATA_KEY_ART, bitmap)
+        }
+        mediaSession?.setMetadata(metadataBuilder.build())
     }
 
     fun updatePlaybackState(playing: Boolean, currentPositionMs: Long = 0L) {
@@ -189,7 +260,7 @@ class PhantomMediaService : Service() {
             getServicePendingIntent(ACTION_NEXT)
         ).build()
 
-        return NotificationCompat.Builder(this, CHANNEL_ID)
+        val builder = NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle(currentTitle)
             .setContentText(currentChannel)
             .setSmallIcon(R.drawable.ic_launcher_foreground)
@@ -204,7 +275,12 @@ class PhantomMediaService : Service() {
                     .setShowActionsInCompactView(0, 1, 2)
             )
             .setOngoing(isPlaying)
-            .build()
+
+        if (currentBitmap != null) {
+            builder.setLargeIcon(currentBitmap)
+        }
+
+        return builder.build()
     }
 
     private fun getServicePendingIntent(action: String): PendingIntent {
@@ -254,20 +330,13 @@ class PhantomMediaService : Service() {
     }
 
     override fun onDestroy() {
+        serviceScope.cancel()
+        currentBitmap = null
         releaseWakeLock()
         mediaSession?.isActive = false
         mediaSession?.release()
         mediaSession = null
         stopForeground(STOP_FOREGROUND_REMOVE)
         super.onDestroy()
-    }
-
-    companion object {
-        const val CHANNEL_ID = "phantom_playback_channel"
-        const val NOTIFICATION_ID = 101
-        const val ACTION_PLAY = "com.phantom.tube.ACTION_PLAY"
-        const val ACTION_PAUSE = "com.phantom.tube.ACTION_PAUSE"
-        const val ACTION_NEXT = "com.phantom.tube.ACTION_NEXT"
-        const val ACTION_PREVIOUS = "com.phantom.tube.ACTION_PREVIOUS"
     }
 }

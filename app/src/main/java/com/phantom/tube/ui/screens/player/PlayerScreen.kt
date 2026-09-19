@@ -46,6 +46,7 @@ import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Replay10
 import androidx.compose.material.icons.filled.SkipNext
+import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -100,6 +101,7 @@ fun PlayerScreen(
     repository: PhantomRepository,
     onBackClick: () -> Unit,
     onPlayNextVideo: (VideoItem) -> Unit,
+    onPlayPreviousVideo: () -> Boolean = { false },
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -165,7 +167,8 @@ fun PlayerScreen(
                         title = video.title,
                         channel = video.channelTitle,
                         durationMs = (duration * 1000).toLong(),
-                        playing = playerState.isPlaying
+                        playing = playerState.isPlaying,
+                        thumbnailUrl = video.thumbnailUrl
                     )
                 }
 
@@ -208,8 +211,8 @@ fun PlayerScreen(
         )
     }
 
-    // Bind and start PhantomMediaService for foreground notification controls & background audio
-    DisposableEffect(video.id) {
+    // Maintain persistent PhantomMediaService connection for the entire playback session
+    DisposableEffect(Unit) {
         val serviceIntent = Intent(context, PhantomMediaService::class.java)
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -225,26 +228,6 @@ fun PlayerScreen(
             override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
                 val service = (binder as? PhantomMediaService.LocalBinder)?.getService()
                 mediaService = service
-                service?.apply {
-                    onPlayAction = { controller.play() }
-                    onPauseAction = { controller.pause() }
-                    onNextAction = {
-                        nextQueue?.upNext?.firstOrNull()?.let { onPlayNextVideo(it) }
-                    }
-                    onPreviousAction = {
-                        val newTime = (playerState.currentTimeSec - 10f).coerceAtLeast(0f)
-                        controller.seekTo(newTime)
-                    }
-                    onSeekAction = { posMs ->
-                        controller.seekTo(posMs / 1000f)
-                    }
-                    updateMediaInfo(
-                        title = video.title,
-                        channel = video.channelTitle,
-                        durationMs = (playerState.durationSec * 1000).toLong(),
-                        playing = playerState.isPlaying
-                    )
-                }
             }
 
             override fun onServiceDisconnected(name: ComponentName?) {
@@ -258,19 +241,9 @@ fun PlayerScreen(
             e.printStackTrace()
         }
 
-        onDispose {
-            try {
-                context.unbindService(connection)
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
-        }
-    }
-
-    // Keep screen on during playback & stop service when player is completely dismissed
-    DisposableEffect(Unit) {
         val activity = context as? Activity
         activity?.window?.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+
         onDispose {
             activity?.window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
             if (isFullscreen) {
@@ -278,10 +251,42 @@ fun PlayerScreen(
             }
             controller.release()
             try {
+                context.unbindService(connection)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+            try {
                 context.stopService(Intent(context, PhantomMediaService::class.java))
             } catch (e: Exception) {
                 e.printStackTrace()
             }
+        }
+    }
+
+    // Wire actions and update metadata whenever video or mediaService updates
+    LaunchedEffect(mediaService, video.id, nextQueue) {
+        mediaService?.apply {
+            onPlayAction = { controller.play() }
+            onPauseAction = { controller.pause() }
+            onNextAction = {
+                nextQueue?.upNext?.firstOrNull()?.let { onPlayNextVideo(it) }
+            }
+            onPreviousAction = {
+                val switched = onPlayPreviousVideo()
+                if (!switched) {
+                    controller.seekTo(0f)
+                }
+            }
+            onSeekAction = { posMs ->
+                controller.seekTo(posMs / 1000f)
+            }
+            updateMediaInfo(
+                title = video.title,
+                channel = video.channelTitle,
+                durationMs = (playerState.durationSec * 1000).toLong(),
+                playing = playerState.isPlaying,
+                thumbnailUrl = video.thumbnailUrl
+            )
         }
     }
 
@@ -293,14 +298,7 @@ fun PlayerScreen(
         }
     }
 
-    // Update notification next/previous actions dynamically
-    LaunchedEffect(nextQueue) {
-        mediaService?.onNextAction = {
-            nextQueue?.upNext?.firstOrNull()?.let { onPlayNextVideo(it) }
-        }
-    }
-
-    // Load SponsorBlock segments & Watch Next Queue
+    // Load new video into engine & immediately sync notification
     LaunchedEffect(video.id) {
         playerState = PlayerState(videoId = video.id)
         val lastPos = repository.getLastPosition(video.id)
@@ -310,7 +308,8 @@ fun PlayerScreen(
             title = video.title,
             channel = video.channelTitle,
             durationMs = 0L,
-            playing = true
+            playing = true,
+            thumbnailUrl = video.thumbnailUrl
         )
 
         launch {
@@ -501,17 +500,30 @@ fun PlayerScreen(
                         }
                     }
 
-                    // Center Row: Replay10, Play/Pause, Forward10
+                    // Center Row: SkipPrevious, Replay10, Play/Pause, Forward10, SkipNext
                     Row(
                         modifier = Modifier.align(Alignment.Center),
-                        horizontalArrangement = Arrangement.spacedBy(28.dp),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         LiquidGlassIconButton(
+                            icon = Icons.Default.SkipPrevious,
+                            contentDescription = "Video Sebelumnya",
+                            size = 42.dp,
+                            iconSize = 22.dp,
+                            onClick = {
+                                val switched = onPlayPreviousVideo()
+                                if (!switched) {
+                                    controller.seekTo(0f)
+                                }
+                            }
+                        )
+
+                        LiquidGlassIconButton(
                             icon = Icons.Default.Replay10,
                             contentDescription = "Mundur 10 Detik",
-                            size = 46.dp,
-                            iconSize = 24.dp,
+                            size = 42.dp,
+                            iconSize = 22.dp,
                             onClick = {
                                 val newTime = (playerState.currentTimeSec - 10f).coerceAtLeast(0f)
                                 controller.seekTo(newTime)
@@ -536,11 +548,21 @@ fun PlayerScreen(
                         LiquidGlassIconButton(
                             icon = Icons.Default.Forward10,
                             contentDescription = "Maju 10 Detik",
-                            size = 46.dp,
-                            iconSize = 24.dp,
+                            size = 42.dp,
+                            iconSize = 22.dp,
                             onClick = {
                                 val newTime = (playerState.currentTimeSec + 10f).coerceAtMost(playerState.durationSec)
                                 controller.seekTo(newTime)
+                            }
+                        )
+
+                        LiquidGlassIconButton(
+                            icon = Icons.Default.SkipNext,
+                            contentDescription = "Video Berikutnya",
+                            size = 42.dp,
+                            iconSize = 22.dp,
+                            onClick = {
+                                nextQueue?.upNext?.firstOrNull()?.let { onPlayNextVideo(it) }
                             }
                         )
                     }
