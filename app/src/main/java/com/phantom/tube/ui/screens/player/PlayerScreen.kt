@@ -118,9 +118,12 @@ fun PlayerScreen(
     var lastSkippedSeconds by remember { mutableIntStateOf(0) }
     var lastSkippedFromSec by remember { mutableFloatStateOf(0f) }
 
-    // Up Next Queue
-    var nextQueue by remember { mutableStateOf<NextQueue?>(null) }
-    var isLoadingQueue by remember { mutableStateOf(true) }
+    // Playback Queue & History Session
+    var upNextQueue by remember { mutableStateOf<List<VideoItem>>(emptyList()) }
+    val history = remember { mutableListOf<VideoItem>() }
+    val playedVideoIds = remember { mutableSetOf<String>() }
+    var isInternalNavigation by remember { mutableStateOf(false) }
+    var isLoadingQueue by remember { mutableStateOf(false) }
 
     // Favorites
     val isFavorite by repository.isFavorite(video.id).collectAsState(initial = false)
@@ -132,6 +135,58 @@ fun PlayerScreen(
     val currentOnPlayPreviousVideo by rememberUpdatedState(onPlayPreviousVideo)
 
     val controller = remember { PhantomPlayerController(context) }
+
+    val playNext: () -> Unit = {
+        if (upNextQueue.isNotEmpty()) {
+            val nextVid = upNextQueue.first()
+            upNextQueue = upNextQueue.drop(1)
+            history.add(currentVideo)
+            playedVideoIds.add(nextVid.id)
+            isInternalNavigation = true
+            currentOnPlayNextVideo(nextVid)
+        } else {
+            scope.launch {
+                isLoadingQueue = true
+                val nextData = repository.getWatchNext(currentVideo.id)
+                val candidates = nextData?.upNext?.filter {
+                    it.id != currentVideo.id && it.id !in playedVideoIds
+                }?.distinctBy { it.id }
+                if (!candidates.isNullOrEmpty()) {
+                    val nextVid = candidates.first()
+                    upNextQueue = candidates.drop(1)
+                    history.add(currentVideo)
+                    playedVideoIds.add(nextVid.id)
+                    isInternalNavigation = true
+                    currentOnPlayNextVideo(nextVid)
+                }
+                isLoadingQueue = false
+            }
+        }
+    }
+
+    val playPrevious: () -> Boolean = {
+        if (history.isNotEmpty()) {
+            val prevVid = history.removeAt(history.lastIndex)
+            upNextQueue = (listOf(currentVideo) + upNextQueue).distinctBy { it.id }
+            isInternalNavigation = true
+            currentOnPlayNextVideo(prevVid)
+            true
+        } else {
+            controller.seekTo(0f)
+            false
+        }
+    }
+
+    val playFromQueue: (VideoItem) -> Unit = { targetVideo ->
+        val targetIndex = upNextQueue.indexOfFirst { it.id == targetVideo.id }
+        if (targetIndex != -1) {
+            upNextQueue = upNextQueue.filterIndexed { index, _ -> index > targetIndex }
+        }
+        history.add(currentVideo)
+        playedVideoIds.add(targetVideo.id)
+        isInternalNavigation = true
+        currentOnPlayNextVideo(targetVideo)
+    }
 
     val bridge = remember {
         PhantomPlayerBridge(
@@ -153,9 +208,7 @@ fun PlayerScreen(
                     0 -> {
                         playerState = playerState.copy(isPlaying = false, isEnded = true)
                         mediaService?.updatePlaybackState(false, (playerState.currentTimeSec * 1000).toLong())
-                        nextQueue?.upNext?.firstOrNull()?.let { nextVid ->
-                            currentOnPlayNextVideo(nextVid)
-                        }
+                        playNext()
                     }
                 }
             },
@@ -230,15 +283,8 @@ fun PlayerScreen(
                 service?.apply {
                     onPlayAction = { controller.play() }
                     onPauseAction = { controller.pause() }
-                    onNextAction = {
-                        nextQueue?.upNext?.firstOrNull()?.let { currentOnPlayNextVideo(it) }
-                    }
-                    onPreviousAction = {
-                        val switched = currentOnPlayPreviousVideo()
-                        if (!switched) {
-                            controller.seekTo(0f)
-                        }
-                    }
+                    onNextAction = { playNext() }
+                    onPreviousAction = { playPrevious() }
                     onSeekAction = { posMs ->
                         controller.seekTo(posMs / 1000f)
                     }
@@ -290,8 +336,8 @@ fun PlayerScreen(
     // Load new video into engine & immediately sync notification
     LaunchedEffect(video.id, mediaService) {
         playerState = PlayerState(videoId = video.id)
-        nextQueue = null
         sponsorSegments = emptyList()
+        playedVideoIds.add(video.id)
 
         val lastPos = repository.getLastPosition(video.id)
         controller.loadVideo(video.id, lastPos / 1000f)
@@ -307,10 +353,39 @@ fun PlayerScreen(
         launch {
             sponsorSegments = repository.getSponsorSegments(video.id)
         }
+
+        val fromInternal = isInternalNavigation
+        if (fromInternal) {
+            isInternalNavigation = false
+        }
+
         launch {
-            isLoadingQueue = true
-            nextQueue = repository.getWatchNext(video.id)
-            isLoadingQueue = false
+            if (!fromInternal) {
+                isLoadingQueue = true
+                val nextData = repository.getWatchNext(video.id)
+                if (nextData != null) {
+                    val freshItems = nextData.upNext.filter {
+                        it.id != video.id && it.id !in playedVideoIds
+                    }.distinctBy { it.id }
+                    upNextQueue = if (freshItems.isNotEmpty()) {
+                        freshItems
+                    } else {
+                        nextData.upNext.filter { it.id != video.id }.distinctBy { it.id }
+                    }
+                }
+                isLoadingQueue = false
+            } else {
+                if (upNextQueue.size < 5) {
+                    val nextData = repository.getWatchNext(video.id)
+                    if (nextData != null) {
+                        val existingIds = upNextQueue.map { it.id }.toSet()
+                        val freshItems = nextData.upNext.filter {
+                            it.id !in playedVideoIds && it.id !in existingIds && it.id != video.id
+                        }.distinctBy { it.id }
+                        upNextQueue = upNextQueue + freshItems
+                    }
+                }
+            }
         }
     }
 
@@ -503,12 +578,7 @@ fun PlayerScreen(
                             contentDescription = "Video Sebelumnya",
                             size = 42.dp,
                             iconSize = 22.dp,
-                            onClick = {
-                                val switched = onPlayPreviousVideo()
-                                if (!switched) {
-                                    controller.seekTo(0f)
-                                }
-                            }
+                            onClick = { playPrevious() }
                         )
 
                         LiquidGlassIconButton(
@@ -553,9 +623,7 @@ fun PlayerScreen(
                             contentDescription = "Video Berikutnya",
                             size = 42.dp,
                             iconSize = 22.dp,
-                            onClick = {
-                                nextQueue?.upNext?.firstOrNull()?.let { onPlayNextVideo(it) }
-                            }
+                            onClick = { playNext() }
                         )
                     }
 
@@ -679,7 +747,7 @@ fun PlayerScreen(
                 }
 
                 // Up Next Queue Items
-                if (isLoadingQueue) {
+                if (isLoadingQueue && upNextQueue.isEmpty()) {
                     item {
                         Box(
                             modifier = Modifier
@@ -695,13 +763,11 @@ fun PlayerScreen(
                         }
                     }
                 } else {
-                    nextQueue?.upNext?.let { queueList ->
-                        items(queueList, key = { it.id }) { item ->
-                            LiquidGlassVideoCard(
-                                video = item,
-                                onClick = { onPlayNextVideo(item) }
-                            )
-                        }
+                    items(upNextQueue, key = { it.id }) { item ->
+                        LiquidGlassVideoCard(
+                            video = item,
+                            onClick = { playFromQueue(item) }
+                        )
                     }
                 }
             }
