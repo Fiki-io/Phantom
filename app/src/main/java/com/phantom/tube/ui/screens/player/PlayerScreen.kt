@@ -1034,6 +1034,8 @@ fun PlayerScreen(
                 }
             }
         }
+    }
+}
 
         // 4. PERSISTENT LIQUID GLASS MINIPLAYER (When player is minimized)
         if (isMinimized) {
