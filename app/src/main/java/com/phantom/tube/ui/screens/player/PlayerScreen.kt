@@ -125,14 +125,11 @@ fun PlayerScreen(
     // Favorites
     val isFavorite by repository.isFavorite(video.id).collectAsState(initial = false)
 
+    var mediaService by remember { mutableStateOf<PhantomMediaService?>(null) }
+
     val currentVideo by rememberUpdatedState(video)
-    val currentNextQueue by rememberUpdatedState(nextQueue)
     val currentOnPlayNextVideo by rememberUpdatedState(onPlayNextVideo)
     val currentOnPlayPreviousVideo by rememberUpdatedState(onPlayPreviousVideo)
-    val currentMediaService by rememberUpdatedState(mediaService)
-    val currentSponsorSegments by rememberUpdatedState(sponsorSegments)
-
-    var mediaService by remember { mutableStateOf<PhantomMediaService?>(null) }
 
     val controller = remember { PhantomPlayerController(context) }
 
@@ -146,17 +143,17 @@ fun PlayerScreen(
                 when (state) {
                     1 -> {
                         playerState = playerState.copy(isPlaying = true, isBuffering = false, isEnded = false, errorCode = null)
-                        currentMediaService?.updatePlaybackState(true, (playerState.currentTimeSec * 1000).toLong())
+                        mediaService?.updatePlaybackState(true, (playerState.currentTimeSec * 1000).toLong())
                     }
                     2 -> {
                         playerState = playerState.copy(isPlaying = false, isBuffering = false)
-                        currentMediaService?.updatePlaybackState(false, (playerState.currentTimeSec * 1000).toLong())
+                        mediaService?.updatePlaybackState(false, (playerState.currentTimeSec * 1000).toLong())
                     }
                     3 -> playerState = playerState.copy(isBuffering = true)
                     0 -> {
                         playerState = playerState.copy(isPlaying = false, isEnded = true)
-                        currentMediaService?.updatePlaybackState(false, (playerState.currentTimeSec * 1000).toLong())
-                        currentNextQueue?.upNext?.firstOrNull()?.let { nextVid ->
+                        mediaService?.updatePlaybackState(false, (playerState.currentTimeSec * 1000).toLong())
+                        nextQueue?.upNext?.firstOrNull()?.let { nextVid ->
                             currentOnPlayNextVideo(nextVid)
                         }
                     }
@@ -171,7 +168,7 @@ fun PlayerScreen(
                 )
 
                 if (wasZeroDuration) {
-                    currentMediaService?.updateDuration((duration * 1000).toLong())
+                    mediaService?.updateDuration((duration * 1000).toLong())
                 }
 
                 // Record watch history
@@ -187,7 +184,7 @@ fun PlayerScreen(
                 }
 
                 // Check SponsorBlock segments
-                currentSponsorSegments.forEach { seg ->
+                sponsorSegments.forEach { seg ->
                     if (current >= seg.startSecond && current < (seg.startSecond + 1.5f)) {
                         lastSkippedFromSec = current
                         lastSkippedSeconds = (seg.endSecond - seg.startSecond).toInt()
@@ -234,7 +231,7 @@ fun PlayerScreen(
                     onPlayAction = { controller.play() }
                     onPauseAction = { controller.pause() }
                     onNextAction = {
-                        currentNextQueue?.upNext?.firstOrNull()?.let { currentOnPlayNextVideo(it) }
+                        nextQueue?.upNext?.firstOrNull()?.let { currentOnPlayNextVideo(it) }
                     }
                     onPreviousAction = {
                         val switched = currentOnPlayPreviousVideo()
