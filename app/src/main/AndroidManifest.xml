@@ -34,6 +34,12 @@
             </intent-filter>
         </activity>
 
+        <activity
+            android:name=".ui.screens.crash.CrashActivity"
+            android:exported="false"
+            android:process=":crash"
+            android:theme="@style/Theme.Phantom" />
+
         <service
             android:name=".player.service.PhantomMediaService"
             android:exported="false"

@@ -169,26 +169,30 @@ fun LiquidGlassMiniPlayer(
             }
 
             // Real-time Mini Scrubber Progress Line at the very bottom
-            val progress = if (durationSec > 0f) {
-                (currentTimeSec / durationSec).coerceIn(0f, 1f)
+            val safeCurrent = if (currentTimeSec.isNaN() || !currentTimeSec.isFinite()) 0f else currentTimeSec
+            val safeDuration = if (durationSec.isNaN() || !durationSec.isFinite()) 0f else durationSec
+            val progressFraction = if (safeDuration > 0f) {
+                (safeCurrent / safeDuration).coerceIn(0f, 1f)
             } else 0f
 
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(2.dp)
+                    .height(2.5.dp)
                     .background(Color.White.copy(alpha = 0.1f))
             ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth(fraction = progress)
-                        .fillMaxHeight()
-                        .background(
-                            Brush.horizontalGradient(
-                                listOf(NeonCyan, NeonPink)
+                if (progressFraction > 0.001f) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth(fraction = progressFraction.coerceIn(0.001f, 1f))
+                            .fillMaxHeight()
+                            .background(
+                                Brush.horizontalGradient(
+                                    listOf(NeonCyan, NeonPink)
+                                )
                             )
-                        )
-                )
+                    )
+                }
             }
         }
     }

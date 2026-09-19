@@ -1,6 +1,7 @@
 package com.phantom.tube
 
 import android.app.Application
+import com.phantom.tube.core.crash.PhantomCrashHandler
 import com.phantom.tube.core.database.PhantomDatabase
 import com.phantom.tube.data.innertube.InnerTubeClient
 import com.phantom.tube.data.repository.PhantomRepository
@@ -16,6 +17,7 @@ class PhantomApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        PhantomCrashHandler.install(this)
         database = PhantomDatabase.getInstance(this)
         repository = PhantomRepository(
             innerTubeClient = InnerTubeClient(),

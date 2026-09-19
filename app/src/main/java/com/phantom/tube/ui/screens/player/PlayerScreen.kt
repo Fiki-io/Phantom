@@ -30,6 +30,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -448,9 +449,10 @@ fun PlayerScreen(
         // 1. THE SINGLE PERSISTENT VIDEO PLAYER BOX (Always at exact same tree slot)
         val videoBoxModifier = when {
             isMinimized -> Modifier
-                .size(1.dp)
-                .alpha(0.001f)
-                .align(Alignment.TopStart)
+                .fillMaxWidth()
+                .aspectRatio(16f / 9f)
+                .offset(y = (-3000).dp)
+                .align(Alignment.TopCenter)
             isFullscreen -> Modifier.fillMaxSize()
             else -> Modifier
                 .fillMaxWidth()
