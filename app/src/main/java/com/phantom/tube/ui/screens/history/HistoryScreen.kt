@@ -16,7 +16,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DeleteSweep
@@ -129,7 +129,7 @@ fun HistoryScreen(
                 contentPadding = PaddingValues(top = 8.dp, bottom = 100.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                items(historyList, key = { it.videoId }) { entry ->
+                itemsIndexed(historyList, key = { index, entry -> "hist_${entry.videoId}_$index" }) { _, entry ->
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()

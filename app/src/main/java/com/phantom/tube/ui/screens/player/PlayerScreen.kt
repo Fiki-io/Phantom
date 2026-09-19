@@ -926,7 +926,7 @@ fun PlayerScreen(
                         }
                     }
                 } else {
-                    items(recommendedVideos, key = { "rec_" + it.id }) { item ->
+                    itemsIndexed(recommendedVideos, key = { index, item -> "rec_${item.id}_$index" }) { _, item ->
                         LiquidGlassVideoCard(
                             video = item,
                             onClick = {
