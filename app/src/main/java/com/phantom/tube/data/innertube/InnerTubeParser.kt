@@ -159,17 +159,25 @@ object InnerTubeParser {
     fun parseSuggestions(jsonString: String): List<String> {
         val suggestions = mutableListOf<String>()
         try {
-            // format: window.google.ac.h(["query", [["sug1", 0], ["sug2", 0]]])
-            val start = jsonString.indexOf('(')
-            val end = jsonString.lastIndexOf(')')
-            if (start != -1 && end != -1 && end > start) {
-                val json = jsonString.substring(start + 1, end)
-                val array = JSONArray(json)
-                if (array.length() > 1) {
-                    val items = array.optJSONArray(1) ?: JSONArray()
-                    for (i in 0 until items.length()) {
-                        val row = items.optJSONArray(i) ?: continue
-                        val text = row.optString(0)
+            var raw = jsonString.trim()
+            if (raw.startsWith("window.google.ac.h(") || (raw.contains("(") && raw.contains(")"))) {
+                val start = raw.indexOf('(')
+                val end = raw.lastIndexOf(')')
+                if (start != -1 && end != -1 && end > start) {
+                    raw = raw.substring(start + 1, end).trim()
+                }
+            }
+            val array = JSONArray(raw)
+            if (array.length() > 1) {
+                val items = array.optJSONArray(1) ?: JSONArray()
+                for (i in 0 until items.length()) {
+                    val item = items.opt(i)
+                    if (item is String) {
+                        if (item.isNotBlank()) {
+                            suggestions.add(item)
+                        }
+                    } else if (item is JSONArray) {
+                        val text = item.optString(0)
                         if (text.isNotBlank()) {
                             suggestions.add(text)
                         }

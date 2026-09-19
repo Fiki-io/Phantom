@@ -2,6 +2,8 @@ package com.phantom.tube.data.repository
 
 import com.phantom.tube.core.database.FavoriteDao
 import com.phantom.tube.core.database.FavoriteEntity
+import com.phantom.tube.core.database.SearchHistoryDao
+import com.phantom.tube.core.database.SearchHistoryEntity
 import com.phantom.tube.core.database.WatchHistoryDao
 import com.phantom.tube.core.database.WatchHistoryEntity
 import com.phantom.tube.data.innertube.InnerTubeClient
@@ -15,7 +17,8 @@ class PhantomRepository(
     private val innerTubeClient: InnerTubeClient = InnerTubeClient(),
     private val sponsorBlockClient: SponsorBlockClient = SponsorBlockClient(),
     private val watchHistoryDao: WatchHistoryDao,
-    private val favoriteDao: FavoriteDao
+    private val favoriteDao: FavoriteDao,
+    private val searchHistoryDao: SearchHistoryDao
 ) {
     suspend fun getFeed(query: String = "trending"): List<VideoItem> {
         return innerTubeClient.fetchFeed(query)
@@ -35,6 +38,25 @@ class PhantomRepository(
 
     suspend fun getSponsorSegments(videoId: String): List<SponsorSegment> {
         return sponsorBlockClient.getSkipSegments(videoId)
+    }
+
+    // Search History
+    fun getSearchHistory(limit: Int = 25): Flow<List<SearchHistoryEntity>> {
+        return searchHistoryDao.getRecentHistory(limit)
+    }
+
+    suspend fun saveSearchQuery(query: String) {
+        if (query.isNotBlank()) {
+            searchHistoryDao.insertOrUpdate(SearchHistoryEntity(query = query.trim()))
+        }
+    }
+
+    suspend fun deleteSearchQuery(query: String) {
+        searchHistoryDao.delete(query)
+    }
+
+    suspend fun clearSearchHistory() {
+        searchHistoryDao.clearAll()
     }
 
     // Watch History

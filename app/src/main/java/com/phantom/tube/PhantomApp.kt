@@ -23,7 +23,8 @@ class PhantomApp : Application() {
             innerTubeClient = InnerTubeClient(),
             sponsorBlockClient = SponsorBlockClient(),
             watchHistoryDao = database.watchHistoryDao(),
-            favoriteDao = database.favoriteDao()
+            favoriteDao = database.favoriteDao(),
+            searchHistoryDao = database.searchHistoryDao()
         )
     }
 }

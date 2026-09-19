@@ -88,7 +88,7 @@ class InnerTubeClient(
         try {
             val encoded = java.net.URLEncoder.encode(query, "UTF-8")
             val request = Request.Builder()
-                .url("https://suggestqueries.google.com/complete/search?client=youtube&ds=yt&q=$encoded")
+                .url("https://suggestqueries.google.com/complete/search?client=firefox&ds=yt&hl=id&gl=ID&q=$encoded")
                 .header("User-Agent", userAgent)
                 .get()
                 .build()

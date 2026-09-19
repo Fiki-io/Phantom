@@ -25,6 +25,8 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.NorthWest
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.CircularProgressIndicator
@@ -32,6 +34,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -46,9 +49,11 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.phantom.tube.core.theme.NeonCyan
+import com.phantom.tube.core.theme.NeonPink
 import com.phantom.tube.core.theme.ObsidianDark
 import com.phantom.tube.core.theme.TextMuted
 import com.phantom.tube.core.theme.TextPrimary
@@ -58,7 +63,6 @@ import com.phantom.tube.data.model.VideoItem
 import com.phantom.tube.data.repository.PhantomRepository
 import com.phantom.tube.ui.components.LiquidGlassIconButton
 import com.phantom.tube.ui.components.LiquidGlassVideoCard
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -75,21 +79,23 @@ fun SearchScreen(
     var isSearching by remember { mutableStateOf(false) }
     var hasSearched by remember { mutableStateOf(false) }
 
+    val searchHistory by repository.getSearchHistory().collectAsState(initial = emptyList())
+
     val scope = rememberCoroutineScope()
     val focusRequester = remember { FocusRequester() }
     val keyboardController = LocalSoftwareKeyboardController.current
 
-    var debounceJob by remember { mutableStateOf<Job?>(null) }
-
     fun executeSearch(query: String) {
-        if (query.isBlank()) return
+        val trimmed = query.trim()
+        if (trimmed.isBlank()) return
         keyboardController?.hide()
         scope.launch {
+            repository.saveSearchQuery(trimmed)
             isSearching = true
             hasSearched = true
             suggestions = emptyList()
             try {
-                searchResults = repository.search(query)
+                searchResults = repository.search(trimmed)
             } catch (e: Exception) {
                 searchResults = emptyList()
             } finally {
@@ -98,12 +104,13 @@ fun SearchScreen(
         }
     }
 
-    LaunchedEffect(searchQuery) {
+    LaunchedEffect(searchQuery, hasSearched) {
         if (searchQuery.isNotBlank() && !hasSearched) {
-            debounceJob?.cancel()
-            debounceJob = scope.launch {
-                delay(300)
-                suggestions = repository.getSuggestions(searchQuery)
+            delay(250)
+            try {
+                suggestions = repository.getSuggestions(searchQuery.trim())
+            } catch (e: Exception) {
+                suggestions = emptyList()
             }
         } else if (searchQuery.isBlank()) {
             suggestions = emptyList()
@@ -201,6 +208,8 @@ fun SearchScreen(
                                 .clickable {
                                     searchQuery = ""
                                     suggestions = emptyList()
+                                    hasSearched = false
+                                    searchResults = emptyList()
                                 }
                         )
                     }
@@ -210,7 +219,7 @@ fun SearchScreen(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // Content: Suggestions or Results
+        // Content: Loading, History, Suggestions, or Results
         Box(modifier = Modifier.fillMaxSize()) {
             when {
                 isSearching -> {
@@ -251,28 +260,33 @@ fun SearchScreen(
                                         executeSearch(suggestion)
                                     }
                                     .padding(horizontal = 14.dp, vertical = 12.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(
-                                        imageVector = Icons.Default.Search,
-                                        contentDescription = null,
-                                        tint = TextMuted,
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(12.dp))
-                                    Text(
-                                        text = suggestion,
-                                        color = TextPrimary,
-                                        fontSize = 14.sp
-                                    )
-                                }
+                                Icon(
+                                    imageVector = Icons.Default.Search,
+                                    contentDescription = null,
+                                    tint = NeonCyan.copy(alpha = 0.7f),
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Text(
+                                    text = suggestion,
+                                    color = TextPrimary,
+                                    fontSize = 14.sp,
+                                    modifier = Modifier.weight(1f),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
                                 Icon(
                                     imageVector = Icons.Default.NorthWest,
-                                    contentDescription = null,
+                                    contentDescription = "Gunakan kueri",
                                     tint = TextMuted,
-                                    modifier = Modifier.size(14.dp)
+                                    modifier = Modifier
+                                        .size(16.dp)
+                                        .clickable {
+                                            searchQuery = suggestion
+                                        }
                                 )
                             }
                         }
@@ -301,16 +315,130 @@ fun SearchScreen(
                         )
                     }
                 }
+                searchQuery.isBlank() && searchHistory.isNotEmpty() -> {
+                    Column(modifier = Modifier.fillMaxSize()) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 20.dp, vertical = 6.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.History,
+                                    contentDescription = null,
+                                    tint = NeonCyan,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "Riwayat Pencarian",
+                                    color = TextSecondary,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                            Text(
+                                text = "Hapus Semua",
+                                color = NeonPink,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Medium,
+                                modifier = Modifier
+                                    .clickable {
+                                        scope.launch {
+                                            repository.clearSearchHistory()
+                                        }
+                                    }
+                                    .padding(4.dp)
+                            )
+                        }
+
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            items(searchHistory, key = { it.query }) { item ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .liquidGlass(
+                                            shape = RoundedCornerShape(12.dp),
+                                            borderWidth = 0.5.dp,
+                                            glassAlpha = 0.35f
+                                        )
+                                        .clickable {
+                                            searchQuery = item.query
+                                            executeSearch(item.query)
+                                        }
+                                        .padding(horizontal = 14.dp, vertical = 12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.History,
+                                        contentDescription = null,
+                                        tint = TextMuted,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(12.dp))
+                                    Text(
+                                        text = item.query,
+                                        color = TextPrimary,
+                                        fontSize = 14.sp,
+                                        modifier = Modifier.weight(1f),
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Icon(
+                                        imageVector = Icons.Default.NorthWest,
+                                        contentDescription = "Salin ke pencarian",
+                                        tint = TextMuted,
+                                        modifier = Modifier
+                                            .size(16.dp)
+                                            .clickable {
+                                                searchQuery = item.query
+                                            }
+                                    )
+                                    Spacer(modifier = Modifier.width(12.dp))
+                                    Icon(
+                                        imageVector = Icons.Default.Close,
+                                        contentDescription = "Hapus kueri",
+                                        tint = TextMuted,
+                                        modifier = Modifier
+                                            .size(16.dp)
+                                            .clickable {
+                                                scope.launch {
+                                                    repository.deleteSearchQuery(item.query)
+                                                }
+                                            }
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
                 else -> {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text(
-                            text = "Ketik judul atau kata kunci untuk mencari",
-                            color = TextMuted,
-                            fontSize = 13.sp
-                        )
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(
+                                imageVector = Icons.Default.Search,
+                                contentDescription = null,
+                                tint = TextMuted.copy(alpha = 0.5f),
+                                modifier = Modifier.size(52.dp)
+                            )
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Text(
+                                text = "Ketik judul atau kata kunci untuk mencari",
+                                color = TextMuted,
+                                fontSize = 13.sp
+                            )
+                        }
                     }
                 }
             }
         }
     }
 }
+
