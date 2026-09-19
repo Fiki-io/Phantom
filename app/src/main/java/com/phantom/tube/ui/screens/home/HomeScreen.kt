@@ -1,10 +1,5 @@
 package com.phantom.tube.ui.screens.home
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -167,22 +162,17 @@ fun HomeScreen(
 
         Box(modifier = Modifier.fillMaxSize()) {
             // Live refresh pill indicator
-            AnimatedVisibility(
-                visible = isRefreshing,
-                enter = fadeIn() + slideInVertically(initialOffsetY = { -it }),
-                exit = fadeOut() + slideOutVertically(targetOffsetY = { -it }),
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .zIndex(10f)
-                    .padding(top = 8.dp)
-            ) {
+            if (isRefreshing) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .zIndex(10f)
+                        .padding(top = 8.dp)
                         .liquidGlass(
                             shape = RoundedCornerShape(20.dp),
                             borderWidth = 1.dp,
-                            glassAlpha = 0.75f,
+                            glassAlpha = 0.85f,
                             accentGlow = NeonCyan
                         )
                         .padding(horizontal = 16.dp, vertical = 8.dp)
