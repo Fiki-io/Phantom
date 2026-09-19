@@ -24,12 +24,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.derivedStateOf
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -89,7 +84,11 @@ fun HomeScreen(
             }
             hasError = false
             try {
-                val result = repository.getFeedPage(query = categoryToQuery(category))
+                val result = if (category == "Semua") {
+                    repository.getHomeRecommendations(historyIndex = 0)
+                } else {
+                    repository.getFeedPage(query = categoryToQuery(category))
+                }
                 videos = result.videos
                 continuationToken = result.continuationToken
                 hasError = result.videos.isEmpty()
@@ -113,7 +112,17 @@ fun HomeScreen(
         scope.launch {
             isLoadingMore = true
             try {
-                val result = repository.getFeedPage(continuation = token)
+                val result = if (selectedCategory == "Semua") {
+                    if (token.startsWith("history_")) {
+                        val nextIdx = token.substringAfter("history_").toIntOrNull() ?: 1
+                        repository.getHomeRecommendations(historyIndex = nextIdx)
+                    } else {
+                        repository.getHomeRecommendations(continuation = token)
+                    }
+                } else {
+                    repository.getFeedPage(continuation = token)
+                }
+
                 if (result.videos.isNotEmpty()) {
                     val existingIds = videos.map { it.id }.toSet()
                     val newVideos = result.videos.filterNot { it.id in existingIds }
@@ -132,18 +141,17 @@ fun HomeScreen(
         loadFeed(selectedCategory)
     }
 
-    // Infinite scroll detection
-    val shouldLoadMore = remember {
-        derivedStateOf {
-            val totalItems = listState.layoutInfo.totalItemsCount
-            val lastVisible = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
-            totalItems > 0 && lastVisible >= totalItems - 4
-        }
-    }
-
-    LaunchedEffect(shouldLoadMore.value) {
-        if (shouldLoadMore.value && continuationToken != null && !isLoadingMore && !isLoading && !isRefreshing) {
-            loadMore()
+    // Automatic infinite scroll engine: monitors scroll state on every frame
+    LaunchedEffect(listState, continuationToken, isLoadingMore, videos.size) {
+        snapshotFlow {
+            val layoutInfo = listState.layoutInfo
+            val total = layoutInfo.totalItemsCount
+            val last = layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
+            total to last
+        }.collect { (total, last) ->
+            if (total > 0 && last >= total - 3 && continuationToken != null && !isLoadingMore && !isLoading && !isRefreshing) {
+                loadMore()
+            }
         }
     }
 
@@ -237,7 +245,13 @@ fun HomeScreen(
                         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 100.dp),
                         verticalArrangement = Arrangement.spacedBy(14.dp)
                     ) {
-                        itemsIndexed(videos, key = { index, video -> "home_${video.id}_$index" }) { _, video ->
+                        itemsIndexed(videos, key = { index, video -> "home_${video.id}_$index" }) { index, video ->
+                            // Prefetch trigger when reaching 3rd item from bottom
+                            if (index >= videos.size - 3 && continuationToken != null && !isLoadingMore && !isLoading && !isRefreshing) {
+                                LaunchedEffect(continuationToken) {
+                                    loadMore()
+                                }
+                            }
                             LiquidGlassVideoCard(
                                 video = video,
                                 onClick = { onVideoClick(video) }

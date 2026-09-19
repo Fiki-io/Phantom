@@ -21,6 +21,38 @@ class PhantomRepository(
     private val favoriteDao: FavoriteDao,
     private val searchHistoryDao: SearchHistoryDao
 ) {
+    suspend fun getHomeRecommendations(
+        historyIndex: Int = 0,
+        continuation: String? = null
+    ): FeedResult {
+        // If we have a direct continuation token from YouTube, load next page
+        if (!continuation.isNullOrBlank() && !continuation.startsWith("history_")) {
+            val pageResult = innerTubeClient.fetchFeedPage(continuation = continuation)
+            if (pageResult.videos.isNotEmpty()) {
+                return pageResult
+            }
+        }
+
+        // Check local watch history for personalized YouTube algorithmic recommendations
+        val recentWatched = watchHistoryDao.getRecentWatched(limit = 10)
+        if (recentWatched.isNotEmpty() && historyIndex < recentWatched.size) {
+            val targetVideo = recentWatched[historyIndex]
+            val nextQueue = innerTubeClient.fetchWatchNext(targetVideo.videoId)
+            val recs = nextQueue?.recommendations ?: emptyList()
+            if (recs.isNotEmpty()) {
+                val nextToken = if (historyIndex + 1 < recentWatched.size) {
+                    "history_${historyIndex + 1}"
+                } else {
+                    null
+                }
+                return FeedResult(videos = recs, continuationToken = nextToken)
+            }
+        }
+
+        // Fallback for new users (no watch history yet) or end of history:
+        return innerTubeClient.fetchFeedPage(query = "trending indonesia", continuation = continuation)
+    }
+
     suspend fun getFeedPage(query: String? = null, continuation: String? = null): FeedResult {
         return innerTubeClient.fetchFeedPage(query, continuation)
     }

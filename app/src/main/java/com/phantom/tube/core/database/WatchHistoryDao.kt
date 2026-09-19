@@ -15,6 +15,9 @@ interface WatchHistoryDao {
     @Query("SELECT * FROM watch_history ORDER BY watchedAt DESC")
     fun getAllHistory(): Flow<List<WatchHistoryEntity>>
 
+    @Query("SELECT * FROM watch_history ORDER BY watchedAt DESC LIMIT :limit")
+    suspend fun getRecentWatched(limit: Int = 10): List<WatchHistoryEntity>
+
     @Query("SELECT * FROM watch_history WHERE videoId = :videoId LIMIT 1")
     suspend fun getEntry(videoId: String): WatchHistoryEntity?
 
