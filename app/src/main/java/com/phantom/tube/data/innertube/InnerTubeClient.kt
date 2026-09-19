@@ -59,11 +59,13 @@ class InnerTubeClient(
         }
     }
 
-    suspend fun fetchWatchNext(videoId: String): NextQueue? = withContext(Dispatchers.IO) {
+    suspend fun fetchWatchNext(videoId: String, playlistId: String? = null): NextQueue? = withContext(Dispatchers.IO) {
         try {
             val bodyJson = JSONObject().apply {
                 put("context", createClientContext())
                 put("videoId", videoId)
+                val targetPlaylistId = if (!playlistId.isNullOrBlank()) playlistId else "RD$videoId"
+                put("playlistId", targetPlaylistId)
             }
             val request = Request.Builder()
                 .url("https://www.youtube.com/youtubei/v1/next?prettyPrint=false")

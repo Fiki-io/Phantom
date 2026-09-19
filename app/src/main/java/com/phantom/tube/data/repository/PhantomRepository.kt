@@ -29,8 +29,8 @@ class PhantomRepository(
         return innerTubeClient.fetchSuggestions(query)
     }
 
-    suspend fun getWatchNext(videoId: String): NextQueue? {
-        return innerTubeClient.fetchWatchNext(videoId)
+    suspend fun getWatchNext(videoId: String, playlistId: String? = null): NextQueue? {
+        return innerTubeClient.fetchWatchNext(videoId, playlistId)
     }
 
     suspend fun getSponsorSegments(videoId: String): List<SponsorSegment> {

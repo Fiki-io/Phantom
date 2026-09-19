@@ -61,22 +61,81 @@ object InnerTubeParser {
                 }
             }
 
+            // 2. Up Next Queue: Prioritize official YouTube Mix / Playlist Queue (Photo 1)
+            val playlistObj = watchNext.optJSONObject("playlist")?.optJSONObject("playlist")
+                ?: watchNext.optJSONObject("playlist")?.optJSONObject("playlistPanelRenderer")
+
+            val upNextList = mutableListOf<VideoItem>()
+
+            if (playlistObj != null) {
+                val plContents = playlistObj.optJSONArray("contents") ?: JSONArray()
+                val itemsBeforeCurrent = mutableListOf<VideoItem>()
+                val itemsAfterCurrent = mutableListOf<VideoItem>()
+                var currentFound = false
+
+                for (i in 0 until plContents.length()) {
+                    val raw = plContents.optJSONObject(i) ?: continue
+                    val ppvr = raw.optJSONObject("playlistPanelVideoRenderer") ?: continue
+                    val videoId = ppvr.optString("videoId")
+                    if (videoId.isBlank()) continue
+
+                    val title = parseRunsText(ppvr.optJSONObject("title"))
+                    val channel = parseRunsText(ppvr.optJSONObject("longBylineText") ?: ppvr.optJSONObject("shortBylineText"))
+                    val thumb = extractThumbnail(ppvr.optJSONObject("thumbnail"), videoId)
+                    val duration = ppvr.optJSONObject("lengthText")?.optString("simpleText") ?: ""
+
+                    val item = VideoItem(
+                        id = videoId,
+                        title = title,
+                        channelTitle = channel,
+                        thumbnailUrl = thumb,
+                        durationText = duration
+                    )
+
+                    val isSelected = ppvr.optBoolean("selected", false)
+                    if (isSelected || videoId == currentVideoId) {
+                        currentFound = true
+                        if (currentTitle == "Video" && title.isNotBlank()) {
+                            currentTitle = title
+                        }
+                        if (currentChannel.isBlank() && channel.isNotBlank()) {
+                            currentChannel = channel
+                        }
+                    } else {
+                        if (!currentFound) {
+                            itemsBeforeCurrent.add(item)
+                        } else {
+                            itemsAfterCurrent.add(item)
+                        }
+                    }
+                }
+
+                // Up next priority: next tracks in mix first, then preceding tracks
+                upNextList.addAll(itemsAfterCurrent)
+                upNextList.addAll(itemsBeforeCurrent)
+            }
+
+            // Fallback to secondaryResults (Photo 2: Recommendations) if no playlist/mix available
+            if (upNextList.isEmpty()) {
+                val secondary = watchNext.optJSONObject("secondaryResults")?.optJSONObject("secondaryResults")
+                val secondaryResults = secondary?.optJSONArray("results") ?: JSONArray()
+
+                for (i in 0 until secondaryResults.length()) {
+                    val item = secondaryResults.optJSONObject(i) ?: continue
+                    parseVideoItem(item)?.let {
+                        if (it.id != currentVideoId) {
+                            upNextList.add(it)
+                        }
+                    }
+                }
+            }
+
             val currentVideo = VideoItem(
                 id = currentVideoId,
                 title = currentTitle,
                 channelTitle = currentChannel,
                 thumbnailUrl = "https://i.ytimg.com/vi/$currentVideoId/hqdefault.jpg"
             )
-
-            // 2. Up Next & Related Queue
-            val secondary = watchNext.optJSONObject("secondaryResults")?.optJSONObject("secondaryResults")
-            val secondaryResults = secondary?.optJSONArray("results") ?: JSONArray()
-            val upNextList = mutableListOf<VideoItem>()
-
-            for (i in 0 until secondaryResults.length()) {
-                val item = secondaryResults.optJSONObject(i) ?: continue
-                parseVideoItem(item)?.let { upNextList.add(it) }
-            }
 
             return NextQueue(currentVideo = currentVideo, upNext = upNextList)
         } catch (e: Exception) {

@@ -337,6 +337,12 @@ fun PlayerScreen(
     LaunchedEffect(video.id, mediaService) {
         playerState = PlayerState(videoId = video.id)
         sponsorSegments = emptyList()
+        val fromInternal = isInternalNavigation
+        if (fromInternal) {
+            isInternalNavigation = false
+        } else {
+            playedVideoIds.clear()
+        }
         playedVideoIds.add(video.id)
 
         val lastPos = repository.getLastPosition(video.id)
@@ -354,16 +360,20 @@ fun PlayerScreen(
             sponsorSegments = repository.getSponsorSegments(video.id)
         }
 
-        val fromInternal = isInternalNavigation
-        if (fromInternal) {
-            isInternalNavigation = false
-        }
-
         launch {
             if (!fromInternal) {
                 isLoadingQueue = true
                 val nextData = repository.getWatchNext(video.id)
                 if (nextData != null) {
+                    if (video.title.isBlank() || video.title == "Video" || video.channelTitle.isBlank()) {
+                        mediaService?.updateMediaInfo(
+                            title = nextData.currentVideo.title,
+                            channel = nextData.currentVideo.channelTitle,
+                            durationMs = 0L,
+                            playing = true,
+                            thumbnailUrl = nextData.currentVideo.thumbnailUrl
+                        )
+                    }
                     val freshItems = nextData.upNext.filter {
                         it.id != video.id && it.id !in playedVideoIds
                     }.distinctBy { it.id }
