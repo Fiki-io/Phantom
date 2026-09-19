@@ -45,6 +45,7 @@ object InnerTubeParser {
             val primaryContents = results?.optJSONArray("contents") ?: JSONArray()
             var currentTitle = "Video"
             var currentChannel = ""
+            var currentAvatar = ""
 
             for (i in 0 until primaryContents.length()) {
                 val p = primaryContents.optJSONObject(i) ?: continue
@@ -57,6 +58,10 @@ object InnerTubeParser {
                     val owner = videoSecondaryInfo.optJSONObject("owner")?.optJSONObject("videoOwnerRenderer")
                     if (owner != null) {
                         currentChannel = parseRunsText(owner.optJSONObject("title"))
+                        val ownerThumb = extractThumbnail(owner.optJSONObject("thumbnail"), "")
+                        if (ownerThumb.isNotBlank()) {
+                            currentAvatar = ownerThumb
+                        }
                     }
                 }
             }
@@ -134,6 +139,7 @@ object InnerTubeParser {
                 id = currentVideoId,
                 title = currentTitle,
                 channelTitle = currentChannel,
+                channelAvatarUrl = currentAvatar,
                 thumbnailUrl = "https://i.ytimg.com/vi/$currentVideoId/hqdefault.jpg"
             )
 
@@ -188,12 +194,14 @@ object InnerTubeParser {
             val views = vr.optJSONObject("shortViewCountText")?.optString("simpleText") ?: ""
             val published = vr.optJSONObject("publishedTimeText")?.optString("simpleText") ?: ""
             val thumb = extractThumbnail(vr.optJSONObject("thumbnail"), videoId)
+            val avatar = extractAvatar(vr)
 
             return VideoItem(
                 id = videoId,
                 title = title,
                 channelTitle = channel,
                 thumbnailUrl = thumb,
+                channelAvatarUrl = avatar,
                 durationText = duration,
                 viewCountText = views,
                 publishedTimeText = published
@@ -211,12 +219,14 @@ object InnerTubeParser {
             val views = cvr.optJSONObject("shortViewCountText")?.optString("simpleText") ?: ""
             val published = cvr.optJSONObject("publishedTimeText")?.optString("simpleText") ?: ""
             val thumb = extractThumbnail(cvr.optJSONObject("thumbnail"), videoId)
+            val avatar = extractAvatar(cvr)
 
             return VideoItem(
                 id = videoId,
                 title = title,
                 channelTitle = channel,
                 thumbnailUrl = thumb,
+                channelAvatarUrl = avatar,
                 durationText = duration,
                 viewCountText = views,
                 publishedTimeText = published
@@ -256,11 +266,26 @@ object InnerTubeParser {
                 published = row1?.optJSONObject(1)?.optJSONObject("text")?.optString("content") ?: ""
             }
 
+            var thumb = "https://i.ytimg.com/vi/$videoId/hqdefault.jpg"
+            val thumbSources = lvm.optJSONObject("contentImage")
+                ?.optJSONObject("thumbnailViewModel")
+                ?.optJSONObject("image")
+                ?.optJSONArray("sources")
+            if (thumbSources != null && thumbSources.length() > 0) {
+                val lastThumb = thumbSources.optJSONObject(thumbSources.length() - 1)?.optString("url") ?: ""
+                if (lastThumb.isNotBlank()) {
+                    thumb = if (lastThumb.startsWith("//")) "https:$lastThumb" else lastThumb
+                }
+            }
+
+            val avatar = extractAvatar(lvm)
+
             return VideoItem(
                 id = videoId,
                 title = title,
                 channelTitle = channel,
-                thumbnailUrl = "https://i.ytimg.com/vi/$videoId/hqdefault.jpg",
+                thumbnailUrl = thumb,
+                channelAvatarUrl = avatar,
                 durationText = "",
                 viewCountText = if (views.isNotBlank()) "$views views" else "",
                 publishedTimeText = published
@@ -268,6 +293,54 @@ object InnerTubeParser {
         }
 
         return null
+    }
+
+    private fun extractAvatar(json: JSONObject): String {
+        // 1. channelThumbnailSupportedRenderers -> channelThumbnailWithLinkRenderer -> thumbnail -> thumbnails
+        val ctsr = json.optJSONObject("channelThumbnailSupportedRenderers")
+            ?.optJSONObject("channelThumbnailWithLinkRenderer")
+            ?.optJSONObject("thumbnail")
+        val url1 = extractThumbnail(ctsr, "")
+        if (url1.isNotBlank()) return url1
+
+        // 2. avatar -> decoratedAvatarViewModel -> avatar -> avatarViewModel -> image -> sources
+        val avatarSources = json.optJSONObject("avatar")
+            ?.optJSONObject("decoratedAvatarViewModel")
+            ?.optJSONObject("avatar")
+            ?.optJSONObject("avatarViewModel")
+            ?.optJSONObject("image")
+            ?.optJSONArray("sources")
+        if (avatarSources != null && avatarSources.length() > 0) {
+            val last = avatarSources.optJSONObject(avatarSources.length() - 1)
+            val url2 = last?.optString("url") ?: ""
+            if (url2.isNotBlank()) {
+                return if (url2.startsWith("//")) "https:$url2" else url2
+            }
+        }
+
+        // 3. channelThumbnail -> thumbnails
+        val ct = json.optJSONObject("channelThumbnail")
+        val url3 = extractThumbnail(ct, "")
+        if (url3.isNotBlank()) return url3
+
+        // 4. lockupViewModel metadata image
+        val lvmImage = json.optJSONObject("metadata")
+            ?.optJSONObject("lockupMetadataViewModel")
+            ?.optJSONObject("image")
+            ?.optJSONObject("decoratedAvatarViewModel")
+            ?.optJSONObject("avatar")
+            ?.optJSONObject("avatarViewModel")
+            ?.optJSONObject("image")
+            ?.optJSONArray("sources")
+        if (lvmImage != null && lvmImage.length() > 0) {
+            val last = lvmImage.optJSONObject(lvmImage.length() - 1)
+            val url4 = last?.optString("url") ?: ""
+            if (url4.isNotBlank()) {
+                return if (url4.startsWith("//")) "https:$url4" else url4
+            }
+        }
+
+        return ""
     }
 
     private fun parseRunsText(obj: JSONObject?): String {
@@ -284,7 +357,7 @@ object InnerTubeParser {
     }
 
     private fun extractThumbnail(obj: JSONObject?, videoId: String): String {
-        if (obj == null) return "https://i.ytimg.com/vi/$videoId/hqdefault.jpg"
+        if (obj == null) return if (videoId.isNotBlank()) "https://i.ytimg.com/vi/$videoId/hqdefault.jpg" else ""
         val thumbnails = obj.optJSONArray("thumbnails")
         if (thumbnails != null && thumbnails.length() > 0) {
             val last = thumbnails.optJSONObject(thumbnails.length() - 1)
@@ -293,6 +366,6 @@ object InnerTubeParser {
                 return if (url.startsWith("//")) "https:$url" else url
             }
         }
-        return "https://i.ytimg.com/vi/$videoId/hqdefault.jpg"
+        return if (videoId.isNotBlank()) "https://i.ytimg.com/vi/$videoId/hqdefault.jpg" else ""
     }
 }

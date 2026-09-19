@@ -158,6 +158,11 @@ fun PlayerScreen(
     var mixPlaylist by remember { mutableStateOf<List<VideoItem>>(emptyList()) }
     var currentMixIndex by remember { mutableIntStateOf(0) }
     var recommendedVideos by remember { mutableStateOf<List<VideoItem>>(emptyList()) }
+    var activeAvatarUrl by remember { mutableStateOf(video.channelAvatarUrl) }
+
+    LaunchedEffect(video.id) {
+        activeAvatarUrl = video.channelAvatarUrl
+    }
     var mixTitle by remember { mutableStateOf("") }
     var showMixSheet by remember { mutableStateOf(false) }
     var isInternalNavigation by remember { mutableStateOf(false) }
@@ -401,6 +406,9 @@ fun PlayerScreen(
                 showMixSheet = false
                 val nextData = repository.getWatchNext(video.id, "RD${video.id}")
                 if (nextData != null) {
+                    if (activeAvatarUrl.isBlank() && nextData.currentVideo.channelAvatarUrl.isNotBlank()) {
+                        activeAvatarUrl = nextData.currentVideo.channelAvatarUrl
+                    }
                     if (video.title.isBlank() || video.title == "Video" || video.channelTitle.isBlank()) {
                         mediaService?.updateMediaInfo(
                             title = nextData.currentVideo.title,
@@ -868,19 +876,55 @@ fun PlayerScreen(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Column {
-                                Text(
-                                    text = video.channelTitle,
-                                    color = NeonCyan,
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                                if (video.viewCountText.isNotBlank()) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                // Channel Avatar
+                                Box(
+                                    modifier = Modifier
+                                        .size(40.dp)
+                                        .clip(CircleShape)
+                                        .background(
+                                            Brush.linearGradient(
+                                                listOf(Color(0xFF2C2D42), Color(0xFF1B1C28))
+                                            )
+                                        ),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    if (activeAvatarUrl.isNotBlank()) {
+                                        AsyncImage(
+                                            model = activeAvatarUrl,
+                                            contentDescription = video.channelTitle,
+                                            modifier = Modifier.matchParentSize().clip(CircleShape),
+                                            contentScale = ContentScale.Crop
+                                        )
+                                    } else {
+                                        Icon(
+                                            imageVector = Icons.Default.PlayArrow,
+                                            contentDescription = null,
+                                            tint = NeonCyan,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.width(12.dp))
+
+                                Column {
                                     Text(
-                                        text = video.viewCountText,
-                                        color = TextMuted,
-                                        fontSize = 11.sp
+                                        text = video.channelTitle.ifBlank { "Phantom Tube" },
+                                        color = TextPrimary,
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.SemiBold
                                     )
+                                    if (video.viewCountText.isNotBlank()) {
+                                        Text(
+                                            text = video.viewCountText,
+                                            color = TextMuted,
+                                            fontSize = 11.sp
+                                        )
+                                    }
                                 }
                             }
 
