@@ -727,7 +727,6 @@ fun PlayerScreen(
                 }
             }
         }
-    }
 
         // 2. BELOW PLAYER CONTENT (Only shown in portrait full-player mode)
         if (!isMinimized && !isFullscreen) {
@@ -938,6 +937,7 @@ fun PlayerScreen(
                 }
             }
         }
+    }
 
         // 3. FLOATING MIX QUEUE SHEET (Only in full player mode)
         if (!isMinimized) {
@@ -1055,7 +1055,10 @@ fun PlayerScreen(
                     if (playerState.isPlaying) controller.pause() else controller.play()
                 },
                 onClose = onClose,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .align(Alignment.BottomCenter)
+                    .zIndex(2f)
             )
         }
     }
