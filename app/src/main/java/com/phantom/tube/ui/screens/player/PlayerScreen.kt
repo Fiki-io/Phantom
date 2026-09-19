@@ -14,6 +14,8 @@ import com.phantom.tube.player.service.PhantomMediaService
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -24,6 +26,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -33,6 +36,8 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -40,12 +45,17 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.BookmarkBorder
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Forward10
 import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material.icons.filled.FullscreenExit
 import androidx.compose.material.icons.filled.QueueMusic
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.style.TextOverflow
+import coil.compose.AsyncImage
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Replay10
@@ -123,13 +133,12 @@ fun PlayerScreen(
     var lastSkippedSeconds by remember { mutableIntStateOf(0) }
     var lastSkippedFromSec by remember { mutableFloatStateOf(0f) }
 
-    // Playback Queue & History Session (YouTube Mix)
-    var upNextQueue by remember { mutableStateOf<List<VideoItem>>(emptyList()) }
+    // YouTube Mix Playlist & Session (Preserving all songs in the Mix)
+    var mixPlaylist by remember { mutableStateOf<List<VideoItem>>(emptyList()) }
+    var currentMixIndex by remember { mutableIntStateOf(0) }
     var recommendedVideos by remember { mutableStateOf<List<VideoItem>>(emptyList()) }
     var mixTitle by remember { mutableStateOf("") }
-    var isMixExpanded by remember { mutableStateOf(false) }
-    val history = remember { mutableListOf<VideoItem>() }
-    val playedVideoIds = remember { mutableSetOf<String>() }
+    var showMixSheet by remember { mutableStateOf(false) }
     var isInternalNavigation by remember { mutableStateOf(false) }
     var isLoadingQueue by remember { mutableStateOf(false) }
 
@@ -145,37 +154,40 @@ fun PlayerScreen(
     val controller = remember { PhantomPlayerController(context) }
 
     val playNext: () -> Unit = {
-        if (upNextQueue.isNotEmpty()) {
-            val nextVid = upNextQueue.first()
-            upNextQueue = upNextQueue.drop(1)
-            history.add(currentVideo)
-            playedVideoIds.add(nextVid.id)
-            isInternalNavigation = true
-            currentOnPlayNextVideo(nextVid)
-        } else {
-            scope.launch {
-                isLoadingQueue = true
-                val nextData = repository.getWatchNext(currentVideo.id, "RD${currentVideo.id}")
-                val candidates = nextData?.mixQueue?.filter {
-                    it.id != currentVideo.id && it.id !in playedVideoIds
-                }?.distinctBy { it.id } ?: nextData?.mixQueue?.filter { it.id != currentVideo.id }
-                if (!candidates.isNullOrEmpty()) {
-                    val nextVid = candidates.first()
-                    upNextQueue = candidates.drop(1)
-                    history.add(currentVideo)
-                    playedVideoIds.add(nextVid.id)
-                    isInternalNavigation = true
-                    currentOnPlayNextVideo(nextVid)
+        if (mixPlaylist.isNotEmpty()) {
+            if (currentMixIndex < mixPlaylist.lastIndex) {
+                val nextIndex = currentMixIndex + 1
+                val nextVid = mixPlaylist[nextIndex]
+                currentMixIndex = nextIndex
+                isInternalNavigation = true
+                currentOnPlayNextVideo(nextVid)
+            } else {
+                // At the end of playlist, ask YouTube for continuation of the Mix!
+                scope.launch {
+                    isLoadingQueue = true
+                    val nextData = repository.getWatchNext(currentVideo.id, "RD${currentVideo.id}")
+                    if (nextData != null && nextData.mixPlaylist.isNotEmpty()) {
+                        val existingIds = mixPlaylist.map { it.id }.toSet()
+                        val freshItems = nextData.mixPlaylist.filter { it.id !in existingIds }
+                        if (freshItems.isNotEmpty()) {
+                            val nextIndex = mixPlaylist.size
+                            mixPlaylist = mixPlaylist + freshItems
+                            currentMixIndex = nextIndex
+                            isInternalNavigation = true
+                            currentOnPlayNextVideo(mixPlaylist[nextIndex])
+                        }
+                    }
+                    isLoadingQueue = false
                 }
-                isLoadingQueue = false
             }
         }
     }
 
     val playPrevious: () -> Boolean = {
-        if (history.isNotEmpty()) {
-            val prevVid = history.removeAt(history.lastIndex)
-            upNextQueue = (listOf(currentVideo) + upNextQueue).distinctBy { it.id }
+        if (mixPlaylist.isNotEmpty() && currentMixIndex > 0) {
+            val prevIndex = currentMixIndex - 1
+            val prevVid = mixPlaylist[prevIndex]
+            currentMixIndex = prevIndex
             isInternalNavigation = true
             currentOnPlayNextVideo(prevVid)
             true
@@ -185,15 +197,12 @@ fun PlayerScreen(
         }
     }
 
-    val playFromQueue: (VideoItem) -> Unit = { targetVideo ->
-        val targetIndex = upNextQueue.indexOfFirst { it.id == targetVideo.id }
-        if (targetIndex != -1) {
-            upNextQueue = upNextQueue.filterIndexed { index, _ -> index > targetIndex }
+    val playFromMix: (Int) -> Unit = { targetIndex ->
+        if (targetIndex in mixPlaylist.indices) {
+            currentMixIndex = targetIndex
+            isInternalNavigation = true
+            currentOnPlayNextVideo(mixPlaylist[targetIndex])
         }
-        history.add(currentVideo)
-        playedVideoIds.add(targetVideo.id)
-        isInternalNavigation = true
-        currentOnPlayNextVideo(targetVideo)
     }
 
     val bridge = remember {
@@ -348,10 +357,7 @@ fun PlayerScreen(
         val fromInternal = isInternalNavigation
         if (fromInternal) {
             isInternalNavigation = false
-        } else {
-            playedVideoIds.clear()
         }
-        playedVideoIds.add(video.id)
 
         val lastPos = repository.getLastPosition(video.id)
         controller.loadVideo(video.id, lastPos / 1000f)
@@ -371,7 +377,7 @@ fun PlayerScreen(
         launch {
             if (!fromInternal) {
                 isLoadingQueue = true
-                isMixExpanded = false
+                showMixSheet = false
                 val nextData = repository.getWatchNext(video.id, "RD${video.id}")
                 if (nextData != null) {
                     if (video.title.isBlank() || video.title == "Video" || video.channelTitle.isBlank()) {
@@ -383,27 +389,28 @@ fun PlayerScreen(
                             thumbnailUrl = nextData.currentVideo.thumbnailUrl
                         )
                     }
-                    val freshItems = nextData.mixQueue.filter {
-                        it.id != video.id && it.id !in playedVideoIds
-                    }.distinctBy { it.id }
-                    upNextQueue = if (freshItems.isNotEmpty()) {
-                        freshItems
-                    } else {
-                        nextData.mixQueue.filter { it.id != video.id }.distinctBy { it.id }
-                    }
+                    mixPlaylist = nextData.mixPlaylist
+                    currentMixIndex = if (nextData.mixPlaylist.isNotEmpty()) {
+                        val match = nextData.mixPlaylist.indexOfFirst { it.id == video.id }
+                        if (match != -1) match else nextData.currentIndex
+                    } else 0
                     recommendedVideos = nextData.recommendations
                     mixTitle = nextData.playlistTitle.ifBlank { "YouTube Mix" }
                 }
                 isLoadingQueue = false
             } else {
-                if (upNextQueue.size < 5) {
+                val idx = mixPlaylist.indexOfFirst { it.id == video.id }
+                if (idx != -1) {
+                    currentMixIndex = idx
+                }
+                if (mixPlaylist.isNotEmpty() && currentMixIndex >= mixPlaylist.size - 5) {
                     val nextData = repository.getWatchNext(video.id, "RD${video.id}")
-                    if (nextData != null && nextData.mixQueue.isNotEmpty()) {
-                        val existingIds = upNextQueue.map { it.id }.toSet()
-                        val freshItems = nextData.mixQueue.filter {
-                            it.id !in playedVideoIds && it.id !in existingIds && it.id != video.id
-                        }.distinctBy { it.id }
-                        upNextQueue = upNextQueue + freshItems
+                    if (nextData != null && nextData.mixPlaylist.isNotEmpty()) {
+                        val existingIds = mixPlaylist.map { it.id }.toSet()
+                        val freshItems = nextData.mixPlaylist.filter { it.id !in existingIds }
+                        if (freshItems.isNotEmpty()) {
+                            mixPlaylist = mixPlaylist + freshItems
+                        }
                     }
                 }
             }
@@ -415,6 +422,8 @@ fun PlayerScreen(
             val activity = context as? Activity
             activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
             isFullscreen = false
+        } else if (showMixSheet) {
+            showMixSheet = false
         } else {
             onBackClick()
         }
@@ -757,8 +766,8 @@ fun PlayerScreen(
                     }
                 }
 
-                // 2. YouTube Mix Card (Mirip YouTube Asli dengan tombol Lihat Antrean)
-                if (mixTitle.isNotBlank() || upNextQueue.isNotEmpty()) {
+                // 2. YouTube Mix Banner Card (Membuka antrean mengambang)
+                if (mixPlaylist.isNotEmpty()) {
                     item {
                         Box(
                             modifier = Modifier
@@ -769,7 +778,7 @@ fun PlayerScreen(
                                     tintColor = Color(0xFF0F172A),
                                     glassAlpha = 0.85f
                                 )
-                                .clickable { isMixExpanded = !isMixExpanded }
+                                .clickable { showMixSheet = true }
                                 .padding(14.dp)
                         ) {
                             Column {
@@ -805,7 +814,7 @@ fun PlayerScreen(
                                                 maxLines = 1
                                             )
                                             Text(
-                                                text = "Mix resmi YouTube • ${upNextQueue.size + 1} video",
+                                                text = "Lagu ${currentMixIndex + 1} dari ${mixPlaylist.size} • Mix resmi YouTube",
                                                 color = TextMuted,
                                                 fontSize = 11.sp
                                             )
@@ -818,29 +827,22 @@ fun PlayerScreen(
                                     Row(
                                         verticalAlignment = Alignment.CenterVertically,
                                         modifier = Modifier
-                                            .background(Color.White.copy(alpha = 0.08f), RoundedCornerShape(20.dp))
-                                            .padding(horizontal = 10.dp, vertical = 6.dp)
+                                            .background(NeonCyan.copy(alpha = 0.15f), RoundedCornerShape(20.dp))
+                                            .padding(horizontal = 12.dp, vertical = 6.dp)
                                     ) {
                                         Text(
-                                            text = if (isMixExpanded) "Tutup" else "Antrean",
+                                            text = "Lihat Antrean",
                                             color = NeonCyan,
                                             fontSize = 12.sp,
-                                            fontWeight = FontWeight.SemiBold
-                                        )
-                                        Spacer(modifier = Modifier.width(4.dp))
-                                        Icon(
-                                            imageVector = if (isMixExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                                            contentDescription = null,
-                                            tint = NeonCyan,
-                                            modifier = Modifier.size(16.dp)
+                                            fontWeight = FontWeight.Bold
                                         )
                                     }
                                 }
 
-                                if (!isMixExpanded && upNextQueue.isNotEmpty()) {
+                                if (currentMixIndex < mixPlaylist.lastIndex) {
                                     Spacer(modifier = Modifier.height(8.dp))
                                     Text(
-                                        text = "Berikutnya: ${upNextQueue.first().title}",
+                                        text = "Berikutnya: ${mixPlaylist[currentMixIndex + 1].title}",
                                         color = NeonCyan,
                                         fontSize = 12.sp,
                                         maxLines = 1,
@@ -850,61 +852,11 @@ fun PlayerScreen(
                             }
                         }
                     }
-
-                    // If isMixExpanded is true: show the entire Mix Queue list (Foto 1)
-                    if (isMixExpanded) {
-                        item {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .liquidGlass(
-                                        shape = RoundedCornerShape(12.dp),
-                                        borderWidth = 1.dp,
-                                        tintColor = Color(0xFF0C2738),
-                                        glassAlpha = 0.9f
-                                    )
-                                    .padding(horizontal = 12.dp, vertical = 10.dp)
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    Text(
-                                        text = "▶",
-                                        color = NeonCyan,
-                                        fontSize = 14.sp,
-                                        modifier = Modifier.padding(end = 8.dp)
-                                    )
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(
-                                            text = video.title,
-                                            color = TextPrimary,
-                                            fontSize = 13.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            maxLines = 1
-                                        )
-                                        Text(
-                                            text = "Sedang Diputar • ${video.channelTitle}",
-                                            color = NeonCyan,
-                                            fontSize = 11.sp
-                                        )
-                                    }
-                                }
-                            }
-                        }
-
-                        items(upNextQueue, key = { "mix_" + it.id }) { item ->
-                            LiquidGlassVideoCard(
-                                video = item,
-                                onClick = { playFromQueue(item) }
-                            )
-                        }
-                    }
                 }
 
-                // 3. Section Rekomendasi Video (Foto 2)
+                // 3. Section Rekomendasi Video (Foto 2: Bersih & Terpisah dari Mix)
                 item {
-                    Spacer(modifier = Modifier.height(6.dp))
+                    Spacer(modifier = Modifier.height(4.dp))
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.fillMaxWidth()
@@ -951,6 +903,213 @@ fun PlayerScreen(
                         )
                     }
                 }
+            }
+        }
+    }
+
+    // FLOATING MIX QUEUE SHEET (Mengambang di atas layar ketika dibuka)
+    AnimatedVisibility(
+        visible = showMixSheet && !isFullscreen,
+        enter = fadeIn() + slideInVertically { it },
+        exit = fadeOut() + slideOutVertically { it },
+        modifier = Modifier.fillMaxSize()
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.55f))
+                .clickable { showMixSheet = false }
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .fillMaxHeight(0.72f)
+                    .align(Alignment.BottomCenter)
+                    .liquidGlass(
+                        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+                        borderWidth = 1.dp,
+                        tintColor = Color(0xFF0E1726),
+                        glassAlpha = 0.96f
+                    )
+                    .clickable(enabled = false) {}
+                    .padding(horizontal = 16.dp, vertical = 12.dp)
+            ) {
+                Column(modifier = Modifier.fillMaxSize()) {
+                    // Drag Handle
+                    Box(
+                        modifier = Modifier
+                            .size(width = 42.dp, height = 4.dp)
+                            .background(Color.White.copy(alpha = 0.3f), RoundedCornerShape(2.dp))
+                            .align(Alignment.CenterHorizontally)
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Header Bar
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = mixTitle.ifBlank { "YouTube Mix" },
+                                color = TextPrimary,
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1
+                            )
+                            Text(
+                                text = "Lagu ${currentMixIndex + 1} dari ${mixPlaylist.size} • Mix resmi YouTube",
+                                color = NeonCyan,
+                                fontSize = 12.sp
+                            )
+                        }
+
+                        LiquidGlassIconButton(
+                            icon = Icons.Default.Close,
+                            contentDescription = "Tutup",
+                            size = 36.dp,
+                            iconSize = 18.dp,
+                            onClick = { showMixSheet = false }
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Mix Playlist List (Semua lagu lengkap, tidak ada yang di-hide)
+                    val listState = rememberLazyListState()
+                    LaunchedEffect(showMixSheet) {
+                        if (showMixSheet && currentMixIndex in mixPlaylist.indices) {
+                            listState.animateScrollToItem(currentMixIndex)
+                        }
+                    }
+
+                    LazyColumn(
+                        state = listState,
+                        modifier = Modifier.fillMaxSize(),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        contentPadding = PaddingValues(bottom = 24.dp)
+                    ) {
+                        itemsIndexed(mixPlaylist, key = { index, item -> "mix_${item.id}_$index" }) { index, item ->
+                            val isCurrent = index == currentMixIndex
+                            MixPlaylistItemCard(
+                                index = index + 1,
+                                video = item,
+                                isCurrent = isCurrent,
+                                onClick = {
+                                    playFromMix(index)
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun MixPlaylistItemCard(
+    index: Int,
+    video: VideoItem,
+    isCurrent: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .liquidGlass(
+                shape = RoundedCornerShape(14.dp),
+                borderWidth = if (isCurrent) 1.5.dp else 0.8.dp,
+                tintColor = if (isCurrent) Color(0xFF0F3246) else Color(0xFF14151F),
+                glassAlpha = if (isCurrent) 0.85f else 0.45f
+            )
+            .clickable(onClick = onClick)
+            .padding(8.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Index number or Playing Indicator
+            Box(
+                modifier = Modifier.width(28.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                if (isCurrent) {
+                    Text(
+                        text = "▶",
+                        color = NeonCyan,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                } else {
+                    Text(
+                        text = "$index",
+                        color = TextMuted,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.width(4.dp))
+
+            // Thumbnail with duration
+            Box(
+                modifier = Modifier
+                    .width(100.dp)
+                    .aspectRatio(16f / 9f)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(Color(0xFF101018))
+            ) {
+                AsyncImage(
+                    model = video.thumbnailUrl,
+                    contentDescription = video.title,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.matchParentSize()
+                )
+                if (video.durationText.isNotBlank()) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(4.dp)
+                            .background(Color.Black.copy(alpha = 0.8f), RoundedCornerShape(4.dp))
+                            .padding(horizontal = 4.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = video.durationText,
+                            color = Color.White,
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.width(10.dp))
+
+            // Title and Channel Info
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = video.title,
+                    color = if (isCurrent) NeonCyan else TextPrimary,
+                    fontSize = 13.sp,
+                    fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Medium,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    lineHeight = 16.sp
+                )
+                Spacer(modifier = Modifier.height(3.dp))
+                Text(
+                    text = if (isCurrent) "Sedang Diputar • ${video.channelTitle}" else video.channelTitle,
+                    color = if (isCurrent) NeonCyan.copy(alpha = 0.8f) else TextSecondary,
+                    fontSize = 11.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
             }
         }
     }

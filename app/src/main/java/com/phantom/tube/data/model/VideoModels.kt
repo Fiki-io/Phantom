@@ -29,11 +29,13 @@ data class VideoDetail(
 
 data class NextQueue(
     val currentVideo: VideoItem,
-    val mixQueue: List<VideoItem> = emptyList(),
+    val mixPlaylist: List<VideoItem> = emptyList(),
     val recommendations: List<VideoItem> = emptyList(),
-    val playlistTitle: String = ""
+    val playlistTitle: String = "",
+    val currentIndex: Int = 0
 ) {
-    val upNext: List<VideoItem> get() = mixQueue
+    val upNext: List<VideoItem> get() = if (currentIndex < mixPlaylist.lastIndex) mixPlaylist.subList(currentIndex + 1, mixPlaylist.size) else emptyList()
+    val mixQueue: List<VideoItem> get() = upNext
 }
 
 data class SponsorSegment(

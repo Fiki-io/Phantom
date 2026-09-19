@@ -61,17 +61,16 @@ object InnerTubeParser {
                 }
             }
 
-            // 2. Up Next Queue: Prioritize official YouTube Mix / Playlist Queue (Photo 1)
+            // 2. Full YouTube Mix Playlist (Photo 1: playlistPanelRenderer)
             val playlistObj = watchNext.optJSONObject("playlist")?.optJSONObject("playlist")
                 ?: watchNext.optJSONObject("playlist")?.optJSONObject("playlistPanelRenderer")
 
-            val upNextList = mutableListOf<VideoItem>()
+            val fullPlaylist = mutableListOf<VideoItem>()
+            var detectedCurrentIndex = 0
 
             if (playlistObj != null) {
                 val plContents = playlistObj.optJSONArray("contents") ?: JSONArray()
-                val itemsBeforeCurrent = mutableListOf<VideoItem>()
-                val itemsAfterCurrent = mutableListOf<VideoItem>()
-                var currentFound = false
+                detectedCurrentIndex = playlistObj.optInt("currentIndex", 0)
 
                 for (i in 0 until plContents.length()) {
                     val raw = plContents.optJSONObject(i) ?: continue
@@ -91,28 +90,19 @@ object InnerTubeParser {
                         thumbnailUrl = thumb,
                         durationText = duration
                     )
+                    fullPlaylist.add(item)
 
                     val isSelected = ppvr.optBoolean("selected", false)
                     if (isSelected || videoId == currentVideoId) {
-                        currentFound = true
+                        detectedCurrentIndex = fullPlaylist.lastIndex
                         if (currentTitle == "Video" && title.isNotBlank()) {
                             currentTitle = title
                         }
                         if (currentChannel.isBlank() && channel.isNotBlank()) {
                             currentChannel = channel
                         }
-                    } else {
-                        if (!currentFound) {
-                            itemsBeforeCurrent.add(item)
-                        } else {
-                            itemsAfterCurrent.add(item)
-                        }
                     }
                 }
-
-                // Up next priority: next tracks in mix first, then preceding tracks
-                upNextList.addAll(itemsAfterCurrent)
-                upNextList.addAll(itemsBeforeCurrent)
             }
 
             var playlistTitle = ""
@@ -149,9 +139,10 @@ object InnerTubeParser {
 
             return NextQueue(
                 currentVideo = currentVideo,
-                mixQueue = upNextList,
+                mixPlaylist = fullPlaylist,
                 recommendations = recommendationsList,
-                playlistTitle = playlistTitle
+                playlistTitle = playlistTitle,
+                currentIndex = detectedCurrentIndex
             )
         } catch (e: Exception) {
             e.printStackTrace()
