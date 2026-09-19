@@ -179,6 +179,15 @@ fun PlayerScreen(
     var isAudioOnly by remember { mutableStateOf(false) }
     var sleepTimerOption by remember { mutableStateOf(SleepTimerOption.OFF) }
     var sleepTimerRemainingSec by remember { mutableStateOf<Int?>(null) }
+    val isFavorite by repository.isFavorite(video.id).collectAsState(initial = false)
+
+    var mediaService by remember { mutableStateOf<PhantomMediaService?>(null) }
+
+    val currentVideo by rememberUpdatedState(video)
+    val currentOnPlayNextVideo by rememberUpdatedState(onPlayNextVideo)
+    val currentOnPlayPreviousVideo by rememberUpdatedState(onPlayPreviousVideo)
+
+    val controller = remember { PhantomPlayerController(context) }
 
     // Sleep Timer countdown effect
     LaunchedEffect(sleepTimerRemainingSec, playerState.isPlaying) {
@@ -196,17 +205,6 @@ fun PlayerScreen(
             }
         }
     }
-
-    // Favorites
-    val isFavorite by repository.isFavorite(video.id).collectAsState(initial = false)
-
-    var mediaService by remember { mutableStateOf<PhantomMediaService?>(null) }
-
-    val currentVideo by rememberUpdatedState(video)
-    val currentOnPlayNextVideo by rememberUpdatedState(onPlayNextVideo)
-    val currentOnPlayPreviousVideo by rememberUpdatedState(onPlayPreviousVideo)
-
-    val controller = remember { PhantomPlayerController(context) }
 
     val playNext: () -> Unit = {
         if (mixPlaylist.isNotEmpty()) {
