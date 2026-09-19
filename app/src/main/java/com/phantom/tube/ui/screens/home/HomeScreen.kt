@@ -24,6 +24,11 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -124,8 +129,8 @@ fun HomeScreen(
                 }
 
                 if (result.videos.isNotEmpty()) {
-                    val existingIds = videos.map { it.id }.toSet()
-                    val newVideos = result.videos.filterNot { it.id in existingIds }
+                    val existingIds = videos.map { v -> v.id }.toSet()
+                    val newVideos = result.videos.filterNot { v -> v.id in existingIds }
                     videos = videos + newVideos
                 }
                 continuationToken = result.continuationToken
@@ -245,13 +250,7 @@ fun HomeScreen(
                         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 100.dp),
                         verticalArrangement = Arrangement.spacedBy(14.dp)
                     ) {
-                        itemsIndexed(videos, key = { index, video -> "home_${video.id}_$index" }) { index, video ->
-                            // Prefetch trigger when reaching 3rd item from bottom
-                            if (index >= videos.size - 3 && continuationToken != null && !isLoadingMore && !isLoading && !isRefreshing) {
-                                LaunchedEffect(continuationToken) {
-                                    loadMore()
-                                }
-                            }
+                        itemsIndexed(videos, key = { index, video -> "home_${video.id}_$index" }) { _, video ->
                             LiquidGlassVideoCard(
                                 video = video,
                                 onClick = { onVideoClick(video) }
