@@ -79,6 +79,7 @@ import androidx.compose.ui.unit.sp
 import com.phantom.tube.core.theme.NeonAmber
 import com.phantom.tube.core.theme.NeonCyan
 import com.phantom.tube.core.theme.NeonPink
+import com.phantom.tube.core.theme.NeonPurple
 import com.phantom.tube.core.theme.NeonViolet
 import com.phantom.tube.core.theme.ObsidianDark
 import com.phantom.tube.core.theme.TextMuted
