@@ -73,6 +73,14 @@ class PhantomPlayerController(context: Context) {
         evaluateJs("window.setPlaybackRate($rate);")
     }
 
+    fun setPlaybackQuality(quality: String) {
+        evaluateJs("window.setPlaybackQuality('$quality');")
+    }
+
+    fun setLoop(loop: Boolean) {
+        evaluateJs("window.setLoop($loop);")
+    }
+
     private fun evaluateJs(script: String) {
         webView?.post {
             webView?.evaluateJavascript(script, null)

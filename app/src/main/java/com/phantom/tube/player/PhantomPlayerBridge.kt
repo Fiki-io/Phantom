@@ -6,7 +6,8 @@ class PhantomPlayerBridge(
     var onReadyCallback: () -> Unit = {},
     var onStateChangeCallback: (Int) -> Unit = {},
     var onTimeUpdateCallback: (Float, Float, Float) -> Unit = { _, _, _ -> },
-    var onErrorCallback: (Int) -> Unit = {}
+    var onErrorCallback: (Int) -> Unit = {},
+    var onQualityChangeCallback: (String) -> Unit = {}
 ) {
     @JavascriptInterface
     fun onReady() {
@@ -26,5 +27,10 @@ class PhantomPlayerBridge(
     @JavascriptInterface
     fun onError(errorCode: Int) {
         onErrorCallback(errorCode)
+    }
+
+    @JavascriptInterface
+    fun onQualityChange(quality: String) {
+        onQualityChangeCallback(quality)
     }
 }

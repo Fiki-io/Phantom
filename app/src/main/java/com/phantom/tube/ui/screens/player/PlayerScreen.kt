@@ -117,6 +117,8 @@ import com.phantom.tube.data.model.NextQueue
 import com.phantom.tube.data.model.SponsorSegment
 import com.phantom.tube.data.model.VideoItem
 import com.phantom.tube.data.repository.PhantomRepository
+import androidx.compose.material.icons.filled.Headphones
+import androidx.compose.material.icons.filled.Settings
 import com.phantom.tube.player.PhantomGhostSurface
 import com.phantom.tube.player.PhantomPlayerBridge
 import com.phantom.tube.player.PhantomPlayerController
@@ -124,6 +126,8 @@ import com.phantom.tube.player.PlayerState
 import com.phantom.tube.ui.components.LiquidGlassIconButton
 import com.phantom.tube.ui.components.LiquidGlassScrubber
 import com.phantom.tube.ui.components.LiquidGlassVideoCard
+import com.phantom.tube.ui.components.PlayerSettingsSheet
+import com.phantom.tube.ui.components.SleepTimerOption
 import com.phantom.tube.ui.components.SponsorSkipPill
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -167,6 +171,31 @@ fun PlayerScreen(
     var showMixSheet by remember { mutableStateOf(false) }
     var isInternalNavigation by remember { mutableStateOf(false) }
     var isLoadingQueue by remember { mutableStateOf(false) }
+
+    // Settings States (Quality, Speed, Sleep Timer, Loop, Autoplay, Audio-Only)
+    var showSettingsSheet by remember { mutableStateOf(false) }
+    var isLoopEnabled by remember { mutableStateOf(false) }
+    var isAutoplayNext by remember { mutableStateOf(true) }
+    var isAudioOnly by remember { mutableStateOf(false) }
+    var sleepTimerOption by remember { mutableStateOf(SleepTimerOption.OFF) }
+    var sleepTimerRemainingSec by remember { mutableStateOf<Int?>(null) }
+
+    // Sleep Timer countdown effect
+    LaunchedEffect(sleepTimerRemainingSec, playerState.isPlaying) {
+        if (sleepTimerRemainingSec != null && (sleepTimerRemainingSec ?: 0) > 0 && playerState.isPlaying) {
+            delay(1000L)
+            if (playerState.isPlaying) {
+                val current = (sleepTimerRemainingSec ?: 0) - 1
+                if (current <= 0) {
+                    controller.pause()
+                    sleepTimerRemainingSec = null
+                    sleepTimerOption = SleepTimerOption.OFF
+                } else {
+                    sleepTimerRemainingSec = current
+                }
+            }
+        }
+    }
 
     // Favorites
     val isFavorite by repository.isFavorite(video.id).collectAsState(initial = false)
@@ -251,7 +280,16 @@ fun PlayerScreen(
                     0 -> {
                         playerState = playerState.copy(isPlaying = false, isEnded = true)
                         mediaService?.updatePlaybackState(false, (playerState.currentTimeSec * 1000).toLong())
-                        playNext()
+                        if (isLoopEnabled) {
+                            controller.seekTo(0f)
+                            controller.play()
+                        } else if (sleepTimerOption == SleepTimerOption.END_OF_VIDEO) {
+                            controller.pause()
+                            sleepTimerOption = SleepTimerOption.OFF
+                            sleepTimerRemainingSec = null
+                        } else if (isAutoplayNext) {
+                            playNext()
+                        }
                     }
                 }
             },
@@ -303,6 +341,9 @@ fun PlayerScreen(
                     else -> "Error pemutaran ($errorCode)"
                 }
                 playerState = playerState.copy(isBuffering = false, errorCode = msg)
+            },
+            onQualityChangeCallback = { quality ->
+                playerState = playerState.copy(currentQuality = quality)
             }
         )
     }
@@ -447,7 +488,9 @@ fun PlayerScreen(
     }
 
     BackHandler(enabled = !isMinimized) {
-        if (isFullscreen) {
+        if (showSettingsSheet) {
+            showSettingsSheet = false
+        } else if (isFullscreen) {
             val activity = context as? Activity
             activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
             isFullscreen = false
@@ -570,6 +613,52 @@ fun PlayerScreen(
                 bridge = bridge
             )
 
+            // Audio-Only Mode AMOLED Overlay
+            if (isAudioOnly) {
+                Box(
+                    modifier = Modifier
+                        .matchParentSize()
+                        .background(Color(0xFF07070A)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(56.dp)
+                                .liquidGlass(
+                                    shape = CircleShape,
+                                    borderWidth = 1.dp,
+                                    tintColor = Color(0xFF141926),
+                                    glassAlpha = 0.85f,
+                                    accentGlow = NeonCyan
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Headphones,
+                                contentDescription = null,
+                                tint = NeonCyan,
+                                modifier = Modifier.size(28.dp)
+                            )
+                        }
+                        Text(
+                            text = "Mode Audio Only",
+                            color = TextPrimary,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Text(
+                            text = "Layar hemat daya AMOLED • Suara tetap diputar",
+                            color = TextMuted,
+                            fontSize = 11.sp
+                        )
+                    }
+                }
+            }
+
             // Layer 1: Transparent Gesture Touch Handler
             Box(
                 modifier = Modifier
@@ -682,8 +771,11 @@ fun PlayerScreen(
                             }
                         )
 
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            // Playback Speed Button (cycles 1.0x -> 1.25x -> 1.5x -> 2.0x -> 0.75x)
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // Playback Speed Quick Button (cycles 1.0x -> 1.5x -> 2.0x -> 0.5x)
                             Box(
                                 modifier = Modifier
                                     .liquidGlass(
@@ -710,6 +802,15 @@ fun PlayerScreen(
                                     fontWeight = FontWeight.Bold
                                 )
                             }
+
+                            // Settings Button (opens Liquid Glass PlayerSettingsSheet)
+                            LiquidGlassIconButton(
+                                icon = Icons.Default.Settings,
+                                contentDescription = "Pengaturan",
+                                size = 36.dp,
+                                iconSize = 20.dp,
+                                onClick = { showSettingsSheet = true }
+                            )
                         }
                     }
 
@@ -1206,6 +1307,40 @@ fun PlayerScreen(
                     .fillMaxWidth()
                     .align(Alignment.BottomCenter)
                     .zIndex(2f)
+            )
+        }
+
+        // 4. Liquid Glass Player Settings Sheet (Quality, Speed, Sleep Timer, Repeat, Autoplay, Audio-Only)
+        if (!isMinimized) {
+            PlayerSettingsSheet(
+                visible = showSettingsSheet,
+                isFullscreen = isFullscreen,
+                currentQuality = playerState.currentQuality,
+                currentSpeed = playerState.playbackSpeed,
+                isLoopEnabled = isLoopEnabled,
+                isAutoplayNext = isAutoplayNext,
+                isAudioOnly = isAudioOnly,
+                sleepTimerRemainingSec = sleepTimerRemainingSec,
+                sleepTimerOption = sleepTimerOption,
+                onDismiss = { showSettingsSheet = false },
+                onQualitySelected = { quality ->
+                    playerState = playerState.copy(currentQuality = quality)
+                    controller.setPlaybackQuality(quality)
+                },
+                onSpeedSelected = { speed ->
+                    playerState = playerState.copy(playbackSpeed = speed)
+                    controller.setPlaybackRate(speed)
+                },
+                onSleepTimerSelected = { option ->
+                    sleepTimerOption = option
+                    sleepTimerRemainingSec = if (option.seconds != null && option.seconds > 0) option.seconds else null
+                },
+                onLoopToggle = { loop ->
+                    isLoopEnabled = loop
+                    controller.setLoop(loop)
+                },
+                onAutoplayToggle = { isAutoplayNext = it },
+                onAudioOnlyToggle = { isAudioOnly = it }
             )
         }
     }
