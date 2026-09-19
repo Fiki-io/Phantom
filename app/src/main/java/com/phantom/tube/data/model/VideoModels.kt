@@ -29,8 +29,12 @@ data class VideoDetail(
 
 data class NextQueue(
     val currentVideo: VideoItem,
-    val upNext: List<VideoItem>
-)
+    val mixQueue: List<VideoItem> = emptyList(),
+    val recommendations: List<VideoItem> = emptyList(),
+    val playlistTitle: String = ""
+) {
+    val upNext: List<VideoItem> get() = mixQueue
+}
 
 data class SponsorSegment(
     val category: String,

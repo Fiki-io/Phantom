@@ -37,11 +37,15 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.BookmarkBorder
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Forward10
 import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material.icons.filled.FullscreenExit
+import androidx.compose.material.icons.filled.QueueMusic
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Replay10
@@ -118,8 +122,11 @@ fun PlayerScreen(
     var lastSkippedSeconds by remember { mutableIntStateOf(0) }
     var lastSkippedFromSec by remember { mutableFloatStateOf(0f) }
 
-    // Playback Queue & History Session
+    // Playback Queue & History Session (YouTube Mix)
     var upNextQueue by remember { mutableStateOf<List<VideoItem>>(emptyList()) }
+    var recommendedVideos by remember { mutableStateOf<List<VideoItem>>(emptyList()) }
+    var mixTitle by remember { mutableStateOf("") }
+    var isMixExpanded by remember { mutableStateOf(false) }
     val history = remember { mutableListOf<VideoItem>() }
     val playedVideoIds = remember { mutableSetOf<String>() }
     var isInternalNavigation by remember { mutableStateOf(false) }
@@ -147,10 +154,10 @@ fun PlayerScreen(
         } else {
             scope.launch {
                 isLoadingQueue = true
-                val nextData = repository.getWatchNext(currentVideo.id)
-                val candidates = nextData?.upNext?.filter {
+                val nextData = repository.getWatchNext(currentVideo.id, "RD${currentVideo.id}")
+                val candidates = nextData?.mixQueue?.filter {
                     it.id != currentVideo.id && it.id !in playedVideoIds
-                }?.distinctBy { it.id }
+                }?.distinctBy { it.id } ?: nextData?.mixQueue?.filter { it.id != currentVideo.id }
                 if (!candidates.isNullOrEmpty()) {
                     val nextVid = candidates.first()
                     upNextQueue = candidates.drop(1)
@@ -363,7 +370,8 @@ fun PlayerScreen(
         launch {
             if (!fromInternal) {
                 isLoadingQueue = true
-                val nextData = repository.getWatchNext(video.id)
+                isMixExpanded = false
+                val nextData = repository.getWatchNext(video.id, "RD${video.id}")
                 if (nextData != null) {
                     if (video.title.isBlank() || video.title == "Video" || video.channelTitle.isBlank()) {
                         mediaService?.updateMediaInfo(
@@ -374,22 +382,24 @@ fun PlayerScreen(
                             thumbnailUrl = nextData.currentVideo.thumbnailUrl
                         )
                     }
-                    val freshItems = nextData.upNext.filter {
+                    val freshItems = nextData.mixQueue.filter {
                         it.id != video.id && it.id !in playedVideoIds
                     }.distinctBy { it.id }
                     upNextQueue = if (freshItems.isNotEmpty()) {
                         freshItems
                     } else {
-                        nextData.upNext.filter { it.id != video.id }.distinctBy { it.id }
+                        nextData.mixQueue.filter { it.id != video.id }.distinctBy { it.id }
                     }
+                    recommendedVideos = nextData.recommendations
+                    mixTitle = nextData.playlistTitle.ifBlank { "YouTube Mix" }
                 }
                 isLoadingQueue = false
             } else {
                 if (upNextQueue.size < 5) {
-                    val nextData = repository.getWatchNext(video.id)
-                    if (nextData != null) {
+                    val nextData = repository.getWatchNext(video.id, "RD${video.id}")
+                    if (nextData != null && nextData.mixQueue.isNotEmpty()) {
                         val existingIds = upNextQueue.map { it.id }.toSet()
-                        val freshItems = nextData.upNext.filter {
+                        val freshItems = nextData.mixQueue.filter {
                             it.id !in playedVideoIds && it.id !in existingIds && it.id != video.id
                         }.distinctBy { it.id }
                         upNextQueue = upNextQueue + freshItems
@@ -743,12 +753,170 @@ fun PlayerScreen(
                                 }
                             )
                         }
+                    }
+                }
 
-                        Spacer(modifier = Modifier.height(14.dp))
+                // 2. YouTube Mix Card (Mirip YouTube Asli dengan tombol Lihat Antrean)
+                if (mixTitle.isNotBlank() || upNextQueue.isNotEmpty()) {
+                    item {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .liquidGlass(
+                                    shape = RoundedCornerShape(16.dp),
+                                    borderWidth = 1.dp,
+                                    tintColor = Color(0xFF0F172A),
+                                    glassAlpha = 0.85f
+                                )
+                                .clickable { isMixExpanded = !isMixExpanded }
+                                .padding(14.dp)
+                        ) {
+                            Column {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier.weight(1f)
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(38.dp)
+                                                .background(NeonCyan.copy(alpha = 0.15f), CircleShape),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.QueueMusic,
+                                                contentDescription = null,
+                                                tint = NeonCyan,
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                        }
+                                        Spacer(modifier = Modifier.width(10.dp))
+                                        Column {
+                                            Text(
+                                                text = mixTitle.ifBlank { "YouTube Mix" },
+                                                color = TextPrimary,
+                                                fontSize = 13.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                maxLines = 1
+                                            )
+                                            Text(
+                                                text = "Mix resmi YouTube • ${upNextQueue.size + 1} video",
+                                                color = TextMuted,
+                                                fontSize = 11.sp
+                                            )
+                                        }
+                                    }
 
-                        // Up Next Header
+                                    Spacer(modifier = Modifier.width(8.dp))
+
+                                    // Button Lihat Antrean
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier
+                                            .background(Color.White.copy(alpha = 0.08f), RoundedCornerShape(20.dp))
+                                            .padding(horizontal = 10.dp, vertical = 6.dp)
+                                    ) {
+                                        Text(
+                                            text = if (isMixExpanded) "Tutup" else "Antrean",
+                                            color = NeonCyan,
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.SemiBold
+                                        )
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Icon(
+                                            imageVector = if (isMixExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                                            contentDescription = null,
+                                            tint = NeonCyan,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
+                                }
+
+                                if (!isMixExpanded && upNextQueue.isNotEmpty()) {
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Text(
+                                        text = "Berikutnya: ${upNextQueue.first().title}",
+                                        color = NeonCyan,
+                                        fontSize = 12.sp,
+                                        maxLines = 1,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    // If isMixExpanded is true: show the entire Mix Queue list (Foto 1)
+                    if (isMixExpanded) {
+                        item {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .liquidGlass(
+                                        shape = RoundedCornerShape(12.dp),
+                                        borderWidth = 1.dp,
+                                        tintColor = Color(0xFF0C2738),
+                                        glassAlpha = 0.9f
+                                    )
+                                    .padding(horizontal = 12.dp, vertical = 10.dp)
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text(
+                                        text = "▶",
+                                        color = NeonCyan,
+                                        fontSize = 14.sp,
+                                        modifier = Modifier.padding(end = 8.dp)
+                                    )
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = video.title,
+                                            color = TextPrimary,
+                                            fontSize = 13.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            maxLines = 1
+                                        )
+                                        Text(
+                                            text = "Sedang Diputar • ${video.channelTitle}",
+                                            color = NeonCyan,
+                                            fontSize = 11.sp
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        items(upNextQueue, key = { "mix_" + it.id }) { item ->
+                            LiquidGlassVideoCard(
+                                video = item,
+                                onClick = { playFromQueue(item) }
+                            )
+                        }
+                    }
+                }
+
+                // 3. Section Rekomendasi Video (Foto 2)
+                item {
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.AutoAwesome,
+                            contentDescription = null,
+                            tint = NeonPurple,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "Video Berikutnya",
+                            text = "Rekomendasi Video",
                             color = TextPrimary,
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Bold
@@ -756,8 +924,7 @@ fun PlayerScreen(
                     }
                 }
 
-                // Up Next Queue Items
-                if (isLoadingQueue && upNextQueue.isEmpty()) {
+                if (isLoadingQueue && recommendedVideos.isEmpty()) {
                     item {
                         Box(
                             modifier = Modifier
@@ -773,10 +940,13 @@ fun PlayerScreen(
                         }
                     }
                 } else {
-                    items(upNextQueue, key = { it.id }) { item ->
+                    items(recommendedVideos, key = { "rec_" + it.id }) { item ->
                         LiquidGlassVideoCard(
                             video = item,
-                            onClick = { playFromQueue(item) }
+                            onClick = {
+                                isInternalNavigation = false
+                                currentOnPlayNextVideo(item)
+                            }
                         )
                     }
                 }

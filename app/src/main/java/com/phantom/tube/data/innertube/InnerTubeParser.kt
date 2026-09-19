@@ -115,17 +115,27 @@ object InnerTubeParser {
                 upNextList.addAll(itemsBeforeCurrent)
             }
 
-            // Fallback to secondaryResults (Photo 2: Recommendations) if no playlist/mix available
-            if (upNextList.isEmpty()) {
-                val secondary = watchNext.optJSONObject("secondaryResults")?.optJSONObject("secondaryResults")
-                val secondaryResults = secondary?.optJSONArray("results") ?: JSONArray()
+            var playlistTitle = ""
+            if (playlistObj != null) {
+                playlistTitle = playlistObj.optString("title")
+                if (playlistTitle.isBlank()) {
+                    playlistTitle = parseRunsText(playlistObj.optJSONObject("titleText"))
+                }
+                if (playlistTitle.isBlank()) {
+                    playlistTitle = "Mix - $currentTitle"
+                }
+            }
 
-                for (i in 0 until secondaryResults.length()) {
-                    val item = secondaryResults.optJSONObject(i) ?: continue
-                    parseVideoItem(item)?.let {
-                        if (it.id != currentVideoId) {
-                            upNextList.add(it)
-                        }
+            // 3. Recommended Videos (Photo 2: Rekomendasi di bawah video)
+            val recommendationsList = mutableListOf<VideoItem>()
+            val secondary = watchNext.optJSONObject("secondaryResults")?.optJSONObject("secondaryResults")
+            val secondaryResults = secondary?.optJSONArray("results") ?: JSONArray()
+
+            for (i in 0 until secondaryResults.length()) {
+                val item = secondaryResults.optJSONObject(i) ?: continue
+                parseVideoItem(item)?.let {
+                    if (it.id != currentVideoId) {
+                        recommendationsList.add(it)
                     }
                 }
             }
@@ -137,7 +147,12 @@ object InnerTubeParser {
                 thumbnailUrl = "https://i.ytimg.com/vi/$currentVideoId/hqdefault.jpg"
             )
 
-            return NextQueue(currentVideo = currentVideo, upNext = upNextList)
+            return NextQueue(
+                currentVideo = currentVideo,
+                mixQueue = upNextList,
+                recommendations = recommendationsList,
+                playlistTitle = playlistTitle
+            )
         } catch (e: Exception) {
             e.printStackTrace()
             return null
