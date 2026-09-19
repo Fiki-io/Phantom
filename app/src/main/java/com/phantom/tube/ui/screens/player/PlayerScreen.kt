@@ -52,10 +52,13 @@ import androidx.compose.material.icons.filled.Forward10
 import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material.icons.filled.FullscreenExit
 import androidx.compose.material.icons.filled.QueueMusic
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import coil.compose.AsyncImage
+import com.phantom.tube.ui.components.LiquidGlassMiniPlayer
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Replay10
@@ -115,7 +118,11 @@ import kotlinx.coroutines.launch
 fun PlayerScreen(
     video: VideoItem,
     repository: PhantomRepository,
-    onBackClick: () -> Unit,
+    isMinimized: Boolean = false,
+    onMinimize: () -> Unit = {},
+    onExpand: () -> Unit = {},
+    onClose: () -> Unit = {},
+    onBackClick: () -> Unit = onMinimize,
     onPlayNextVideo: (VideoItem) -> Unit,
     onPlayPreviousVideo: () -> Boolean = { false },
     modifier: Modifier = Modifier
@@ -417,7 +424,7 @@ fun PlayerScreen(
         }
     }
 
-    BackHandler {
+    BackHandler(enabled = !isMinimized) {
         if (isFullscreen) {
             val activity = context as? Activity
             activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
@@ -425,26 +432,37 @@ fun PlayerScreen(
         } else if (showMixSheet) {
             showMixSheet = false
         } else {
-            onBackClick()
+            onMinimize()
         }
     }
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .background(ObsidianDark)
+    Box(
+        modifier = if (isMinimized) {
+            modifier
+        } else {
+            modifier
+                .fillMaxSize()
+                .background(ObsidianDark)
+        }
     ) {
-        // VIDEO PLAYER SECTION (16:9 or Match Parent in Fullscreen)
+        // 1. THE SINGLE PERSISTENT VIDEO PLAYER BOX (Always at exact same tree slot)
+        val videoBoxModifier = when {
+            isMinimized -> Modifier
+                .size(1.dp)
+                .alpha(0.001f)
+                .align(Alignment.TopStart)
+            isFullscreen -> Modifier.fillMaxSize()
+            else -> Modifier
+                .fillMaxWidth()
+                .statusBarsPadding()
+                .aspectRatio(16f / 9f)
+                .align(Alignment.TopCenter)
+        }
+
         Box(
-            modifier = if (isFullscreen) {
-                Modifier.fillMaxSize()
-            } else {
-                Modifier
-                    .fillMaxWidth()
-                    .statusBarsPadding()
-                    .aspectRatio(16f / 9f)
-            }
+            modifier = videoBoxModifier
                 .background(Color.Black)
+                .zIndex(if (!isMinimized) 1f else 0f)
         ) {
             // Layer 0: The Ghost Surface (backed by WebViewAssetLoader)
             PhantomGhostSurface(
@@ -542,7 +560,7 @@ fun PlayerScreen(
                         )
                         .padding(12.dp)
                 ) {
-                    // Top Bar Controls: Back & Speed
+                    // Top Bar Controls: Back/Minimize & Speed
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -551,17 +569,17 @@ fun PlayerScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         LiquidGlassIconButton(
-                            icon = Icons.Default.ArrowBack,
-                            contentDescription = "Kembali",
+                            icon = Icons.Default.ExpandMore,
+                            contentDescription = "Perkecil Player",
                             size = 38.dp,
-                            iconSize = 20.dp,
+                            iconSize = 24.dp,
                             onClick = {
                                 if (isFullscreen) {
                                     val activity = context as? Activity
                                     activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
                                     isFullscreen = false
                                 } else {
-                                    onBackClick()
+                                    onMinimize()
                                 }
                             }
                         )
@@ -702,19 +720,29 @@ fun PlayerScreen(
                                     }
                                 )
                             }
-                        }
-                    }
                 }
             }
         }
 
-        // BELOW PLAYER CONTENT (Only shown in portrait mode)
-        if (!isFullscreen) {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
+        // 2. BELOW PLAYER CONTENT (Only shown in portrait full-player mode)
+        if (!isMinimized && !isFullscreen) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .statusBarsPadding()
             ) {
+                // Spacer reserving the height of the top 16:9 Video Player Box
+                Spacer(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(16f / 9f)
+                )
+
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
                 // Video Details Header
                 item {
                     Column(modifier = Modifier.fillMaxWidth()) {
@@ -905,15 +933,15 @@ fun PlayerScreen(
                 }
             }
         }
-    }
 
-    // FLOATING MIX QUEUE SHEET (Mengambang di atas layar ketika dibuka)
-    AnimatedVisibility(
-        visible = showMixSheet && !isFullscreen,
-        enter = fadeIn() + slideInVertically { it },
-        exit = fadeOut() + slideOutVertically { it },
-        modifier = Modifier.fillMaxSize()
-    ) {
+        // 3. FLOATING MIX QUEUE SHEET (Only in full player mode)
+        if (!isMinimized) {
+            AnimatedVisibility(
+                visible = showMixSheet && !isFullscreen,
+                enter = fadeIn() + slideInVertically { it },
+                exit = fadeOut() + slideOutVertically { it },
+                modifier = Modifier.fillMaxSize()
+            ) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -1005,6 +1033,23 @@ fun PlayerScreen(
                     }
                 }
             }
+        }
+
+        // 4. PERSISTENT LIQUID GLASS MINIPLAYER (When player is minimized)
+        if (isMinimized) {
+            LiquidGlassMiniPlayer(
+                video = video,
+                isPlaying = playerState.isPlaying,
+                isBuffering = playerState.isBuffering,
+                currentTimeSec = playerState.currentTimeSec,
+                durationSec = playerState.durationSec,
+                onExpand = onExpand,
+                onTogglePlayPause = {
+                    if (playerState.isPlaying) controller.pause() else controller.play()
+                },
+                onClose = onClose,
+                modifier = Modifier.fillMaxWidth()
+            )
         }
     }
 }
