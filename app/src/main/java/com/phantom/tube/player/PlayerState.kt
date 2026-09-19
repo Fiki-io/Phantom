@@ -1,5 +1,8 @@
 package com.phantom.tube.player
 
+import androidx.compose.runtime.Immutable
+
+@Immutable
 data class PlayerState(
     val videoId: String = "",
     val isPlaying: Boolean = false,
@@ -9,7 +12,6 @@ data class PlayerState(
     val durationSec: Float = 0f,
     val bufferedFraction: Float = 0f,
     val playbackSpeed: Float = 1.0f,
-    val currentQuality: String = "auto",
     val errorCode: String? = null
 ) {
     val progressFraction: Float

@@ -172,8 +172,9 @@ fun PlayerScreen(
     var isInternalNavigation by remember { mutableStateOf(false) }
     var isLoadingQueue by remember { mutableStateOf(false) }
 
-    // Settings States (Quality, Speed, Sleep Timer, Loop, Autoplay, Audio-Only)
+    // Settings States (Speed, Double Tap Seek, Sleep Timer, Loop, Autoplay, Audio-Only)
     var showSettingsSheet by remember { mutableStateOf(false) }
+    var doubleTapSeekSeconds by remember { mutableIntStateOf(10) }
     var isLoopEnabled by remember { mutableStateOf(false) }
     var isAutoplayNext by remember { mutableStateOf(true) }
     var isAudioOnly by remember { mutableStateOf(false) }
@@ -339,9 +340,6 @@ fun PlayerScreen(
                     else -> "Error pemutaran ($errorCode)"
                 }
                 playerState = playerState.copy(isBuffering = false, errorCode = msg)
-            },
-            onQualityChangeCallback = { quality ->
-                playerState = playerState.copy(currentQuality = quality)
             }
         )
     }
@@ -661,19 +659,18 @@ fun PlayerScreen(
             Box(
                 modifier = Modifier
                     .matchParentSize()
-                    .pointerInput(Unit) {
+                    .pointerInput(doubleTapSeekSeconds) {
                         detectTapGestures(
                             onTap = {
                                 isControlsVisible = !isControlsVisible
                             },
                             onDoubleTap = { offset ->
+                                val delta = doubleTapSeekSeconds.toFloat()
                                 if (offset.x < size.width / 2) {
-                                    // Seek back 10s
-                                    val newTime = (playerState.currentTimeSec - 10f).coerceAtLeast(0f)
+                                    val newTime = (playerState.currentTimeSec - delta).coerceAtLeast(0f)
                                     controller.seekTo(newTime)
                                 } else {
-                                    // Seek forward 10s
-                                    val newTime = (playerState.currentTimeSec + 10f).coerceAtMost(playerState.durationSec)
+                                    val newTime = (playerState.currentTimeSec + delta).coerceAtMost(playerState.durationSec)
                                     controller.seekTo(newTime)
                                 }
                             }
@@ -1308,26 +1305,25 @@ fun PlayerScreen(
             )
         }
 
-        // 4. Liquid Glass Player Settings Sheet (Quality, Speed, Sleep Timer, Repeat, Autoplay, Audio-Only)
+        // 4. Liquid Glass Player Settings Sheet (Speed, Double Tap Seek, Sleep Timer, Repeat, Autoplay, Audio-Only)
         if (!isMinimized) {
             PlayerSettingsSheet(
                 visible = showSettingsSheet,
                 isFullscreen = isFullscreen,
-                currentQuality = playerState.currentQuality,
                 currentSpeed = playerState.playbackSpeed,
+                doubleTapSeekSeconds = doubleTapSeekSeconds,
                 isLoopEnabled = isLoopEnabled,
                 isAutoplayNext = isAutoplayNext,
                 isAudioOnly = isAudioOnly,
                 sleepTimerRemainingSec = sleepTimerRemainingSec,
                 sleepTimerOption = sleepTimerOption,
                 onDismiss = { showSettingsSheet = false },
-                onQualitySelected = { quality ->
-                    playerState = playerState.copy(currentQuality = quality)
-                    controller.setPlaybackQuality(quality)
-                },
                 onSpeedSelected = { speed ->
                     playerState = playerState.copy(playbackSpeed = speed)
                     controller.setPlaybackRate(speed)
+                },
+                onDoubleTapSeekSelected = { seconds ->
+                    doubleTapSeekSeconds = seconds
                 },
                 onSleepTimerSelected = { option ->
                     sleepTimerOption = option

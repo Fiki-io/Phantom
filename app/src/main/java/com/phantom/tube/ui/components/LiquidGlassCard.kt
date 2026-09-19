@@ -38,6 +38,10 @@ import com.phantom.tube.core.theme.TextSecondary
 import com.phantom.tube.core.theme.liquidGlass
 import com.phantom.tube.data.model.VideoItem
 
+private val CardVignetteBrush = Brush.verticalGradient(
+    listOf(Color.Transparent, Color.Black.copy(alpha = 0.8f))
+)
+
 @Composable
 fun LiquidGlassVideoCard(
     video: VideoItem,
@@ -77,11 +81,7 @@ fun LiquidGlassVideoCard(
                         .fillMaxWidth()
                         .height(48.dp)
                         .align(Alignment.BottomCenter)
-                        .background(
-                            Brush.verticalGradient(
-                                listOf(Color.Transparent, Color.Black.copy(alpha = 0.8f))
-                            )
-                        )
+                        .background(CardVignetteBrush)
                 )
 
                 // Duration badge

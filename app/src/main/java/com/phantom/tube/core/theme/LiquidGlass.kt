@@ -14,6 +14,19 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
+private val SheenColors = listOf(
+    Color.White.copy(alpha = 0.12f),
+    Color.White.copy(alpha = 0.02f),
+    Color.Transparent
+)
+
+private val DefaultBorderColors = listOf(
+    Color.White.copy(alpha = 0.55f),
+    Color(0x4000CEC9), // Cyan refraction
+    Color(0x306C5CE7), // Violet refraction
+    Color.White.copy(alpha = 0.12f)
+)
+
 /**
  * Liquid Glass styling modifier for buttons, cards, overlays, and controls.
  * Applies a frosted translucent fill, a refractive multi-stop border gradient,
@@ -38,14 +51,10 @@ fun Modifier.liquidGlass(
     )
     .drawWithContent {
         drawContent()
-        // Draw specular liquid glass sheen on top half
+        // Draw specular liquid glass sheen on top half using pre-allocated SheenColors
         val sheenBrush = Brush.linearGradient(
-            colors = listOf(
-                Color.White.copy(alpha = 0.12f),
-                Color.White.copy(alpha = 0.02f),
-                Color.Transparent
-            ),
-            start = Offset(0f, 0f),
+            colors = SheenColors,
+            start = Offset.Zero,
             end = Offset(size.width * 0.6f, size.height * 0.6f)
         )
         drawRect(
@@ -64,15 +73,10 @@ fun Modifier.liquidGlass(
                     accentGlow.copy(alpha = 0.2f)
                 )
             } else {
-                listOf(
-                    Color.White.copy(alpha = 0.55f),
-                    Color(0x4000CEC9), // Cyan refraction
-                    Color(0x306C5CE7), // Violet refraction
-                    Color.White.copy(alpha = 0.12f)
-                )
+                DefaultBorderColors
             },
-            start = Offset(0f, 0f),
-            end = Offset(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY)
+            start = Offset.Zero,
+            end = Offset.Infinite
         ),
         shape = shape
     )

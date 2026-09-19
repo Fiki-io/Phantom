@@ -34,8 +34,8 @@ import androidx.compose.material.icons.filled.Bedtime
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.FastForward
 import androidx.compose.material.icons.filled.Headphones
-import androidx.compose.material.icons.filled.HighQuality
 import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.Speed
@@ -52,13 +52,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.phantom.tube.core.theme.GlassBorderLight
 import com.phantom.tube.core.theme.NeonCyan
 import com.phantom.tube.core.theme.NeonPink
 import com.phantom.tube.core.theme.ObsidianSurfaceLight
@@ -69,7 +67,7 @@ import com.phantom.tube.core.theme.liquidGlass
 
 enum class SettingsSheetPage {
     MAIN,
-    QUALITY,
+    DOUBLE_TAP_SEEK,
     SPEED,
     SLEEP_TIMER
 }
@@ -83,17 +81,7 @@ enum class SleepTimerOption(val label: String, val seconds: Int?) {
     END_OF_VIDEO("Akhir Video Ini", -1)
 }
 
-data class VideoQualityOption(val code: String, val label: String)
-
-val AVAILABLE_QUALITIES = listOf(
-    VideoQualityOption("auto", "Otomatis"),
-    VideoQualityOption("hd1080", "1080p (FHD)"),
-    VideoQualityOption("hd720", "720p (HD)"),
-    VideoQualityOption("large", "480p"),
-    VideoQualityOption("medium", "360p"),
-    VideoQualityOption("small", "240p"),
-    VideoQualityOption("tiny", "144p")
-)
+val AVAILABLE_SEEK_DURATIONS = listOf(5, 10, 15, 20, 30)
 
 val AVAILABLE_SPEEDS = listOf(0.25f, 0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 1.75f, 2.0f)
 
@@ -102,16 +90,16 @@ val AVAILABLE_SPEEDS = listOf(0.25f, 0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 1.75f, 2.0f
 fun PlayerSettingsSheet(
     visible: Boolean,
     isFullscreen: Boolean,
-    currentQuality: String,
     currentSpeed: Float,
+    doubleTapSeekSeconds: Int,
     isLoopEnabled: Boolean,
     isAutoplayNext: Boolean,
     isAudioOnly: Boolean,
     sleepTimerRemainingSec: Int?,
     sleepTimerOption: SleepTimerOption,
     onDismiss: () -> Unit,
-    onQualitySelected: (String) -> Unit,
     onSpeedSelected: (Float) -> Unit,
+    onDoubleTapSeekSelected: (Int) -> Unit,
     onSleepTimerSelected: (SleepTimerOption) -> Unit,
     onLoopToggle: (Boolean) -> Unit,
     onAutoplayToggle: (Boolean) -> Unit,
@@ -190,8 +178,8 @@ fun PlayerSettingsSheet(
                         when (page) {
                             SettingsSheetPage.MAIN -> {
                                 MainSettingsContent(
-                                    currentQuality = currentQuality,
                                     currentSpeed = currentSpeed,
+                                    doubleTapSeekSeconds = doubleTapSeekSeconds,
                                     isLoopEnabled = isLoopEnabled,
                                     isAutoplayNext = isAutoplayNext,
                                     isAudioOnly = isAudioOnly,
@@ -204,11 +192,11 @@ fun PlayerSettingsSheet(
                                     onClose = onDismiss
                                 )
                             }
-                            SettingsSheetPage.QUALITY -> {
-                                QualitySettingsContent(
-                                    currentQuality = currentQuality,
-                                    onSelectQuality = {
-                                        onQualitySelected(it)
+                            SettingsSheetPage.DOUBLE_TAP_SEEK -> {
+                                DoubleTapSeekSettingsContent(
+                                    currentSeconds = doubleTapSeekSeconds,
+                                    onSelectSeconds = {
+                                        onDoubleTapSeekSelected(it)
                                         currentPage = SettingsSheetPage.MAIN
                                     },
                                     onBack = { currentPage = SettingsSheetPage.MAIN }
@@ -245,8 +233,8 @@ fun PlayerSettingsSheet(
 
 @Composable
 private fun MainSettingsContent(
-    currentQuality: String,
     currentSpeed: Float,
+    doubleTapSeekSeconds: Int,
     isLoopEnabled: Boolean,
     isAutoplayNext: Boolean,
     isAudioOnly: Boolean,
@@ -285,13 +273,12 @@ private fun MainSettingsContent(
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            val qualityLabel = AVAILABLE_QUALITIES.find { it.code == currentQuality }?.label ?: "Otomatis"
             item {
                 SettingsNavigationRow(
-                    icon = Icons.Default.HighQuality,
-                    title = "Kualitas Video",
-                    subtitle = qualityLabel,
-                    onClick = { onNavigate(SettingsSheetPage.QUALITY) }
+                    icon = Icons.Default.FastForward,
+                    title = "Lompat Ketuk Ganda",
+                    subtitle = "$doubleTapSeekSeconds Detik",
+                    onClick = { onNavigate(SettingsSheetPage.DOUBLE_TAP_SEEK) }
                 )
             }
 
@@ -361,9 +348,9 @@ private fun MainSettingsContent(
 }
 
 @Composable
-private fun QualitySettingsContent(
-    currentQuality: String,
-    onSelectQuality: (String) -> Unit,
+private fun DoubleTapSeekSettingsContent(
+    currentSeconds: Int,
+    onSelectSeconds: (Int) -> Unit,
     onBack: () -> Unit
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
@@ -380,7 +367,7 @@ private fun QualitySettingsContent(
             )
             Spacer(modifier = Modifier.width(12.dp))
             Text(
-                text = "Pilih Kualitas Video",
+                text = "Durasi Ketuk Ganda",
                 color = TextPrimary,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold
@@ -388,7 +375,7 @@ private fun QualitySettingsContent(
         }
 
         Text(
-            text = "Kualitas terbaik akan diprioritaskan saat koneksi Anda stabil.",
+            text = "Ketuk 2x sisi kiri layar untuk mundur, dan sisi kanan untuk maju.",
             color = TextMuted,
             fontSize = 12.sp,
             modifier = Modifier.padding(start = 6.dp, top = 6.dp, bottom = 12.dp)
@@ -398,8 +385,9 @@ private fun QualitySettingsContent(
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            items(AVAILABLE_QUALITIES) { option ->
-                val isSelected = option.code == currentQuality || (currentQuality.isBlank() && option.code == "auto")
+            items(AVAILABLE_SEEK_DURATIONS) { seconds ->
+                val isSelected = seconds == currentSeconds
+                val label = if (seconds == 10) "$seconds Detik (Bawaan)" else "$seconds Detik"
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -409,7 +397,7 @@ private fun QualitySettingsContent(
                             glassAlpha = if (isSelected) 0.8f else 0.35f,
                             accentGlow = if (isSelected) NeonCyan else null
                         )
-                        .clickable { onSelectQuality(option.code) }
+                        .clickable { onSelectSeconds(seconds) }
                         .padding(horizontal = 16.dp, vertical = 12.dp)
                 ) {
                     Row(
@@ -418,7 +406,7 @@ private fun QualitySettingsContent(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = option.label,
+                            text = label,
                             color = if (isSelected) NeonCyan else TextPrimary,
                             fontSize = 14.sp,
                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal

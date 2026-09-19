@@ -1,5 +1,8 @@
 package com.phantom.tube.data.model
 
+import androidx.compose.runtime.Immutable
+
+@Immutable
 data class VideoItem(
     val id: String,
     val title: String,
@@ -13,20 +16,7 @@ data class VideoItem(
     val durationSeconds: Long = 0L
 )
 
-data class VideoDetail(
-    val id: String,
-    val title: String,
-    val description: String = "",
-    val channelTitle: String = "",
-    val channelId: String = "",
-    val channelAvatarUrl: String = "",
-    val viewCountText: String = "",
-    val likeCountText: String = "",
-    val subscriberCountText: String = "",
-    val publishedDate: String = "",
-    val relatedVideos: List<VideoItem> = emptyList()
-)
-
+@Immutable
 data class NextQueue(
     val currentVideo: VideoItem,
     val mixPlaylist: List<VideoItem> = emptyList(),
@@ -38,6 +28,7 @@ data class NextQueue(
     val mixQueue: List<VideoItem> get() = upNext
 }
 
+@Immutable
 data class SponsorSegment(
     val category: String,
     val startSecond: Float,
@@ -46,3 +37,4 @@ data class SponsorSegment(
 ) {
     val durationSeconds: Float get() = (endSecond - startSecond).coerceAtLeast(0f)
 }
+

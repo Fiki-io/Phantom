@@ -2,7 +2,6 @@ package com.phantom.tube.data.innertube
 
 import com.phantom.tube.data.model.FeedResult
 import com.phantom.tube.data.model.NextQueue
-import com.phantom.tube.data.model.VideoDetail
 import com.phantom.tube.data.model.VideoItem
 import org.json.JSONArray
 import org.json.JSONObject

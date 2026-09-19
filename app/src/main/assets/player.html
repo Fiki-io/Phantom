@@ -92,7 +92,6 @@
                 events: {
                     'onReady': onPlayerReady,
                     'onStateChange': onPlayerStateChange,
-                    'onPlaybackQualityChange': onPlayerPlaybackQualityChange,
                     'onError': onPlayerError
                 }
             };
@@ -110,9 +109,6 @@
         function onPlayerReady(event) {
             if (window.PhantomBridge) {
                 window.PhantomBridge.onReady();
-                if (typeof window.PhantomBridge.onQualityChange === 'function' && typeof player.getPlaybackQuality === 'function') {
-                    window.PhantomBridge.onQualityChange(player.getPlaybackQuality() || 'auto');
-                }
             }
             startTimeTicker();
             if (event.target && typeof event.target.playVideo === 'function') {
@@ -123,12 +119,6 @@
         function onPlayerStateChange(event) {
             if (window.PhantomBridge) {
                 window.PhantomBridge.onStateChange(event.data);
-            }
-        }
-
-        function onPlayerPlaybackQualityChange(event) {
-            if (window.PhantomBridge && typeof window.PhantomBridge.onQualityChange === 'function') {
-                window.PhantomBridge.onQualityChange(event.data || 'auto');
             }
         }
 
@@ -189,14 +179,6 @@
         window.setPlaybackRate = function(rate) {
             try {
                 if (player && typeof player.setPlaybackRate === 'function') player.setPlaybackRate(rate);
-            } catch(e) {}
-        };
-
-        window.setPlaybackQuality = function(quality) {
-            try {
-                if (player && typeof player.setPlaybackQuality === 'function') {
-                    player.setPlaybackQuality(quality);
-                }
             } catch(e) {}
         };
 
