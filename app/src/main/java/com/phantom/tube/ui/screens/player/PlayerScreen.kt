@@ -720,9 +720,12 @@ fun PlayerScreen(
                                     }
                                 )
                             }
+                        }
+                    }
                 }
             }
         }
+    }
 
         // 2. BELOW PLAYER CONTENT (Only shown in portrait full-player mode)
         if (!isMinimized && !isFullscreen) {
