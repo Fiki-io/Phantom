@@ -1,6 +1,8 @@
 package com.phantom.tube
 
+import android.Manifest
 import android.app.PictureInPictureParams
+import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.os.Build
 import android.os.Bundle
@@ -8,6 +10,7 @@ import android.util.Rational
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -18,6 +21,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.core.content.ContextCompat
 import com.phantom.tube.core.theme.ObsidianDark
 import com.phantom.tube.core.theme.PhantomTheme
 import com.phantom.tube.data.model.VideoItem
@@ -32,10 +36,18 @@ import com.phantom.tube.ui.screens.search.SearchScreen
 class MainActivity : ComponentActivity() {
 
     private var isInPipMode by mutableStateOf(false)
+    private var activeVideo by mutableStateOf<VideoItem?>(null)
+
+    private val notificationPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { _ ->
+        // Handled notification permission response
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        requestNotificationPermission()
 
         val app = application as PhantomApp
         val repository = app.repository
@@ -43,7 +55,6 @@ class MainActivity : ComponentActivity() {
         setContent {
             PhantomTheme {
                 var currentTab by remember { mutableStateOf(NavTab.HOME) }
-                var activeVideo by remember { mutableStateOf<VideoItem?>(null) }
 
                 Box(
                     modifier = Modifier
@@ -98,10 +109,22 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private fun requestNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.POST_NOTIFICATIONS
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
+                notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
+    }
+
     override fun onUserLeaveHint() {
         super.onUserLeaveHint()
-        // Enter Picture-in-Picture if Android 8.0+
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        // Enter Picture-in-Picture only if a video is currently active
+        if (activeVideo != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             try {
                 val params = PictureInPictureParams.Builder()
                     .setAspectRatio(Rational(16, 9))

@@ -3,6 +3,8 @@ package com.phantom.tube.player
 import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Color
+import android.util.AttributeSet
+import android.view.View
 import android.view.ViewGroup
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
@@ -14,6 +16,17 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.webkit.WebViewAssetLoader
+
+class PhantomBackgroundWebView @JvmOverloads constructor(
+    context: Context,
+    attrs: AttributeSet? = null,
+    defStyleAttr: Int = 0
+) : WebView(context, attrs, defStyleAttr) {
+    override fun onWindowVisibilityChanged(visibility: Int) {
+        // Intercept GONE/INVISIBLE to keep Chromium audio and timers running in background / screen off
+        super.onWindowVisibilityChanged(View.VISIBLE)
+    }
+}
 
 class PhantomPlayerController(context: Context) {
     private var webView: WebView? = null
@@ -94,7 +107,7 @@ fun PhantomGhostSurface(
                 .addPathHandler("/assets/", WebViewAssetLoader.AssetsPathHandler(ctx))
                 .build()
 
-            WebView(ctx).apply {
+            PhantomBackgroundWebView(ctx).apply {
                 setBackgroundColor(Color.BLACK)
                 layoutParams = ViewGroup.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT,

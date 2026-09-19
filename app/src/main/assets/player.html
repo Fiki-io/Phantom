@@ -19,6 +19,34 @@
             pointer-events: none; /* Touches pass through to Jetpack Compose Liquid Glass UI */
         }
     </style>
+    <script>
+        // Override Page Visibility API to keep YouTube audio playing in background / screen off
+        try {
+            Object.defineProperty(document, 'hidden', {
+                get: function() { return false; },
+                configurable: true
+            });
+            Object.defineProperty(document, 'visibilityState', {
+                get: function() { return 'visible'; },
+                configurable: true
+            });
+            Object.defineProperty(document, 'webkitVisibilityState', {
+                get: function() { return 'visible'; },
+                configurable: true
+            });
+            Object.defineProperty(document, 'webkitHidden', {
+                get: function() { return false; },
+                configurable: true
+            });
+        } catch(e) {}
+
+        // Prevent visibilitychange event listeners from pausing playback
+        window.addEventListener('visibilitychange', function(e) { e.stopImmediatePropagation(); }, true);
+        document.addEventListener('visibilitychange', function(e) { e.stopImmediatePropagation(); }, true);
+        window.addEventListener('webkitvisibilitychange', function(e) { e.stopImmediatePropagation(); }, true);
+        document.addEventListener('webkitvisibilitychange', function(e) { e.stopImmediatePropagation(); }, true);
+        window.addEventListener('blur', function(e) { e.stopImmediatePropagation(); }, true);
+    </script>
 </head>
 <body>
     <div id="player"></div>

@@ -7,9 +7,11 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ServiceInfo
 import android.os.Binder
 import android.os.Build
 import android.os.IBinder
+import android.os.PowerManager
 import android.support.v4.media.MediaMetadataCompat
 import android.support.v4.media.session.MediaSessionCompat
 import android.support.v4.media.session.PlaybackStateCompat
@@ -21,6 +23,7 @@ class PhantomMediaService : Service() {
 
     private val binder = LocalBinder()
     private var mediaSession: MediaSessionCompat? = null
+    private var wakeLock: PowerManager.WakeLock? = null
     private var currentTitle: String = "Phantom Player"
     private var currentChannel: String = ""
     private var isPlaying: Boolean = false
@@ -41,6 +44,8 @@ class PhantomMediaService : Service() {
         super.onCreate()
         createNotificationChannel()
         initMediaSession()
+        // Immediately establish foreground status within 5 seconds of service launch
+        startForegroundCompat(buildNotification())
     }
 
     private fun createNotificationChannel() {
@@ -60,6 +65,10 @@ class PhantomMediaService : Service() {
 
     private fun initMediaSession() {
         mediaSession = MediaSessionCompat(this, "PhantomMediaSession").apply {
+            setFlags(
+                MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS or
+                MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS
+            )
             setCallback(object : MediaSessionCompat.Callback() {
                 override fun onPlay() {
                     onPlayAction?.invoke()
@@ -105,11 +114,17 @@ class PhantomMediaService : Service() {
         mediaSession?.setMetadata(metadata)
         updatePlaybackState(playing)
 
-        startForeground(NOTIFICATION_ID, buildNotification())
+        startForegroundCompat(buildNotification())
     }
 
     fun updatePlaybackState(playing: Boolean, currentPositionMs: Long = 0L) {
         isPlaying = playing
+        if (playing) {
+            acquireWakeLock()
+        } else {
+            releaseWakeLock()
+        }
+
         val state = if (playing) PlaybackStateCompat.STATE_PLAYING else PlaybackStateCompat.STATE_PAUSED
         val playbackState = PlaybackStateCompat.Builder()
             .setActions(
@@ -127,14 +142,35 @@ class PhantomMediaService : Service() {
         notificationManager.notify(NOTIFICATION_ID, buildNotification())
     }
 
+    private fun startForegroundCompat(notification: Notification) {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                startForeground(
+                    NOTIFICATION_ID,
+                    notification,
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
+                )
+            } else {
+                startForeground(NOTIFICATION_ID, notification)
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
     private fun buildNotification(): Notification {
         val openIntent = Intent(this, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_SINGLE_TOP
+            flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
         }
         val openPendingIntent = PendingIntent.getActivity(
             this, 0, openIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
+
+        val prevAction = NotificationCompat.Action.Builder(
+            android.R.drawable.ic_media_previous, "Previous",
+            getServicePendingIntent(ACTION_PREVIOUS)
+        ).build()
 
         val playPauseAction = if (isPlaying) {
             NotificationCompat.Action.Builder(
@@ -159,12 +195,13 @@ class PhantomMediaService : Service() {
             .setSmallIcon(R.drawable.ic_launcher_foreground)
             .setContentIntent(openPendingIntent)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .addAction(prevAction)
             .addAction(playPauseAction)
             .addAction(nextAction)
             .setStyle(
                 androidx.media.app.NotificationCompat.MediaStyle()
                     .setMediaSession(mediaSession?.sessionToken)
-                    .setShowActionsInCompactView(0, 1)
+                    .setShowActionsInCompactView(0, 1, 2)
             )
             .setOngoing(isPlaying)
             .build()
@@ -180,18 +217,48 @@ class PhantomMediaService : Service() {
         )
     }
 
+    private fun acquireWakeLock() {
+        if (wakeLock == null) {
+            val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
+            wakeLock = powerManager.newWakeLock(
+                PowerManager.PARTIAL_WAKE_LOCK,
+                "Phantom:PlaybackWakeLock"
+            ).apply {
+                setReferenceCounted(false)
+                acquire(3 * 60 * 60 * 1000L) // 3 hours safety timeout
+            }
+        }
+    }
+
+    private fun releaseWakeLock() {
+        try {
+            wakeLock?.let {
+                if (it.isHeld) {
+                    it.release()
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        wakeLock = null
+    }
+
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             ACTION_PLAY -> onPlayAction?.invoke()
             ACTION_PAUSE -> onPauseAction?.invoke()
             ACTION_NEXT -> onNextAction?.invoke()
+            ACTION_PREVIOUS -> onPreviousAction?.invoke()
         }
         return START_NOT_STICKY
     }
 
     override fun onDestroy() {
+        releaseWakeLock()
         mediaSession?.isActive = false
         mediaSession?.release()
+        mediaSession = null
+        stopForeground(STOP_FOREGROUND_REMOVE)
         super.onDestroy()
     }
 
@@ -201,5 +268,6 @@ class PhantomMediaService : Service() {
         const val ACTION_PLAY = "com.phantom.tube.ACTION_PLAY"
         const val ACTION_PAUSE = "com.phantom.tube.ACTION_PAUSE"
         const val ACTION_NEXT = "com.phantom.tube.ACTION_NEXT"
+        const val ACTION_PREVIOUS = "com.phantom.tube.ACTION_PREVIOUS"
     }
 }

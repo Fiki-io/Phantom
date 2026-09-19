@@ -1,9 +1,16 @@
 package com.phantom.tube.ui.screens.player
 
 import android.app.Activity
+import android.content.ComponentName
+import android.content.Context
+import android.content.Intent
+import android.content.ServiceConnection
 import android.content.pm.ActivityInfo
+import android.os.Build
+import android.os.IBinder
 import android.view.WindowManager
 import androidx.activity.compose.BackHandler
+import com.phantom.tube.player.service.PhantomMediaService
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -115,6 +122,8 @@ fun PlayerScreen(
     // Favorites
     val isFavorite by repository.isFavorite(video.id).collectAsState(initial = false)
 
+    var mediaService by remember { mutableStateOf<PhantomMediaService?>(null) }
+
     val controller = remember { PhantomPlayerController(context) }
 
     val bridge = remember {
@@ -125,11 +134,18 @@ fun PlayerScreen(
             onStateChangeCallback = { state ->
                 // 1 = PLAYING, 2 = PAUSED, 3 = BUFFERING, 0 = ENDED
                 when (state) {
-                    1 -> playerState = playerState.copy(isPlaying = true, isBuffering = false, isEnded = false, errorCode = null)
-                    2 -> playerState = playerState.copy(isPlaying = false, isBuffering = false)
+                    1 -> {
+                        playerState = playerState.copy(isPlaying = true, isBuffering = false, isEnded = false, errorCode = null)
+                        mediaService?.updatePlaybackState(true, (playerState.currentTimeSec * 1000).toLong())
+                    }
+                    2 -> {
+                        playerState = playerState.copy(isPlaying = false, isBuffering = false)
+                        mediaService?.updatePlaybackState(false, (playerState.currentTimeSec * 1000).toLong())
+                    }
                     3 -> playerState = playerState.copy(isBuffering = true)
                     0 -> {
                         playerState = playerState.copy(isPlaying = false, isEnded = true)
+                        mediaService?.updatePlaybackState(false, (playerState.currentTimeSec * 1000).toLong())
                         nextQueue?.upNext?.firstOrNull()?.let { nextVid ->
                             onPlayNextVideo(nextVid)
                         }
@@ -137,11 +153,21 @@ fun PlayerScreen(
                 }
             },
             onTimeUpdateCallback = { current, duration, buffered ->
+                val wasZeroDuration = playerState.durationSec <= 0f && duration > 0f
                 playerState = playerState.copy(
                     currentTimeSec = current,
                     durationSec = duration,
                     bufferedFraction = buffered
                 )
+
+                if (wasZeroDuration) {
+                    mediaService?.updateMediaInfo(
+                        title = video.title,
+                        channel = video.channelTitle,
+                        durationMs = (duration * 1000).toLong(),
+                        playing = playerState.isPlaying
+                    )
+                }
 
                 // Record watch history
                 if (current > 2f) {
@@ -182,7 +208,66 @@ fun PlayerScreen(
         )
     }
 
-    // Keep screen on during playback
+    // Bind and start PhantomMediaService for foreground notification controls & background audio
+    DisposableEffect(video.id) {
+        val serviceIntent = Intent(context, PhantomMediaService::class.java)
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                context.startForegroundService(serviceIntent)
+            } else {
+                context.startService(serviceIntent)
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+
+        val connection = object : ServiceConnection {
+            override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
+                val service = (binder as? PhantomMediaService.LocalBinder)?.getService()
+                mediaService = service
+                service?.apply {
+                    onPlayAction = { controller.play() }
+                    onPauseAction = { controller.pause() }
+                    onNextAction = {
+                        nextQueue?.upNext?.firstOrNull()?.let { onPlayNextVideo(it) }
+                    }
+                    onPreviousAction = {
+                        val newTime = (playerState.currentTimeSec - 10f).coerceAtLeast(0f)
+                        controller.seekTo(newTime)
+                    }
+                    onSeekAction = { posMs ->
+                        controller.seekTo(posMs / 1000f)
+                    }
+                    updateMediaInfo(
+                        title = video.title,
+                        channel = video.channelTitle,
+                        durationMs = (playerState.durationSec * 1000).toLong(),
+                        playing = playerState.isPlaying
+                    )
+                }
+            }
+
+            override fun onServiceDisconnected(name: ComponentName?) {
+                mediaService = null
+            }
+        }
+
+        try {
+            context.bindService(serviceIntent, connection, Context.BIND_AUTO_CREATE)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+
+        onDispose {
+            try {
+                context.unbindService(connection)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    // Keep screen on during playback & stop service when player is completely dismissed
     DisposableEffect(Unit) {
         val activity = context as? Activity
         activity?.window?.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
@@ -192,6 +277,11 @@ fun PlayerScreen(
                 activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
             }
             controller.release()
+            try {
+                context.stopService(Intent(context, PhantomMediaService::class.java))
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
         }
     }
 
@@ -203,11 +293,25 @@ fun PlayerScreen(
         }
     }
 
+    // Update notification next/previous actions dynamically
+    LaunchedEffect(nextQueue) {
+        mediaService?.onNextAction = {
+            nextQueue?.upNext?.firstOrNull()?.let { onPlayNextVideo(it) }
+        }
+    }
+
     // Load SponsorBlock segments & Watch Next Queue
     LaunchedEffect(video.id) {
         playerState = PlayerState(videoId = video.id)
         val lastPos = repository.getLastPosition(video.id)
         controller.loadVideo(video.id, lastPos / 1000f)
+
+        mediaService?.updateMediaInfo(
+            title = video.title,
+            channel = video.channelTitle,
+            durationMs = 0L,
+            playing = true
+        )
 
         launch {
             sponsorSegments = repository.getSponsorSegments(video.id)
