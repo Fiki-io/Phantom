@@ -16,10 +16,23 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.Velocity
+import androidx.compose.runtime.mutableFloatStateOf
+import kotlin.math.roundToInt
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -437,13 +450,87 @@ fun PlayerScreen(
         }
     }
 
+    var dragOffsetY by remember { mutableFloatStateOf(0f) }
+    val animatedDragOffset by animateFloatAsState(
+        targetValue = dragOffsetY,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioLowBouncy,
+            stiffness = Spring.StiffnessMediumLow
+        ),
+        label = "drag_minimize_offset"
+    )
+
+    LaunchedEffect(isMinimized) {
+        dragOffsetY = 0f
+    }
+
+    val lazyListState = rememberLazyListState()
+    val nestedScrollConnection = remember {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                if (dragOffsetY > 0f && available.y < 0f) {
+                    val consumed = available.y.coerceAtLeast(-dragOffsetY)
+                    dragOffsetY += consumed
+                    return Offset(0f, consumed)
+                }
+                return Offset.Zero
+            }
+
+            override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
+                if (available.y > 0f && !isMinimized && !isFullscreen && lazyListState.firstVisibleItemIndex == 0 && lazyListState.firstVisibleItemScrollOffset == 0) {
+                    dragOffsetY = (dragOffsetY + available.y * 0.7f).coerceAtLeast(0f)
+                    return Offset(0f, available.y)
+                }
+                return Offset.Zero
+            }
+
+            override suspend fun onPreFling(available: Velocity): Velocity {
+                if (dragOffsetY > 0f) {
+                    if (dragOffsetY > 160f || available.y > 800f) {
+                        dragOffsetY = 0f
+                        onMinimize()
+                    } else {
+                        dragOffsetY = 0f
+                    }
+                    return available
+                }
+                return Velocity.Zero
+            }
+        }
+    }
+
+    val dragModifier = if (!isMinimized && !isFullscreen) {
+        Modifier.pointerInput(Unit) {
+            detectVerticalDragGestures(
+                onVerticalDrag = { change, dragAmount ->
+                    if (dragAmount > 0f || dragOffsetY > 0f) {
+                        change.consume()
+                        dragOffsetY = (dragOffsetY + dragAmount).coerceAtLeast(0f)
+                    }
+                },
+                onDragEnd = {
+                    if (dragOffsetY > 160f) {
+                        dragOffsetY = 0f
+                        onMinimize()
+                    } else {
+                        dragOffsetY = 0f
+                    }
+                },
+                onDragCancel = {
+                    dragOffsetY = 0f
+                }
+            )
+        }
+    } else Modifier
+
     Box(
         modifier = if (isMinimized) {
             modifier
         } else {
             modifier
                 .fillMaxSize()
-                .background(ObsidianDark)
+                .background(ObsidianDark.copy(alpha = (1f - (animatedDragOffset / 1500f)).coerceIn(0.6f, 1f)))
+                .offset { IntOffset(0, animatedDragOffset.roundToInt()) }
         }
     ) {
         // 1. THE SINGLE PERSISTENT VIDEO PLAYER BOX (Always at exact same tree slot)
@@ -463,6 +550,7 @@ fun PlayerScreen(
 
         Box(
             modifier = videoBoxModifier
+                .then(dragModifier)
                 .background(Color.Black)
                 .zIndex(if (!isMinimized) 1f else 0f)
         ) {
@@ -743,13 +831,28 @@ fun PlayerScreen(
                 )
 
                 LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
+                    state = lazyListState,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .nestedScroll(nestedScrollConnection),
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
                 // Video Details Header
                 item {
-                    Column(modifier = Modifier.fillMaxWidth()) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .then(dragModifier)
+                    ) {
+                        // Subtle drag down indicator
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.CenterHorizontally)
+                                .padding(bottom = 10.dp)
+                                .size(width = 38.dp, height = 4.dp)
+                                .background(TextMuted.copy(alpha = 0.35f), RoundedCornerShape(2.dp))
+                        )
                         Text(
                             text = video.title,
                             color = TextPrimary,
