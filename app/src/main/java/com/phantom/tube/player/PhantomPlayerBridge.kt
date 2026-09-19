@@ -3,10 +3,10 @@ package com.phantom.tube.player
 import android.webkit.JavascriptInterface
 
 class PhantomPlayerBridge(
-    private val onReadyCallback: () -> Unit,
-    private val onStateChangeCallback: (Int) -> Unit,
-    private val onTimeUpdateCallback: (Float, Float, Float) -> Unit,
-    private val onErrorCallback: (Int) -> Unit
+    var onReadyCallback: () -> Unit = {},
+    var onStateChangeCallback: (Int) -> Unit = {},
+    var onTimeUpdateCallback: (Float, Float, Float) -> Unit = { _, _, _ -> },
+    var onErrorCallback: (Int) -> Unit = {}
 ) {
     @JavascriptInterface
     fun onReady() {

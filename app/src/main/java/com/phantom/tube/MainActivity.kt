@@ -72,7 +72,9 @@ class MainActivity : ComponentActivity() {
                             },
                             onPlayNextVideo = { nextVideo ->
                                 activeVideo?.let { current ->
-                                    previousVideos.add(current)
+                                    if (current.id != nextVideo.id) {
+                                        previousVideos.add(current)
+                                    }
                                 }
                                 activeVideo = nextVideo
                             },

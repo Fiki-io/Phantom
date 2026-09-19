@@ -145,6 +145,13 @@ class PhantomMediaService : Service() {
         }
     }
 
+    fun updateDuration(durationMs: Long) {
+        if (durationMs > 0L && durationMs != currentDurationMs) {
+            currentDurationMs = durationMs
+            applyMetadata(currentBitmap)
+        }
+    }
+
     private fun loadThumbnail(url: String) {
         applyMetadata(null)
         updatePlaybackState(isPlaying)
@@ -275,10 +282,7 @@ class PhantomMediaService : Service() {
                     .setShowActionsInCompactView(0, 1, 2)
             )
             .setOngoing(isPlaying)
-
-        if (currentBitmap != null) {
-            builder.setLargeIcon(currentBitmap)
-        }
+            .setLargeIcon(currentBitmap)
 
         return builder.build()
     }

@@ -61,6 +61,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -124,6 +125,13 @@ fun PlayerScreen(
     // Favorites
     val isFavorite by repository.isFavorite(video.id).collectAsState(initial = false)
 
+    val currentVideo by rememberUpdatedState(video)
+    val currentNextQueue by rememberUpdatedState(nextQueue)
+    val currentOnPlayNextVideo by rememberUpdatedState(onPlayNextVideo)
+    val currentOnPlayPreviousVideo by rememberUpdatedState(onPlayPreviousVideo)
+    val currentMediaService by rememberUpdatedState(mediaService)
+    val currentSponsorSegments by rememberUpdatedState(sponsorSegments)
+
     var mediaService by remember { mutableStateOf<PhantomMediaService?>(null) }
 
     val controller = remember { PhantomPlayerController(context) }
@@ -138,18 +146,18 @@ fun PlayerScreen(
                 when (state) {
                     1 -> {
                         playerState = playerState.copy(isPlaying = true, isBuffering = false, isEnded = false, errorCode = null)
-                        mediaService?.updatePlaybackState(true, (playerState.currentTimeSec * 1000).toLong())
+                        currentMediaService?.updatePlaybackState(true, (playerState.currentTimeSec * 1000).toLong())
                     }
                     2 -> {
                         playerState = playerState.copy(isPlaying = false, isBuffering = false)
-                        mediaService?.updatePlaybackState(false, (playerState.currentTimeSec * 1000).toLong())
+                        currentMediaService?.updatePlaybackState(false, (playerState.currentTimeSec * 1000).toLong())
                     }
                     3 -> playerState = playerState.copy(isBuffering = true)
                     0 -> {
                         playerState = playerState.copy(isPlaying = false, isEnded = true)
-                        mediaService?.updatePlaybackState(false, (playerState.currentTimeSec * 1000).toLong())
-                        nextQueue?.upNext?.firstOrNull()?.let { nextVid ->
-                            onPlayNextVideo(nextVid)
+                        currentMediaService?.updatePlaybackState(false, (playerState.currentTimeSec * 1000).toLong())
+                        currentNextQueue?.upNext?.firstOrNull()?.let { nextVid ->
+                            currentOnPlayNextVideo(nextVid)
                         }
                     }
                 }
@@ -163,20 +171,15 @@ fun PlayerScreen(
                 )
 
                 if (wasZeroDuration) {
-                    mediaService?.updateMediaInfo(
-                        title = video.title,
-                        channel = video.channelTitle,
-                        durationMs = (duration * 1000).toLong(),
-                        playing = playerState.isPlaying,
-                        thumbnailUrl = video.thumbnailUrl
-                    )
+                    currentMediaService?.updateDuration((duration * 1000).toLong())
                 }
 
                 // Record watch history
                 if (current > 2f) {
+                    val activeVid = currentVideo
                     scope.launch {
                         repository.recordWatch(
-                            video = video,
+                            video = activeVid,
                             positionMs = (current * 1000).toLong(),
                             durationMs = (duration * 1000).toLong()
                         )
@@ -184,7 +187,7 @@ fun PlayerScreen(
                 }
 
                 // Check SponsorBlock segments
-                sponsorSegments.forEach { seg ->
+                currentSponsorSegments.forEach { seg ->
                     if (current >= seg.startSecond && current < (seg.startSecond + 1.5f)) {
                         lastSkippedFromSec = current
                         lastSkippedSeconds = (seg.endSecond - seg.startSecond).toInt()
@@ -227,6 +230,22 @@ fun PlayerScreen(
         val connection = object : ServiceConnection {
             override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
                 val service = (binder as? PhantomMediaService.LocalBinder)?.getService()
+                service?.apply {
+                    onPlayAction = { controller.play() }
+                    onPauseAction = { controller.pause() }
+                    onNextAction = {
+                        currentNextQueue?.upNext?.firstOrNull()?.let { currentOnPlayNextVideo(it) }
+                    }
+                    onPreviousAction = {
+                        val switched = currentOnPlayPreviousVideo()
+                        if (!switched) {
+                            controller.seekTo(0f)
+                        }
+                    }
+                    onSeekAction = { posMs ->
+                        controller.seekTo(posMs / 1000f)
+                    }
+                }
                 mediaService = service
             }
 
@@ -263,33 +282,6 @@ fun PlayerScreen(
         }
     }
 
-    // Wire actions and update metadata whenever video or mediaService updates
-    LaunchedEffect(mediaService, video.id, nextQueue) {
-        mediaService?.apply {
-            onPlayAction = { controller.play() }
-            onPauseAction = { controller.pause() }
-            onNextAction = {
-                nextQueue?.upNext?.firstOrNull()?.let { onPlayNextVideo(it) }
-            }
-            onPreviousAction = {
-                val switched = onPlayPreviousVideo()
-                if (!switched) {
-                    controller.seekTo(0f)
-                }
-            }
-            onSeekAction = { posMs ->
-                controller.seekTo(posMs / 1000f)
-            }
-            updateMediaInfo(
-                title = video.title,
-                channel = video.channelTitle,
-                durationMs = (playerState.durationSec * 1000).toLong(),
-                playing = playerState.isPlaying,
-                thumbnailUrl = video.thumbnailUrl
-            )
-        }
-    }
-
     // Auto-hide controls timer
     LaunchedEffect(isControlsVisible, playerState.isPlaying) {
         if (isControlsVisible && playerState.isPlaying) {
@@ -299,8 +291,11 @@ fun PlayerScreen(
     }
 
     // Load new video into engine & immediately sync notification
-    LaunchedEffect(video.id) {
+    LaunchedEffect(video.id, mediaService) {
         playerState = PlayerState(videoId = video.id)
+        nextQueue = null
+        sponsorSegments = emptyList()
+
         val lastPos = repository.getLastPosition(video.id)
         controller.loadVideo(video.id, lastPos / 1000f)
 
