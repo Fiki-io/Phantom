@@ -785,13 +785,13 @@ fun PlayerScreen(
                                 )
                             )
                         )
-                        .padding(12.dp)
                 ) {
                     // Top Bar Controls: Back/Minimize & Speed
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .align(Alignment.TopCenter),
+                            .align(Alignment.TopCenter)
+                            .padding(start = 12.dp, end = 12.dp, top = 10.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -910,33 +910,24 @@ fun PlayerScreen(
                         )
                     }
 
-                    // Bottom Row: Scrubber, Timestamps, Fullscreen
+                    // Bottom Row: Timestamps + Fullscreen above Scrubber, Scrubber at bottom edge
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
                             .align(Alignment.BottomCenter)
                     ) {
-                        LiquidGlassScrubber(
-                            progress = playerState.progressFraction,
-                            bufferedFraction = playerState.bufferedFraction,
-                            onSeek = { fraction ->
-                                val targetSec = fraction * playerState.durationSec
-                                controller.seekTo(targetSec)
-                            }
-                        )
-
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 8.dp, vertical = 2.dp),
+                                .padding(start = 12.dp, end = 12.dp, bottom = 2.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Box(
                                 modifier = Modifier
-                                    .clip(RoundedCornerShape(4.dp))
+                                    .clip(RoundedCornerShape(6.dp))
                                     .background(Color(0x99000000))
-                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                                    .padding(horizontal = 8.dp, vertical = 3.dp)
                             ) {
                                 Text(
                                     text = "${playerState.formattedCurrentTime} / ${playerState.formattedDuration}",
@@ -963,8 +954,35 @@ fun PlayerScreen(
                                 }
                             )
                         }
+
+                        // Scrubber with thumb dot at the tip of progress, touching bottom edge
+                        LiquidGlassScrubber(
+                            progress = playerState.progressFraction,
+                            bufferedFraction = playerState.bufferedFraction,
+                            showThumb = true,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(20.dp),
+                            onSeek = { fraction ->
+                                val targetSec = fraction * playerState.durationSec
+                                controller.seekTo(targetSec)
+                            }
+                        )
                     }
                 }
+            }
+
+            // Layer 5: Persistent Idle Progress Line (When controls are hidden)
+            if (!isControlsVisible) {
+                LiquidGlassScrubber(
+                    progress = playerState.progressFraction,
+                    bufferedFraction = playerState.bufferedFraction,
+                    showThumb = false,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .align(Alignment.BottomCenter)
+                        .height(2.5.dp)
+                )
             }
         }
 
