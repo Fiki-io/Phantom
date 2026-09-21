@@ -22,6 +22,7 @@ import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -102,6 +103,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -1228,17 +1230,95 @@ fun PlayerScreen(
 
         // 4. FLOATING MIX QUEUE SHEET (Only in full player mode)
         if (!isMinimized) {
+            var mixSheetOffsetY by remember { mutableFloatStateOf(0f) }
+            val animatedMixSheetOffsetY by animateFloatAsState(
+                targetValue = mixSheetOffsetY,
+                animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+                label = "mix_sheet_offset"
+            )
+
+            LaunchedEffect(showMixSheet) {
+                if (showMixSheet) {
+                    mixSheetOffsetY = 0f
+                }
+            }
+
+            val density = LocalDensity.current
+            val mixDismissThresholdPx = remember(density) { with(density) { 90.dp.toPx() } }
+
+            val mixHandleDragModifier = Modifier.pointerInput(Unit) {
+                detectVerticalDragGestures(
+                    onVerticalDrag = { change, dragAmount ->
+                        change.consume()
+                        mixSheetOffsetY = (mixSheetOffsetY + dragAmount).coerceAtLeast(0f)
+                    },
+                    onDragEnd = {
+                        if (mixSheetOffsetY > mixDismissThresholdPx) {
+                            showMixSheet = false
+                        } else {
+                            mixSheetOffsetY = 0f
+                        }
+                    },
+                    onDragCancel = {
+                        mixSheetOffsetY = 0f
+                    }
+                )
+            }
+
+            val mixNestedScrollConnection = remember(mixDismissThresholdPx) {
+                object : NestedScrollConnection {
+                    override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                        if (mixSheetOffsetY > 0f && available.y < 0f) {
+                            val consumed = available.y.coerceAtLeast(-mixSheetOffsetY)
+                            mixSheetOffsetY += consumed
+                            return Offset(0f, consumed)
+                        }
+                        return Offset.Zero
+                    }
+
+                    override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
+                        if (available.y > 0f) {
+                            mixSheetOffsetY = (mixSheetOffsetY + available.y).coerceAtLeast(0f)
+                            return Offset(0f, available.y)
+                        }
+                        return Offset.Zero
+                    }
+
+                    override suspend fun onPreFling(available: Velocity): Velocity {
+                        if (mixSheetOffsetY > mixDismissThresholdPx || available.y > 800f) {
+                            showMixSheet = false
+                        } else {
+                            mixSheetOffsetY = 0f
+                        }
+                        return Velocity.Zero
+                    }
+
+                    override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
+                        if (mixSheetOffsetY > mixDismissThresholdPx || available.y > 800f) {
+                            showMixSheet = false
+                        } else {
+                            mixSheetOffsetY = 0f
+                        }
+                        return Velocity.Zero
+                    }
+                }
+            }
+
             AnimatedVisibility(
                 visible = showMixSheet && !isFullscreen,
                 enter = fadeIn() + slideInVertically { it },
                 exit = fadeOut() + slideOutVertically { it },
                 modifier = Modifier.fillMaxSize()
             ) {
+                // Scrim background (tap empty area to dismiss)
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(Color.Black.copy(alpha = 0.55f))
-                        .clickable { showMixSheet = false }
+                        .background(Color.Black.copy(alpha = (0.55f * (1f - (mixSheetOffsetY / 800f)).coerceIn(0.2f, 1f))))
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null
+                        ) { showMixSheet = false }
                 ) {
                     Box(
                         modifier = Modifier
@@ -1246,26 +1326,40 @@ fun PlayerScreen(
                             .fillMaxHeight(0.72f)
                             .align(Alignment.BottomCenter)
                             .padding(start = 8.dp, end = 8.dp, bottom = 12.dp)
+                            .offset { IntOffset(0, animatedMixSheetOffsetY.roundToInt()) }
                             .clip(RoundedCornerShape(20.dp))
                             .background(YouTubeSurface)
                             .border(1.dp, Color(0x24FFFFFF), RoundedCornerShape(20.dp))
-                            .clickable(enabled = false) {}
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null
+                            ) {}
+                            .nestedScroll(mixNestedScrollConnection)
                             .padding(horizontal = 16.dp, vertical = 12.dp)
                     ) {
                         Column(modifier = Modifier.fillMaxSize()) {
-                            // Drag Handle
+                            // Drag Handle with touch target and vertical drag
                             Box(
                                 modifier = Modifier
-                                    .size(width = 42.dp, height = 4.dp)
-                                    .background(Color.White.copy(alpha = 0.3f), RoundedCornerShape(2.dp))
-                                    .align(Alignment.CenterHorizontally)
-                            )
+                                    .fillMaxWidth()
+                                    .then(mixHandleDragModifier)
+                                    .padding(vertical = 4.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(width = 44.dp, height = 4.dp)
+                                        .background(Color.White.copy(alpha = 0.35f), RoundedCornerShape(2.dp))
+                                )
+                            }
 
-                            Spacer(modifier = Modifier.height(12.dp))
+                            Spacer(modifier = Modifier.height(8.dp))
 
-                            // Header Bar
+                            // Header Bar (also supports dragging down to close)
                             Row(
-                                modifier = Modifier.fillMaxWidth(),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .then(mixHandleDragModifier),
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {

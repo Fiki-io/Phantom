@@ -3,6 +3,9 @@ package com.phantom.tube.ui.components
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.ExperimentalAnimationApi
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
@@ -13,6 +16,8 @@ import androidx.compose.animation.with
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,9 +27,20 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.Velocity
+import kotlin.math.roundToInt
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -109,10 +125,78 @@ fun PlayerSettingsSheet(
     modifier: Modifier = Modifier
 ) {
     var currentPage by remember { mutableStateOf(SettingsSheetPage.MAIN) }
+    var sheetOffsetY by remember { mutableFloatStateOf(0f) }
+    val animatedOffsetY by animateFloatAsState(
+        targetValue = sheetOffsetY,
+        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+        label = "settings_sheet_offset"
+    )
 
     LaunchedEffect(visible) {
         if (visible) {
             currentPage = SettingsSheetPage.MAIN
+            sheetOffsetY = 0f
+        }
+    }
+
+    val density = LocalDensity.current
+    val dismissThresholdPx = remember(density) { with(density) { 90.dp.toPx() } }
+
+    val handleDragModifier = Modifier.pointerInput(Unit) {
+        detectVerticalDragGestures(
+            onVerticalDrag = { change, dragAmount ->
+                change.consume()
+                sheetOffsetY = (sheetOffsetY + dragAmount).coerceAtLeast(0f)
+            },
+            onDragEnd = {
+                if (sheetOffsetY > dismissThresholdPx) {
+                    onDismiss()
+                } else {
+                    sheetOffsetY = 0f
+                }
+            },
+            onDragCancel = {
+                sheetOffsetY = 0f
+            }
+        )
+    }
+
+    val nestedScrollConnection = remember(dismissThresholdPx) {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                if (sheetOffsetY > 0f && available.y < 0f) {
+                    val consumed = available.y.coerceAtLeast(-sheetOffsetY)
+                    sheetOffsetY += consumed
+                    return Offset(0f, consumed)
+                }
+                return Offset.Zero
+            }
+
+            override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
+                if (available.y > 0f) {
+                    sheetOffsetY = (sheetOffsetY + available.y).coerceAtLeast(0f)
+                    return Offset(0f, available.y)
+                }
+                return Offset.Zero
+            }
+
+            override suspend fun onPreFling(available: Velocity): Velocity {
+                if (sheetOffsetY > dismissThresholdPx || available.y > 800f) {
+                    onDismiss()
+                } else {
+                    sheetOffsetY = 0f
+                }
+                return Velocity.Zero
+            }
+
+            override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
+                if (sheetOffsetY > dismissThresholdPx || available.y > 800f) {
+                    onDismiss()
+                } else {
+                    sheetOffsetY = 0f
+                }
+                return Velocity.Zero
+            }
         }
     }
 
@@ -122,11 +206,15 @@ fun PlayerSettingsSheet(
         exit = fadeOut() + slideOutVertically { it },
         modifier = modifier.fillMaxSize()
     ) {
+        // Scrim background (tap empty area to dismiss)
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.6f))
-                .clickable { onDismiss() }
+                .background(Color.Black.copy(alpha = (0.6f * (1f - (sheetOffsetY / 800f)).coerceIn(0.2f, 1f))))
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null
+                ) { onDismiss() }
         ) {
             val sheetModifier = if (isFullscreen) {
                 Modifier
@@ -141,25 +229,37 @@ fun PlayerSettingsSheet(
                     .align(Alignment.BottomCenter)
             }
 
-            val sheetShape = if (isFullscreen) RoundedCornerShape(16.dp) else RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
+            val sheetShape = if (isFullscreen) RoundedCornerShape(16.dp) else RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
             Box(
                 modifier = sheetModifier
+                    .offset { IntOffset(0, animatedOffsetY.roundToInt()) }
                     .clip(sheetShape)
                     .background(YouTubeSurface)
                     .border(1.dp, Color(0x24FFFFFF), sheetShape)
-                    .clickable(enabled = false) {}
-                    .padding(horizontal = 18.dp, vertical = 14.dp)
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null
+                    ) {}
+                    .nestedScroll(nestedScrollConnection)
+                    .padding(horizontal = 18.dp, vertical = 12.dp)
             ) {
                 Column(modifier = Modifier.fillMaxSize()) {
                     if (!isFullscreen) {
-                        // Drag Handle
+                        // Drag Handle with touch target and vertical drag
                         Box(
                             modifier = Modifier
-                                .size(width = 44.dp, height = 4.dp)
-                                .background(Color.White.copy(alpha = 0.3f), RoundedCornerShape(2.dp))
-                                .align(Alignment.CenterHorizontally)
-                        )
-                        Spacer(modifier = Modifier.height(10.dp))
+                                .fillMaxWidth()
+                                .then(handleDragModifier)
+                                .padding(vertical = 6.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(width = 44.dp, height = 4.dp)
+                                    .background(Color.White.copy(alpha = 0.35f), RoundedCornerShape(2.dp))
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(6.dp))
                     }
 
                     AnimatedContent(
