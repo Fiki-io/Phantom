@@ -50,19 +50,25 @@ fun LiquidGlassScrubber(
                     Modifier
                         .pointerInput(Unit) {
                             detectTapGestures { offset ->
-                                val fraction = (offset.x / size.width).coerceIn(0f, 1f)
-                                onSeek(fraction)
+                                if (size.width > 0) {
+                                    val fraction = (offset.x / size.width.toFloat()).coerceIn(0f, 1f)
+                                    onSeek(fraction)
+                                }
                             }
                         }
                         .pointerInput(Unit) {
                             detectDragGestures(
                                 onDragStart = { offset ->
-                                    isDragging = true
-                                    dragFraction = (offset.x / size.width).coerceIn(0f, 1f)
+                                    if (size.width > 0) {
+                                        isDragging = true
+                                        dragFraction = (offset.x / size.width.toFloat()).coerceIn(0f, 1f)
+                                    }
                                 },
                                 onDrag = { change, _ ->
-                                    change.consume()
-                                    dragFraction = (change.position.x / size.width).coerceIn(0f, 1f)
+                                    if (size.width > 0) {
+                                        change.consume()
+                                        dragFraction = (change.position.x / size.width.toFloat()).coerceIn(0f, 1f)
+                                    }
                                 },
                                 onDragEnd = {
                                     isDragging = false
@@ -77,9 +83,11 @@ fun LiquidGlassScrubber(
             )
     ) {
         Canvas(modifier = Modifier.matchParentSize()) {
-            val trackHeight = if (!showThumb) size.height else if (isDragging) 4.5.dp.toPx() else 3.dp.toPx()
+            if (size.width <= 0f || size.height <= 0f) return@Canvas
+
+            val trackHeight = (if (!showThumb) size.height else if (isDragging) 4.5.dp.toPx() else 3.dp.toPx()).coerceAtMost(size.height)
             val thumbRadius = if (isDragging) 8.dp.toPx() else 5.5.dp.toPx()
-            val yOffset = if (!showThumb) 0f else size.height - trackHeight - (thumbRadius / 2f)
+            val yOffset = if (!showThumb) 0f else (size.height - trackHeight - (thumbRadius / 2f)).coerceAtLeast(0f)
             val corner = CornerRadius(trackHeight / 2, trackHeight / 2)
 
             // 1. Base Track (unplayed)
@@ -91,8 +99,8 @@ fun LiquidGlassScrubber(
             )
 
             // 2. Buffered Track
-            val bufferWidth = (size.width * bufferedFraction.coerceIn(0f, 1f))
-            if (bufferWidth > 0) {
+            val bufferWidth = (size.width * bufferedFraction.coerceIn(0f, 1f)).coerceIn(0f, size.width)
+            if (bufferWidth > 0f) {
                 drawRoundRect(
                     color = Color.White.copy(alpha = 0.45f),
                     topLeft = Offset(0f, yOffset),
@@ -103,7 +111,7 @@ fun LiquidGlassScrubber(
 
             // 3. Played Progress Track in YouTube Red
             val playedWidth = (size.width * activeFraction).coerceIn(0f, size.width)
-            if (playedWidth > 0) {
+            if (playedWidth > 0f) {
                 drawRoundRect(
                     color = YouTubeRed,
                     topLeft = Offset(0f, yOffset),
@@ -114,7 +122,9 @@ fun LiquidGlassScrubber(
 
             // 4. YouTube Red Scrubber Thumb (Only shown in active controls mode)
             if (showThumb) {
-                val thumbX = playedWidth.coerceIn(thumbRadius, size.width - thumbRadius)
+                val minX = thumbRadius
+                val maxX = (size.width - thumbRadius).coerceAtLeast(minX)
+                val thumbX = if (maxX >= minX) playedWidth.coerceIn(minX, maxX) else size.width / 2f
                 val thumbY = yOffset + trackHeight / 2f
 
                 drawCircle(
