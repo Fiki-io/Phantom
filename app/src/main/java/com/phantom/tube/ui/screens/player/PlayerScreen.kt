@@ -48,6 +48,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -1288,7 +1289,7 @@ fun PlayerScreen(
                                 state = listState,
                                 modifier = Modifier.fillMaxSize(),
                                 verticalArrangement = Arrangement.spacedBy(8.dp),
-                                contentPadding = PaddingValues(bottom = 24.dp)
+                                contentPadding = PaddingValues(start = 0.dp, top = 0.dp, end = 0.dp, bottom = 24.dp)
                             ) {
                                 itemsIndexed(mixPlaylist, key = { index, item -> "mix_${item.id}_$index" }) { index, item ->
                                     val isCurrent = index == currentMixIndex
