@@ -37,12 +37,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
-import com.phantom.tube.core.theme.NeonPink
 import com.phantom.tube.core.theme.ObsidianDark
 import com.phantom.tube.core.theme.TextMuted
 import com.phantom.tube.core.theme.TextPrimary
 import com.phantom.tube.core.theme.TextSecondary
-import com.phantom.tube.core.theme.liquidGlass
+import com.phantom.tube.core.theme.YouTubeRed
 import com.phantom.tube.data.model.VideoItem
 import com.phantom.tube.data.repository.PhantomRepository
 import com.phantom.tube.ui.components.LiquidGlassIconButton
@@ -74,7 +73,7 @@ fun LibraryScreen(
             Icon(
                 imageVector = Icons.Default.Bookmark,
                 contentDescription = null,
-                tint = NeonPink,
+                tint = YouTubeRed,
                 modifier = Modifier.size(24.dp)
             )
             Spacer(modifier = Modifier.width(10.dp))
@@ -109,18 +108,14 @@ fun LibraryScreen(
         } else {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(top = 8.dp, bottom = 100.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+                contentPadding = PaddingValues(top = 4.dp, bottom = 100.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 itemsIndexed(favorites, key = { index, fav -> "fav_${fav.videoId}_$index" }) { _, fav ->
-                    Box(
+                    Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .liquidGlass(
-                                shape = RoundedCornerShape(16.dp),
-                                borderWidth = 0.8.dp,
-                                glassAlpha = 0.45f
-                            )
+                            .clip(RoundedCornerShape(8.dp))
                             .clickable {
                                 onVideoClick(
                                     VideoItem(
@@ -132,69 +127,84 @@ fun LibraryScreen(
                                     )
                                 )
                             }
-                            .padding(8.dp)
+                            .padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically
+                        Box(
+                            modifier = Modifier
+                                .width(120.dp)
+                                .height(68.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(Color(0xFF181818))
                         ) {
-                            Box(
-                                modifier = Modifier
-                                    .width(120.dp)
-                                    .height(68.dp)
-                                    .clip(RoundedCornerShape(10.dp))
-                                    .background(Color(0xFF141520))
-                            ) {
-                                AsyncImage(
-                                    model = fav.thumbnailUrl,
-                                    contentDescription = fav.title,
-                                    contentScale = ContentScale.Crop,
-                                    modifier = Modifier.matchParentSize()
-                                )
-                            }
+                            AsyncImage(
+                                model = fav.thumbnailUrl,
+                                contentDescription = fav.title,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.matchParentSize()
+                            )
 
-                            Spacer(modifier = Modifier.width(12.dp))
-
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = fav.title,
-                                    color = TextPrimary,
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    maxLines = 2,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-
-                                Spacer(modifier = Modifier.height(4.dp))
-
-                                Text(
-                                    text = fav.channelTitle,
-                                    color = TextSecondary,
-                                    fontSize = 11.sp,
-                                    maxLines = 1
-                                )
-                            }
-
-                            LiquidGlassIconButton(
-                                icon = Icons.Default.Delete,
-                                contentDescription = "Hapus",
-                                size = 34.dp,
-                                iconSize = 18.dp,
-                                onClick = {
-                                    scope.launch {
-                                        repository.toggleFavorite(
-                                            VideoItem(
-                                                id = fav.videoId,
-                                                title = fav.title,
-                                                channelTitle = fav.channelTitle,
-                                                thumbnailUrl = fav.thumbnailUrl
-                                            ),
-                                            isFav = true
-                                        )
-                                    }
+                            if (fav.durationText.isNotBlank()) {
+                                Box(
+                                    modifier = Modifier
+                                        .align(Alignment.BottomEnd)
+                                        .padding(4.dp)
+                                        .background(Color(0xCC000000), RoundedCornerShape(4.dp))
+                                        .padding(horizontal = 4.dp, vertical = 2.dp)
+                                ) {
+                                    Text(
+                                        text = fav.durationText,
+                                        color = Color.White,
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Medium
+                                    )
                                 }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.width(12.dp))
+
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = fav.title,
+                                color = TextPrimary,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis,
+                                lineHeight = 18.sp
+                            )
+
+                            Spacer(modifier = Modifier.height(3.dp))
+
+                            Text(
+                                text = fav.channelTitle,
+                                color = TextSecondary,
+                                fontSize = 12.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
+
+                        LiquidGlassIconButton(
+                            icon = Icons.Default.Delete,
+                            contentDescription = "Hapus",
+                            size = 36.dp,
+                            iconSize = 18.dp,
+                            onClick = {
+                                scope.launch {
+                                    repository.toggleFavorite(
+                                        VideoItem(
+                                            id = fav.videoId,
+                                            title = fav.title,
+                                            channelTitle = fav.channelTitle,
+                                            thumbnailUrl = fav.thumbnailUrl
+                                        ),
+                                        isFav = true
+                                    )
+                                }
+                            }
+                        )
                     }
                 }
             }

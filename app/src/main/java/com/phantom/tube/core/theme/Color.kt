@@ -2,29 +2,43 @@ package com.phantom.tube.core.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Phantom Obsidian Canvas (Dark background, deep contrast)
-val ObsidianDark = Color(0xFF08080A)
-val ObsidianSurface = Color(0xFF101014)
-val ObsidianSurfaceLight = Color(0xFF181820)
+// Official YouTube Dark Canvas
+val YouTubeDark = Color(0xFF0F0F0F)
+val YouTubeSurface = Color(0xFF212121)
+val YouTubeSurfaceLight = Color(0xFF272727)
+val YouTubeRed = Color(0xFFFF0000)
+val YouTubeDarkRed = Color(0xFFCC0000)
+val YouTubeDivider = Color(0xFF272727)
 
-// Liquid Glass Palette (Refractive, semi-transparent frosted highlights)
-val GlassSurface = Color(0x33FFFFFF)       // 20% white base glass
-val GlassSurfaceDark = Color(0x1F1A1F2C)   // tinted glass
-val GlassSurfacePressed = Color(0x52FFFFFF)// 32% white when active
-val GlassBorderLight = Color(0x66FFFFFF)   // 40% white border top highlight
-val GlassBorderDim = Color(0x14FFFFFF)     // 8% white border shadow
-val GlassBorderRefractCyan = Color(0x4D00CEC9)
-val GlassBorderRefractViolet = Color(0x4D6C5CE7)
+// Backward compatible aliases mapped to YouTube Dark
+val ObsidianDark = YouTubeDark
+val ObsidianSurface = YouTubeSurface
+val ObsidianSurfaceLight = YouTubeSurfaceLight
 
-// Accent Neons & Status
-val NeonCyan = Color(0xFF00CEC9)
-val NeonViolet = Color(0xFF6C5CE7)
+// Bubble Dock Palette (Sleek dark floating pill)
+val BubbleDockBg = Color(0xF2212121) // 95% dark surface
+val BubbleDockBorder = Color(0x29FFFFFF) // Subtle 16% white border
+val BubbleDockActive = YouTubeRed
+
+// Clean dark surface tokens
+val GlassSurface = Color(0x1AFFFFFF)
+val GlassSurfaceDark = Color(0xFF212121)
+val GlassSurfacePressed = Color(0x2EFFFFFF)
+val GlassBorderLight = Color(0x24FFFFFF)
+val GlassBorderDim = Color(0x14FFFFFF)
+val GlassBorderRefractCyan = Color(0x1FFFFFFF)
+val GlassBorderRefractViolet = Color(0x1FFFFFFF)
+
+// Accent Neons & Status (YouTube Red & clean accents)
+val NeonCyan = YouTubeRed // Primary active accent is now YouTube Red
+val NeonViolet = Color(0xFF3EA6FF) // YouTube Blue
 val NeonPurple = Color(0xFFA29BFE)
-val NeonPink = Color(0xFFFD79A8)
+val NeonPink = Color(0xFFFF4E45)
 val NeonAmber = Color(0xFFFFB142)
 
-// Text Colors
-val TextPrimary = Color(0xFFF1F2F6)
-val TextSecondary = Color(0xFFA4B0BE)
-val TextMuted = Color(0xFF57606F)
-val TextAccent = Color(0xFF00CEC9)
+// Text Colors (High contrast YouTube text)
+val TextPrimary = Color(0xFFFFFFFF)
+val TextSecondary = Color(0xFFAAAAAA)
+val TextMuted = Color(0xFF717171)
+val TextAccent = YouTubeRed
+

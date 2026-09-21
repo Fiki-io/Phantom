@@ -1,6 +1,7 @@
 package com.phantom.tube.ui.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.ui.input.pointer.pointerInput
@@ -28,7 +29,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
@@ -36,14 +36,18 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
-import com.phantom.tube.core.theme.NeonCyan
-import com.phantom.tube.core.theme.NeonPink
 import com.phantom.tube.core.theme.TextMuted
 import com.phantom.tube.core.theme.TextPrimary
 import com.phantom.tube.core.theme.TextSecondary
-import com.phantom.tube.core.theme.liquidGlass
+import com.phantom.tube.core.theme.YouTubeRed
+import com.phantom.tube.core.theme.YouTubeSurface
 import com.phantom.tube.data.model.VideoItem
 
+/**
+ * YouTube Mobile style miniplayer bar:
+ * Floating directly above the bubble dock with #212121 surface,
+ * white playback controls, and a red real-time progress indicator line.
+ */
 @Composable
 fun LiquidGlassMiniPlayer(
     video: VideoItem,
@@ -60,13 +64,9 @@ fun LiquidGlassMiniPlayer(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 12.dp, vertical = 4.dp)
-            .liquidGlass(
-                shape = RoundedCornerShape(18.dp),
-                borderWidth = 1.dp,
-                tintColor = Color(0xFF10121F),
-                glassAlpha = 0.94f,
-                accentGlow = NeonCyan
-            )
+            .clip(RoundedCornerShape(12.dp))
+            .background(YouTubeSurface)
+            .border(1.dp, Color(0x24FFFFFF), RoundedCornerShape(12.dp))
             .pointerInput(Unit) {
                 detectVerticalDragGestures(
                     onVerticalDrag = { change, dragAmount ->
@@ -83,16 +83,16 @@ fun LiquidGlassMiniPlayer(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(start = 8.dp, end = 10.dp, top = 8.dp, bottom = 8.dp),
+                    .padding(start = 8.dp, end = 8.dp, top = 6.dp, bottom = 6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 // Video Thumbnail
                 Box(
                     modifier = Modifier
-                        .width(72.dp)
-                        .height(44.dp)
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(Color(0xFF0C0D14))
+                        .width(70.dp)
+                        .height(42.dp)
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(Color(0xFF141414))
                 ) {
                     AsyncImage(
                         model = video.thumbnailUrl,
@@ -110,7 +110,7 @@ fun LiquidGlassMiniPlayer(
                         ) {
                             CircularProgressIndicator(
                                 modifier = Modifier.size(18.dp),
-                                color = NeonCyan,
+                                color = YouTubeRed,
                                 strokeWidth = 2.dp
                             )
                         }
@@ -147,21 +147,20 @@ fun LiquidGlassMiniPlayer(
                 // Play / Pause Button
                 Box(
                     modifier = Modifier
-                        .size(38.dp)
+                        .size(36.dp)
                         .clip(CircleShape)
-                        .background(Color.White.copy(alpha = 0.08f))
                         .clickable(onClick = onTogglePlayPause),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                         contentDescription = if (isPlaying) "Jeda" else "Putar",
-                        tint = NeonCyan,
-                        modifier = Modifier.size(20.dp)
+                        tint = Color.White,
+                        modifier = Modifier.size(24.dp)
                     )
                 }
 
-                Spacer(modifier = Modifier.width(6.dp))
+                Spacer(modifier = Modifier.width(4.dp))
 
                 // Close (X) Button
                 Box(
@@ -174,13 +173,13 @@ fun LiquidGlassMiniPlayer(
                     Icon(
                         imageVector = Icons.Default.Close,
                         contentDescription = "Tutup Miniplayer",
-                        tint = TextMuted,
+                        tint = TextSecondary,
                         modifier = Modifier.size(18.dp)
                     )
                 }
             }
 
-            // Real-time Mini Scrubber Progress Line at the very bottom
+            // Real-time YouTube Red Scrubber Line
             val safeCurrent = if (currentTimeSec.isNaN() || !currentTimeSec.isFinite()) 0f else currentTimeSec
             val safeDuration = if (durationSec.isNaN() || !durationSec.isFinite()) 0f else durationSec
             val progressFraction = if (safeDuration > 0f) {
@@ -190,19 +189,15 @@ fun LiquidGlassMiniPlayer(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(2.5.dp)
-                    .background(Color.White.copy(alpha = 0.1f))
+                    .height(2.dp)
+                    .background(Color.White.copy(alpha = 0.12f))
             ) {
                 if (progressFraction > 0.001f) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth(fraction = progressFraction.coerceIn(0.001f, 1f))
                             .fillMaxHeight()
-                            .background(
-                                Brush.horizontalGradient(
-                                    listOf(NeonCyan, NeonPink)
-                                )
-                            )
+                            .background(YouTubeRed)
                     )
                 }
             }

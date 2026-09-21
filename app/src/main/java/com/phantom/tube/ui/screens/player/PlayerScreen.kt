@@ -20,6 +20,7 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
@@ -103,15 +104,12 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.phantom.tube.core.theme.NeonAmber
-import com.phantom.tube.core.theme.NeonCyan
-import com.phantom.tube.core.theme.NeonPink
-import com.phantom.tube.core.theme.NeonPurple
-import com.phantom.tube.core.theme.NeonViolet
 import com.phantom.tube.core.theme.ObsidianDark
 import com.phantom.tube.core.theme.TextMuted
 import com.phantom.tube.core.theme.TextPrimary
 import com.phantom.tube.core.theme.TextSecondary
+import com.phantom.tube.core.theme.YouTubeRed
+import com.phantom.tube.core.theme.YouTubeSurface
 import com.phantom.tube.core.theme.liquidGlass
 import com.phantom.tube.data.model.NextQueue
 import com.phantom.tube.data.model.SponsorSegment
@@ -714,7 +712,7 @@ fun PlayerScreen(
             // Layer 2: Buffering & Error Indicator
             if (playerState.isBuffering) {
                 CircularProgressIndicator(
-                    color = NeonCyan,
+                    color = YouTubeRed,
                     strokeWidth = 3.dp,
                     modifier = Modifier
                         .size(48.dp)
@@ -808,11 +806,8 @@ fun PlayerScreen(
                             // Playback Speed Quick Button (cycles 1.0x -> 1.5x -> 2.0x -> 0.5x)
                             Box(
                                 modifier = Modifier
-                                    .liquidGlass(
-                                        shape = RoundedCornerShape(14.dp),
-                                        borderWidth = 0.8.dp,
-                                        glassAlpha = 0.6f
-                                    )
+                                    .clip(RoundedCornerShape(14.dp))
+                                    .background(Color(0xFF272727))
                                     .clickable {
                                         val nextSpeed = when (playerState.playbackSpeed) {
                                             1.0f -> 1.5f
@@ -827,7 +822,7 @@ fun PlayerScreen(
                             ) {
                                 Text(
                                     text = "${playerState.playbackSpeed}x",
-                                    color = NeonCyan,
+                                    color = Color.White,
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Bold
                                 )
@@ -874,7 +869,6 @@ fun PlayerScreen(
                             contentDescription = if (playerState.isPlaying) "Pause" else "Play",
                             size = 64.dp,
                             iconSize = 36.dp,
-                            accentGlow = NeonCyan,
                             onClick = {
                                 if (playerState.isPlaying) {
                                     controller.pause()
@@ -1034,7 +1028,7 @@ fun PlayerScreen(
                                         Icon(
                                             imageVector = Icons.Default.PlayArrow,
                                             contentDescription = null,
-                                            tint = NeonCyan,
+                                            tint = YouTubeRed,
                                             modifier = Modifier.size(20.dp)
                                         )
                                     }
@@ -1065,7 +1059,7 @@ fun PlayerScreen(
                                 contentDescription = "Simpan",
                                 size = 42.dp,
                                 iconSize = 22.dp,
-                                tint = if (isFavorite) NeonPink else TextPrimary,
+                                tint = if (isFavorite) YouTubeRed else TextPrimary,
                                 onClick = {
                                     scope.launch {
                                         repository.toggleFavorite(video, isFavorite)
@@ -1082,12 +1076,9 @@ fun PlayerScreen(
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .liquidGlass(
-                                    shape = RoundedCornerShape(16.dp),
-                                    borderWidth = 1.dp,
-                                    tintColor = Color(0xFF0F172A),
-                                    glassAlpha = 0.85f
-                                )
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(YouTubeSurface)
+                                .border(1.dp, Color(0x24FFFFFF), RoundedCornerShape(12.dp))
                                 .clickable { showMixSheet = true }
                                 .padding(14.dp)
                         ) {
@@ -1104,13 +1095,13 @@ fun PlayerScreen(
                                         Box(
                                             modifier = Modifier
                                                 .size(38.dp)
-                                                .background(NeonCyan.copy(alpha = 0.15f), CircleShape),
+                                                .background(YouTubeRed.copy(alpha = 0.15f), CircleShape),
                                             contentAlignment = Alignment.Center
                                         ) {
                                             Icon(
                                                 imageVector = Icons.Default.QueueMusic,
                                                 contentDescription = null,
-                                                tint = NeonCyan,
+                                                tint = YouTubeRed,
                                                 modifier = Modifier.size(20.dp)
                                             )
                                         }
@@ -1137,14 +1128,14 @@ fun PlayerScreen(
                                     Row(
                                         verticalAlignment = Alignment.CenterVertically,
                                         modifier = Modifier
-                                            .background(NeonCyan.copy(alpha = 0.15f), RoundedCornerShape(20.dp))
+                                            .background(Color(0xFF272727), RoundedCornerShape(16.dp))
                                             .padding(horizontal = 12.dp, vertical = 6.dp)
                                     ) {
                                         Text(
                                             text = "Lihat Antrean",
-                                            color = NeonCyan,
+                                            color = Color.White,
                                             fontSize = 12.sp,
-                                            fontWeight = FontWeight.Bold
+                                            fontWeight = FontWeight.SemiBold
                                         )
                                     }
                                 }
@@ -1153,7 +1144,7 @@ fun PlayerScreen(
                                     Spacer(modifier = Modifier.height(8.dp))
                                     Text(
                                         text = "Berikutnya: ${mixPlaylist[currentMixIndex + 1].title}",
-                                        color = NeonCyan,
+                                        color = TextSecondary,
                                         fontSize = 12.sp,
                                         maxLines = 1,
                                         fontWeight = FontWeight.Medium
@@ -1174,7 +1165,7 @@ fun PlayerScreen(
                         Icon(
                             imageVector = Icons.Default.AutoAwesome,
                             contentDescription = null,
-                            tint = NeonPurple,
+                            tint = YouTubeRed,
                             modifier = Modifier.size(18.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
@@ -1196,7 +1187,7 @@ fun PlayerScreen(
                             contentAlignment = Alignment.Center
                         ) {
                             CircularProgressIndicator(
-                                color = NeonCyan,
+                                color = YouTubeRed,
                                 strokeWidth = 2.5.dp,
                                 modifier = Modifier.size(32.dp)
                             )
@@ -1236,12 +1227,9 @@ fun PlayerScreen(
                     .fillMaxWidth()
                     .fillMaxHeight(0.72f)
                     .align(Alignment.BottomCenter)
-                    .liquidGlass(
-                        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
-                        borderWidth = 1.dp,
-                        tintColor = Color(0xFF0E1726),
-                        glassAlpha = 0.96f
-                    )
+                    .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
+                    .background(YouTubeSurface)
+                    .border(1.dp, Color(0x24FFFFFF), RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
                     .clickable(enabled = false) {}
                     .padding(horizontal = 16.dp, vertical = 12.dp)
             ) {
@@ -1272,7 +1260,7 @@ fun PlayerScreen(
                             )
                             Text(
                                 text = "Lagu ${currentMixIndex + 1} dari ${mixPlaylist.size} • Mix resmi YouTube",
-                                color = NeonCyan,
+                                color = TextSecondary,
                                 fontSize = 12.sp
                             )
                         }
@@ -1386,14 +1374,10 @@ fun MixPlaylistItemCard(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .liquidGlass(
-                shape = RoundedCornerShape(14.dp),
-                borderWidth = if (isCurrent) 1.5.dp else 0.8.dp,
-                tintColor = if (isCurrent) Color(0xFF0F3246) else Color(0xFF14151F),
-                glassAlpha = if (isCurrent) 0.85f else 0.45f
-            )
+            .clip(RoundedCornerShape(8.dp))
+            .background(if (isCurrent) Color(0xFF272727) else Color.Transparent)
             .clickable(onClick = onClick)
-            .padding(8.dp)
+            .padding(horizontal = 8.dp, vertical = 6.dp)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -1401,14 +1385,14 @@ fun MixPlaylistItemCard(
         ) {
             // Index number or Playing Indicator
             Box(
-                modifier = Modifier.width(28.dp),
+                modifier = Modifier.width(26.dp),
                 contentAlignment = Alignment.Center
             ) {
                 if (isCurrent) {
                     Text(
                         text = "▶",
-                        color = NeonCyan,
-                        fontSize = 14.sp,
+                        color = YouTubeRed,
+                        fontSize = 12.sp,
                         fontWeight = FontWeight.Bold
                     )
                 } else {
@@ -1416,7 +1400,7 @@ fun MixPlaylistItemCard(
                         text = "$index",
                         color = TextMuted,
                         fontSize = 12.sp,
-                        fontWeight = FontWeight.SemiBold
+                        fontWeight = FontWeight.Medium
                     )
                 }
             }

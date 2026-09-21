@@ -9,17 +9,19 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
+import androidx.compose.ui.graphics.Color
+
 private val DarkColorScheme = darkColorScheme(
-    primary = NeonCyan,
-    onPrimary = ObsidianDark,
-    secondary = NeonViolet,
-    onSecondary = TextPrimary,
-    tertiary = NeonPurple,
-    background = ObsidianDark,
+    primary = YouTubeRed,
+    onPrimary = Color.White,
+    secondary = Color(0xFF3EA6FF),
+    onSecondary = Color.White,
+    tertiary = YouTubeRed,
+    background = YouTubeDark,
     onBackground = TextPrimary,
-    surface = ObsidianSurface,
+    surface = YouTubeSurface,
     onSurface = TextPrimary,
-    surfaceVariant = ObsidianSurfaceLight,
+    surfaceVariant = YouTubeSurfaceLight,
     onSurfaceVariant = TextSecondary
 )
 

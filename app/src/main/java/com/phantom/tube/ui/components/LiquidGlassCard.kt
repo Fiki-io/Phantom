@@ -2,6 +2,7 @@ package com.phantom.tube.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,14 +17,16 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
@@ -31,166 +34,163 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
-import com.phantom.tube.core.theme.NeonCyan
 import com.phantom.tube.core.theme.TextMuted
 import com.phantom.tube.core.theme.TextPrimary
 import com.phantom.tube.core.theme.TextSecondary
-import com.phantom.tube.core.theme.liquidGlass
+import com.phantom.tube.core.theme.YouTubeRed
 import com.phantom.tube.data.model.VideoItem
 
-private val CardVignetteBrush = Brush.verticalGradient(
-    listOf(Color.Transparent, Color.Black.copy(alpha = 0.8f))
-)
-
+/**
+ * Standard YouTube Mobile video card layout:
+ * - 16:9 clean thumbnail with duration badge
+ * - Channel avatar (36dp)
+ * - 2-line title (14sp, SemiBold)
+ * - Channel name, views, upload date
+ * - 3-dots more menu icon
+ */
 @Composable
 fun LiquidGlassVideoCard(
     video: VideoItem,
     modifier: Modifier = Modifier,
+    onMoreClick: (() -> Unit)? = null,
     onClick: () -> Unit
 ) {
-    Box(
+    val interactionSource = remember { MutableInteractionSource() }
+
+    Column(
         modifier = modifier
             .fillMaxWidth()
-            .liquidGlass(
-                shape = RoundedCornerShape(20.dp),
-                borderWidth = 1.dp,
-                glassAlpha = 0.45f
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onClick
             )
-            .clickable(onClick = onClick)
-            .padding(10.dp)
+            .padding(bottom = 12.dp)
     ) {
-        Column(modifier = Modifier.fillMaxWidth()) {
-            // Thumbnail container with duration pill
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(16f / 9f)
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(Color(0xFF101018))
-            ) {
-                AsyncImage(
-                    model = video.thumbnailUrl,
-                    contentDescription = video.title,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.matchParentSize()
-                )
+        // 1. Thumbnail Container (16:9, clean 8dp corners, duration pill)
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .aspectRatio(16f / 9f)
+                .clip(RoundedCornerShape(8.dp))
+                .background(Color(0xFF181818))
+        ) {
+            AsyncImage(
+                model = video.thumbnailUrl,
+                contentDescription = video.title,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.matchParentSize()
+            )
 
-                // Bottom vignette gradient
+            // YouTube Duration Badge (solid dark pill with 4dp corners)
+            if (video.durationText.isNotBlank()) {
                 Box(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .height(48.dp)
-                        .align(Alignment.BottomCenter)
-                        .background(CardVignetteBrush)
-                )
-
-                // Duration badge
-                if (video.durationText.isNotBlank()) {
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.BottomEnd)
-                            .padding(8.dp)
-                            .liquidGlass(
-                                shape = RoundedCornerShape(6.dp),
-                                borderWidth = 0.8.dp,
-                                tintColor = Color.Black,
-                                glassAlpha = 0.75f
-                            )
-                            .padding(horizontal = 6.dp, vertical = 3.dp)
-                    ) {
-                        Text(
-                            text = video.durationText,
-                            color = Color.White,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.SemiBold
+                        .align(Alignment.BottomEnd)
+                        .padding(end = 8.dp, bottom = 8.dp)
+                        .background(
+                            color = Color(0xCC000000),
+                            shape = RoundedCornerShape(4.dp)
                         )
-                    }
+                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                ) {
+                    Text(
+                        text = video.durationText,
+                        color = Color.White,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium,
+                        letterSpacing = 0.5.sp
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        // 2. Info Row: Avatar + Title/Channel/Views + 3-Dots Menu
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 4.dp),
+            verticalAlignment = Alignment.Top
+        ) {
+            // Channel Avatar
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(CircleShape)
+                    .background(Color(0xFF272727)),
+                contentAlignment = Alignment.Center
+            ) {
+                if (video.channelAvatarUrl.isNotBlank()) {
+                    AsyncImage(
+                        model = video.channelAvatarUrl,
+                        contentDescription = video.channelTitle,
+                        modifier = Modifier
+                            .matchParentSize()
+                            .clip(CircleShape),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Default.PlayArrow,
+                        contentDescription = null,
+                        tint = YouTubeRed,
+                        modifier = Modifier.size(18.dp)
+                    )
                 }
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.width(12.dp))
 
-            // Info Section: Title, Channel, Views
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.Top
+            // Title and Metadata
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = video.title,
+                    color = TextPrimary,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    lineHeight = 19.sp
+                )
+
+                Spacer(modifier = Modifier.height(3.dp))
+
+                val metaString = buildString {
+                    append(video.channelTitle)
+                    if (video.viewCountText.isNotBlank()) {
+                        append(" • ")
+                        append(video.viewCountText)
+                    }
+                    if (video.publishedTimeText.isNotBlank()) {
+                        append(" • ")
+                        append(video.publishedTimeText)
+                    }
+                }
+
+                Text(
+                    text = metaString,
+                    color = TextSecondary,
+                    fontSize = 12.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+
+            // 3-dots more action button
+            IconButton(
+                onClick = { onMoreClick?.invoke() },
+                modifier = Modifier
+                    .size(32.dp)
+                    .padding(top = 2.dp)
             ) {
-                // Channel Avatar or Placeholder Icon
-                Box(
-                    modifier = Modifier
-                        .size(36.dp)
-                        .clip(CircleShape)
-                        .background(
-                            Brush.linearGradient(
-                                listOf(Color(0xFF2C2D42), Color(0xFF1B1C28))
-                            )
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    if (video.channelAvatarUrl.isNotBlank()) {
-                        AsyncImage(
-                            model = video.channelAvatarUrl,
-                            contentDescription = video.channelTitle,
-                            modifier = Modifier.matchParentSize().clip(CircleShape),
-                            contentScale = ContentScale.Crop
-                        )
-                    } else {
-                        Icon(
-                            imageVector = Icons.Default.PlayArrow,
-                            contentDescription = null,
-                            tint = NeonCyan,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.width(10.dp))
-
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = video.title,
-                        color = TextPrimary,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                        lineHeight = 18.sp
-                    )
-
-                    Spacer(modifier = Modifier.height(4.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = video.channelTitle,
-                            color = TextSecondary,
-                            fontSize = 12.sp,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-
-                        if (video.viewCountText.isNotBlank()) {
-                            Text(text = "•", color = TextMuted, fontSize = 11.sp)
-                            Text(
-                                text = video.viewCountText,
-                                color = TextMuted,
-                                fontSize = 11.sp
-                            )
-                        }
-
-                        if (video.publishedTimeText.isNotBlank()) {
-                            Text(text = "•", color = TextMuted, fontSize = 11.sp)
-                            Text(
-                                text = video.publishedTimeText,
-                                color = TextMuted,
-                                fontSize = 11.sp
-                            )
-                        }
-                    }
-                }
+                Icon(
+                    imageVector = Icons.Default.MoreVert,
+                    contentDescription = "Opsi",
+                    tint = TextSecondary,
+                    modifier = Modifier.size(18.dp)
+                )
             }
         }
     }

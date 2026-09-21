@@ -36,11 +36,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
-import com.phantom.tube.core.theme.NeonCyan
 import com.phantom.tube.core.theme.ObsidianDark
 import com.phantom.tube.core.theme.TextMuted
 import com.phantom.tube.core.theme.TextPrimary
 import com.phantom.tube.core.theme.TextSecondary
+import com.phantom.tube.core.theme.YouTubeRed
+import com.phantom.tube.core.theme.YouTubeSurface
 import com.phantom.tube.core.theme.liquidGlass
 import com.phantom.tube.data.model.VideoItem
 import com.phantom.tube.data.repository.PhantomRepository
@@ -182,23 +183,19 @@ fun HomeScreen(
                         .align(Alignment.TopCenter)
                         .zIndex(10f)
                         .padding(top = 8.dp)
-                        .liquidGlass(
-                            shape = RoundedCornerShape(20.dp),
-                            borderWidth = 1.dp,
-                            glassAlpha = 0.85f,
-                            accentGlow = NeonCyan
-                        )
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(YouTubeSurface)
                         .padding(horizontal = 16.dp, vertical = 8.dp)
                 ) {
                     CircularProgressIndicator(
-                        color = NeonCyan,
+                        color = YouTubeRed,
                         strokeWidth = 2.dp,
                         modifier = Modifier.size(14.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = "Menyegarkan Beranda...",
-                        color = NeonCyan,
+                        color = TextPrimary,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Medium
                     )
@@ -212,9 +209,9 @@ fun HomeScreen(
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         CircularProgressIndicator(
-                            color = NeonCyan,
+                            color = YouTubeRed,
                             strokeWidth = 3.dp,
-                            modifier = Modifier.size(44.dp)
+                            modifier = Modifier.size(40.dp)
                         )
                         Spacer(modifier = Modifier.height(16.dp))
                         Text(
@@ -247,7 +244,7 @@ fun HomeScreen(
                     LazyColumn(
                         state = listState,
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 100.dp),
+                        contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 6.dp, bottom = 100.dp),
                         verticalArrangement = Arrangement.spacedBy(14.dp)
                     ) {
                         itemsIndexed(videos, key = { index, video -> "home_${video.id}_$index" }) { _, video ->
@@ -269,15 +266,12 @@ fun HomeScreen(
                                     Row(
                                         verticalAlignment = Alignment.CenterVertically,
                                         modifier = Modifier
-                                            .liquidGlass(
-                                                shape = RoundedCornerShape(16.dp),
-                                                borderWidth = 0.5.dp,
-                                                glassAlpha = 0.45f
-                                            )
+                                            .clip(RoundedCornerShape(16.dp))
+                                            .background(YouTubeSurface)
                                             .padding(horizontal = 16.dp, vertical = 8.dp)
                                     ) {
                                         CircularProgressIndicator(
-                                            color = NeonCyan,
+                                            color = YouTubeRed,
                                             strokeWidth = 2.dp,
                                             modifier = Modifier.size(16.dp)
                                         )

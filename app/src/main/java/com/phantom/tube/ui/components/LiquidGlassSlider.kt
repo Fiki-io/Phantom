@@ -16,13 +16,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
-import com.phantom.tube.core.theme.NeonCyan
-import com.phantom.tube.core.theme.NeonViolet
+import com.phantom.tube.core.theme.YouTubeRed
 
+/**
+ * YouTube Red Scrubber:
+ * - Unplayed: semi-transparent gray
+ * - Buffered: semi-transparent white
+ * - Played: YouTube Red track
+ * - Thumb: YouTube Red circle that expands when dragging
+ */
 @Composable
 fun LiquidGlassScrubber(
     progress: Float,           // 0.0f to 1.0f
@@ -38,7 +43,7 @@ fun LiquidGlassScrubber(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .height(32.dp)
+            .height(28.dp)
             .pointerInput(Unit) {
                 detectTapGestures { offset ->
                     val fraction = (offset.x / size.width).coerceIn(0f, 1f)
@@ -66,13 +71,13 @@ fun LiquidGlassScrubber(
             }
     ) {
         Canvas(modifier = Modifier.matchParentSize()) {
-            val trackHeight = if (isDragging) 6.dp.toPx() else 4.dp.toPx()
+            val trackHeight = if (isDragging) 4.5.dp.toPx() else 3.dp.toPx()
             val yOffset = (size.height - trackHeight) / 2f
             val corner = CornerRadius(trackHeight / 2, trackHeight / 2)
 
-            // 1. Base Glass Track (unplayed)
+            // 1. Base Track (unplayed)
             drawRoundRect(
-                color = Color.White.copy(alpha = 0.15f),
+                color = Color.White.copy(alpha = 0.2f),
                 topLeft = Offset(0f, yOffset),
                 size = Size(size.width, trackHeight),
                 cornerRadius = corner
@@ -82,41 +87,31 @@ fun LiquidGlassScrubber(
             val bufferWidth = (size.width * bufferedFraction.coerceIn(0f, 1f))
             if (bufferWidth > 0) {
                 drawRoundRect(
-                    color = Color.White.copy(alpha = 0.35f),
+                    color = Color.White.copy(alpha = 0.4f),
                     topLeft = Offset(0f, yOffset),
                     size = Size(bufferWidth, trackHeight),
                     cornerRadius = corner
                 )
             }
 
-            // 3. Played Progress Track with Liquid Gradient
+            // 3. Played Progress Track in YouTube Red
             val playedWidth = size.width * activeFraction
             if (playedWidth > 0) {
                 drawRoundRect(
-                    brush = Brush.horizontalGradient(
-                        colors = listOf(NeonViolet, NeonCyan)
-                    ),
+                    color = YouTubeRed,
                     topLeft = Offset(0f, yOffset),
                     size = Size(playedWidth, trackHeight),
                     cornerRadius = corner
                 )
             }
 
-            // 4. Glow Scrubber Thumb
-            val thumbRadius = if (isDragging) 9.dp.toPx() else 6.dp.toPx()
+            // 4. YouTube Red Scrubber Thumb
+            val thumbRadius = if (isDragging) 8.dp.toPx() else 5.dp.toPx()
             val thumbX = playedWidth.coerceIn(thumbRadius, size.width - thumbRadius)
             val thumbY = size.height / 2f
 
-            // Outer Glow
             drawCircle(
-                color = NeonCyan.copy(alpha = 0.35f),
-                radius = thumbRadius * 1.8f,
-                center = Offset(thumbX, thumbY)
-            )
-
-            // Inner Glass Thumb
-            drawCircle(
-                color = Color.White,
+                color = YouTubeRed,
                 radius = thumbRadius,
                 center = Offset(thumbX, thumbY)
             )

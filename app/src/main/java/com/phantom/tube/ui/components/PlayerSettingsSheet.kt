@@ -11,6 +11,7 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.with
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -52,17 +53,18 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.phantom.tube.core.theme.NeonCyan
-import com.phantom.tube.core.theme.NeonPink
 import com.phantom.tube.core.theme.ObsidianSurfaceLight
 import com.phantom.tube.core.theme.TextMuted
 import com.phantom.tube.core.theme.TextPrimary
 import com.phantom.tube.core.theme.TextSecondary
+import com.phantom.tube.core.theme.YouTubeRed
+import com.phantom.tube.core.theme.YouTubeSurface
 import com.phantom.tube.core.theme.liquidGlass
 
 enum class SettingsSheetPage {
@@ -139,14 +141,12 @@ fun PlayerSettingsSheet(
                     .align(Alignment.BottomCenter)
             }
 
+            val sheetShape = if (isFullscreen) RoundedCornerShape(16.dp) else RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
             Box(
                 modifier = sheetModifier
-                    .liquidGlass(
-                        shape = if (isFullscreen) RoundedCornerShape(24.dp) else RoundedCornerShape(topStart = 26.dp, topEnd = 26.dp),
-                        borderWidth = 1.dp,
-                        tintColor = Color(0xFF0F121C),
-                        glassAlpha = 0.96f
-                    )
+                    .clip(sheetShape)
+                    .background(YouTubeSurface)
+                    .border(1.dp, Color(0x24FFFFFF), sheetShape)
                     .clickable(enabled = false) {}
                     .padding(horizontal = 18.dp, vertical = 14.dp)
             ) {
@@ -391,12 +391,8 @@ private fun DoubleTapSeekSettingsContent(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .liquidGlass(
-                            shape = RoundedCornerShape(14.dp),
-                            borderWidth = if (isSelected) 1.2.dp else 0.6.dp,
-                            glassAlpha = if (isSelected) 0.8f else 0.35f,
-                            accentGlow = if (isSelected) NeonCyan else null
-                        )
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(if (isSelected) Color(0xFF2E2E2E) else Color(0xFF1B1B1B))
                         .clickable { onSelectSeconds(seconds) }
                         .padding(horizontal = 16.dp, vertical = 12.dp)
                 ) {
@@ -407,7 +403,7 @@ private fun DoubleTapSeekSettingsContent(
                     ) {
                         Text(
                             text = label,
-                            color = if (isSelected) NeonCyan else TextPrimary,
+                            color = if (isSelected) YouTubeRed else TextPrimary,
                             fontSize = 14.sp,
                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
                         )
@@ -415,7 +411,7 @@ private fun DoubleTapSeekSettingsContent(
                             Icon(
                                 imageVector = Icons.Default.Check,
                                 contentDescription = "Terpilih",
-                                tint = NeonCyan,
+                                tint = YouTubeRed,
                                 modifier = Modifier.size(20.dp)
                             )
                         }
@@ -465,12 +461,8 @@ private fun SpeedSettingsContent(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .liquidGlass(
-                            shape = RoundedCornerShape(14.dp),
-                            borderWidth = if (isSelected) 1.2.dp else 0.6.dp,
-                            glassAlpha = if (isSelected) 0.8f else 0.35f,
-                            accentGlow = if (isSelected) NeonCyan else null
-                        )
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(if (isSelected) Color(0xFF2E2E2E) else Color(0xFF1B1B1B))
                         .clickable { onSelectSpeed(speed) }
                         .padding(horizontal = 16.dp, vertical = 12.dp)
                 ) {
@@ -481,7 +473,7 @@ private fun SpeedSettingsContent(
                     ) {
                         Text(
                             text = label,
-                            color = if (isSelected) NeonCyan else TextPrimary,
+                            color = if (isSelected) YouTubeRed else TextPrimary,
                             fontSize = 14.sp,
                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
                         )
@@ -489,7 +481,7 @@ private fun SpeedSettingsContent(
                             Icon(
                                 imageVector = Icons.Default.Check,
                                 contentDescription = "Terpilih",
-                                tint = NeonCyan,
+                                tint = YouTubeRed,
                                 modifier = Modifier.size(20.dp)
                             )
                         }
@@ -533,13 +525,8 @@ private fun SleepTimerSettingsContent(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .liquidGlass(
-                        shape = RoundedCornerShape(14.dp),
-                        borderWidth = 1.dp,
-                        tintColor = Color(0xFF1B2338),
-                        glassAlpha = 0.85f,
-                        accentGlow = NeonCyan
-                    )
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(Color(0xFF272727))
                     .padding(horizontal = 14.dp, vertical = 10.dp)
             ) {
                 Row(
@@ -550,7 +537,7 @@ private fun SleepTimerSettingsContent(
                     Column {
                         Text(
                             text = "Timer Berjalan",
-                            color = NeonCyan,
+                            color = YouTubeRed,
                             fontSize = 11.sp,
                             fontWeight = FontWeight.SemiBold
                         )
@@ -566,7 +553,7 @@ private fun SleepTimerSettingsContent(
                         contentDescription = "Batalkan Timer",
                         size = 32.dp,
                         iconSize = 16.dp,
-                        tint = NeonPink,
+                        tint = YouTubeRed,
                         onClick = { onSelectOption(SleepTimerOption.OFF) }
                     )
                 }
@@ -584,12 +571,8 @@ private fun SleepTimerSettingsContent(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .liquidGlass(
-                            shape = RoundedCornerShape(14.dp),
-                            borderWidth = if (isSelected) 1.2.dp else 0.6.dp,
-                            glassAlpha = if (isSelected) 0.8f else 0.35f,
-                            accentGlow = if (isSelected) NeonCyan else null
-                        )
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(if (isSelected) Color(0xFF2E2E2E) else Color(0xFF1B1B1B))
                         .clickable { onSelectOption(option) }
                         .padding(horizontal = 16.dp, vertical = 12.dp)
                 ) {
@@ -600,7 +583,7 @@ private fun SleepTimerSettingsContent(
                     ) {
                         Text(
                             text = option.label,
-                            color = if (isSelected) NeonCyan else TextPrimary,
+                            color = if (isSelected) YouTubeRed else TextPrimary,
                             fontSize = 14.sp,
                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
                         )
@@ -608,7 +591,7 @@ private fun SleepTimerSettingsContent(
                             Icon(
                                 imageVector = Icons.Default.Check,
                                 contentDescription = "Terpilih",
-                                tint = NeonCyan,
+                                tint = YouTubeRed,
                                 modifier = Modifier.size(20.dp)
                             )
                         }
@@ -629,11 +612,8 @@ private fun SettingsNavigationRow(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .liquidGlass(
-                shape = RoundedCornerShape(14.dp),
-                borderWidth = 0.6.dp,
-                glassAlpha = 0.35f
-            )
+            .clip(RoundedCornerShape(10.dp))
+            .background(Color(0xFF1E1E1E))
             .clickable { onClick() }
             .padding(horizontal = 14.dp, vertical = 12.dp)
     ) {
@@ -650,7 +630,7 @@ private fun SettingsNavigationRow(
                 Icon(
                     imageVector = icon,
                     contentDescription = null,
-                    tint = NeonCyan,
+                    tint = Color.White,
                     modifier = Modifier.size(20.dp)
                 )
             }
@@ -689,11 +669,8 @@ private fun SettingsSwitchRow(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .liquidGlass(
-                shape = RoundedCornerShape(14.dp),
-                borderWidth = 0.6.dp,
-                glassAlpha = 0.35f
-            )
+            .clip(RoundedCornerShape(10.dp))
+            .background(Color(0xFF1E1E1E))
             .padding(horizontal = 14.dp, vertical = 10.dp)
     ) {
         Row(
@@ -709,7 +686,7 @@ private fun SettingsSwitchRow(
                 Icon(
                     imageVector = icon,
                     contentDescription = null,
-                    tint = if (checked) NeonCyan else TextMuted,
+                    tint = if (checked) YouTubeRed else TextMuted,
                     modifier = Modifier.size(20.dp)
                 )
             }
@@ -733,7 +710,7 @@ private fun SettingsSwitchRow(
                 onCheckedChange = onCheckedChange,
                 colors = SwitchDefaults.colors(
                     checkedThumbColor = Color.White,
-                    checkedTrackColor = NeonCyan,
+                    checkedTrackColor = YouTubeRed,
                     uncheckedThumbColor = TextMuted,
                     uncheckedTrackColor = ObsidianSurfaceLight,
                     uncheckedBorderColor = Color.White.copy(alpha = 0.15f)

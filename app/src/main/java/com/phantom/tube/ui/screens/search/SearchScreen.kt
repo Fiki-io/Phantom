@@ -42,8 +42,10 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.TextStyle
@@ -52,13 +54,12 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.phantom.tube.core.theme.NeonCyan
-import com.phantom.tube.core.theme.NeonPink
 import com.phantom.tube.core.theme.ObsidianDark
 import com.phantom.tube.core.theme.TextMuted
 import com.phantom.tube.core.theme.TextPrimary
 import com.phantom.tube.core.theme.TextSecondary
-import com.phantom.tube.core.theme.liquidGlass
+import com.phantom.tube.core.theme.YouTubeRed
+import com.phantom.tube.core.theme.YouTubeSurface
 import com.phantom.tube.data.model.VideoItem
 import com.phantom.tube.data.repository.PhantomRepository
 import com.phantom.tube.ui.components.LiquidGlassIconButton
@@ -127,34 +128,30 @@ fun SearchScreen(
             .background(ObsidianDark)
             .statusBarsPadding()
     ) {
-        // Search Input Header
+        // YouTube Search Input Header
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
+                .padding(horizontal = 12.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             LiquidGlassIconButton(
                 icon = Icons.Default.ArrowBack,
                 contentDescription = "Kembali",
-                size = 40.dp,
+                size = 38.dp,
                 iconSize = 20.dp,
                 onClick = onBackClick
             )
 
-            Spacer(modifier = Modifier.width(10.dp))
+            Spacer(modifier = Modifier.width(8.dp))
 
-            // Glass Search Bar
+            // Standard YouTube Search Bar
             Box(
                 modifier = Modifier
                     .weight(1f)
-                    .liquidGlass(
-                        shape = RoundedCornerShape(24.dp),
-                        borderWidth = 1.dp,
-                        glassAlpha = 0.65f,
-                        accentGlow = NeonCyan
-                    )
-                    .padding(horizontal = 14.dp, vertical = 10.dp)
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(YouTubeSurface)
+                    .padding(horizontal = 14.dp, vertical = 8.dp)
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically
@@ -162,7 +159,7 @@ fun SearchScreen(
                     Icon(
                         imageVector = Icons.Default.Search,
                         contentDescription = null,
-                        tint = NeonCyan,
+                        tint = TextSecondary,
                         modifier = Modifier.size(18.dp)
                     )
 
@@ -182,14 +179,14 @@ fun SearchScreen(
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Normal
                         ),
-                        cursorBrush = SolidColor(NeonCyan),
+                        cursorBrush = SolidColor(YouTubeRed),
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                         keyboardActions = KeyboardActions(onSearch = { executeSearch(searchQuery) }),
                         decorationBox = { innerTextField ->
                             if (searchQuery.isEmpty()) {
                                 Text(
-                                    text = "Cari di YouTube...",
+                                    text = "Telusuri YouTube...",
                                     color = TextMuted,
                                     fontSize = 14.sp
                                 )
@@ -217,7 +214,7 @@ fun SearchScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(4.dp))
 
         // Content: Loading, History, Suggestions, or Results
         Box(modifier = Modifier.fillMaxSize()) {
@@ -228,7 +225,7 @@ fun SearchScreen(
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         CircularProgressIndicator(
-                            color = NeonCyan,
+                            color = YouTubeRed,
                             strokeWidth = 3.dp,
                             modifier = Modifier.size(40.dp)
                         )
@@ -243,32 +240,28 @@ fun SearchScreen(
                 suggestions.isNotEmpty() && !hasSearched -> {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                        verticalArrangement = Arrangement.spacedBy(2.dp)
                     ) {
                         itemsIndexed(suggestions, key = { index, suggestion -> "sugg_${suggestion}_$index" }) { _, suggestion ->
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .liquidGlass(
-                                        shape = RoundedCornerShape(12.dp),
-                                        borderWidth = 0.5.dp,
-                                        glassAlpha = 0.35f
-                                    )
+                                    .clip(RoundedCornerShape(8.dp))
                                     .clickable {
                                         searchQuery = suggestion
                                         executeSearch(suggestion)
                                     }
-                                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                                    .padding(horizontal = 12.dp, vertical = 10.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Search,
                                     contentDescription = null,
-                                    tint = NeonCyan.copy(alpha = 0.7f),
-                                    modifier = Modifier.size(16.dp)
+                                    tint = TextMuted,
+                                    modifier = Modifier.size(18.dp)
                                 )
-                                Spacer(modifier = Modifier.width(12.dp))
+                                Spacer(modifier = Modifier.width(14.dp))
                                 Text(
                                     text = suggestion,
                                     color = TextPrimary,
@@ -295,7 +288,7 @@ fun SearchScreen(
                 hasSearched && searchResults.isNotEmpty() -> {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                        contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 6.dp, bottom = 100.dp),
                         verticalArrangement = Arrangement.spacedBy(14.dp)
                     ) {
                         itemsIndexed(searchResults, key = { index, video -> "search_${video.id}_$index" }) { _, video ->
@@ -320,7 +313,7 @@ fun SearchScreen(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 20.dp, vertical = 6.dp),
+                                .padding(horizontal = 16.dp, vertical = 8.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -328,7 +321,7 @@ fun SearchScreen(
                                 Icon(
                                     imageVector = Icons.Default.History,
                                     contentDescription = null,
-                                    tint = NeonCyan,
+                                    tint = TextSecondary,
                                     modifier = Modifier.size(16.dp)
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
@@ -341,7 +334,7 @@ fun SearchScreen(
                             }
                             Text(
                                 text = "Hapus Semua",
-                                color = NeonPink,
+                                color = YouTubeRed,
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Medium,
                                 modifier = Modifier
@@ -356,32 +349,28 @@ fun SearchScreen(
 
                         LazyColumn(
                             modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
-                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 2.dp),
+                            verticalArrangement = Arrangement.spacedBy(2.dp)
                         ) {
                             items(searchHistory, key = { it.query }) { item ->
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .liquidGlass(
-                                            shape = RoundedCornerShape(12.dp),
-                                            borderWidth = 0.5.dp,
-                                            glassAlpha = 0.35f
-                                        )
+                                        .clip(RoundedCornerShape(8.dp))
                                         .clickable {
                                             searchQuery = item.query
                                             executeSearch(item.query)
                                         }
-                                        .padding(horizontal = 14.dp, vertical = 12.dp),
+                                        .padding(horizontal = 12.dp, vertical = 10.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.History,
                                         contentDescription = null,
                                         tint = TextMuted,
-                                        modifier = Modifier.size(16.dp)
+                                        modifier = Modifier.size(18.dp)
                                     )
-                                    Spacer(modifier = Modifier.width(12.dp))
+                                    Spacer(modifier = Modifier.width(14.dp))
                                     Text(
                                         text = item.query,
                                         color = TextPrimary,

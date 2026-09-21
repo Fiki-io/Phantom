@@ -15,28 +15,27 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
 private val SheenColors = listOf(
-    Color.White.copy(alpha = 0.12f),
-    Color.White.copy(alpha = 0.02f),
+    Color.White.copy(alpha = 0.05f),
+    Color.White.copy(alpha = 0.01f),
     Color.Transparent
 )
 
 private val DefaultBorderColors = listOf(
-    Color.White.copy(alpha = 0.55f),
-    Color(0x4000CEC9), // Cyan refraction
-    Color(0x306C5CE7), // Violet refraction
-    Color.White.copy(alpha = 0.12f)
+    Color.White.copy(alpha = 0.16f),
+    Color.White.copy(alpha = 0.06f),
+    Color.White.copy(alpha = 0.04f),
+    Color.White.copy(alpha = 0.10f)
 )
 
 /**
- * Liquid Glass styling modifier for buttons, cards, overlays, and controls.
- * Applies a frosted translucent fill, a refractive multi-stop border gradient,
- * and a subtle specular glass gloss sheen.
+ * Styling modifier for sleek dark surfaces, buttons, and sheets.
+ * Provides a clean YouTube Dark fill with subtle top-to-bottom shading and crisp borders.
  */
 fun Modifier.liquidGlass(
     shape: Shape = RoundedCornerShape(16.dp),
     borderWidth: Dp = 1.dp,
-    tintColor: Color = Color(0xFF181924),
-    glassAlpha: Float = 0.55f,
+    tintColor: Color = Color(0xFF212121),
+    glassAlpha: Float = 0.95f,
     accentGlow: Color? = null
 ): Modifier = this
     .clip(shape)
@@ -44,22 +43,22 @@ fun Modifier.liquidGlass(
         brush = Brush.verticalGradient(
             colors = listOf(
                 tintColor.copy(alpha = glassAlpha),
-                tintColor.copy(alpha = (glassAlpha * 0.7f).coerceIn(0f, 1f))
+                tintColor.copy(alpha = (glassAlpha * 0.9f).coerceIn(0f, 1f))
             )
         ),
         shape = shape
     )
     .drawWithContent {
         drawContent()
-        // Draw specular liquid glass sheen on top half using pre-allocated SheenColors
+        // Subtle sheen highlight on top half
         val sheenBrush = Brush.linearGradient(
             colors = SheenColors,
             start = Offset.Zero,
-            end = Offset(size.width * 0.6f, size.height * 0.6f)
+            end = Offset(size.width * 0.5f, size.height * 0.5f)
         )
         drawRect(
             brush = sheenBrush,
-            size = Size(size.width, size.height * 0.5f)
+            size = Size(size.width, size.height * 0.4f)
         )
     }
     .border(
@@ -67,10 +66,9 @@ fun Modifier.liquidGlass(
         brush = Brush.linearGradient(
             colors = if (accentGlow != null) {
                 listOf(
-                    Color.White.copy(alpha = 0.7f),
-                    accentGlow.copy(alpha = 0.5f),
-                    Color.White.copy(alpha = 0.15f),
-                    accentGlow.copy(alpha = 0.2f)
+                    accentGlow.copy(alpha = 0.6f),
+                    accentGlow.copy(alpha = 0.2f),
+                    Color.White.copy(alpha = 0.1f)
                 )
             } else {
                 DefaultBorderColors
@@ -82,16 +80,16 @@ fun Modifier.liquidGlass(
     )
 
 /**
- * Liquid Glass Button variant with slightly higher contrast and gloss for tactile touch.
+ * Clean button modifier with responsive press feedback.
  */
 fun Modifier.liquidGlassButton(
     shape: Shape = RoundedCornerShape(24.dp),
     isPressed: Boolean = false,
-    accentColor: Color = NeonCyan
+    accentColor: Color = YouTubeRed
 ): Modifier = this.liquidGlass(
     shape = shape,
-    borderWidth = 1.2.dp,
-    tintColor = if (isPressed) Color(0xFF26283C) else Color(0xFF1B1C28),
-    glassAlpha = if (isPressed) 0.85f else 0.65f,
+    borderWidth = 1.dp,
+    tintColor = if (isPressed) Color(0xFF333333) else Color(0xFF272727),
+    glassAlpha = if (isPressed) 1f else 0.9f,
     accentGlow = if (isPressed) accentColor else null
 )
