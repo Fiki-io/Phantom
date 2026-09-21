@@ -63,7 +63,7 @@ fun LiquidGlassBottomNav(
         modifier = modifier
             .fillMaxWidth()
             .navigationBarsPadding()
-            .padding(horizontal = 24.dp, start = 24.dp, end = 24.dp, bottom = 18.dp, top = 4.dp),
+            .padding(start = 24.dp, end = 24.dp, bottom = 18.dp, top = 4.dp),
         contentAlignment = Alignment.Center
     ) {
         // Floating Bubble Pill Dock Container
