@@ -66,17 +66,9 @@ class MainActivity : ComponentActivity() {
                         .fillMaxSize()
                         .background(ObsidianDark)
                 ) {
-                    // 1. BASE SCREEN TABS (Always active in background)
+                    // 1. BASE SCREEN TABS (Always active in background, edge-to-edge)
                     Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(
-                                bottom = when {
-                                    activeVideo != null && isPlayerMinimized -> 142.dp
-                                    !isInPipMode -> 80.dp
-                                    else -> 0.dp
-                                }
-                            )
+                        modifier = Modifier.fillMaxSize()
                     ) {
                         Crossfade(targetState = currentTab, label = "tab_crossfade") { tab ->
                             when (tab) {
@@ -142,15 +134,7 @@ class MainActivity : ComponentActivity() {
                             onPlayNextVideo = { nextVideo ->
                                 activeVideo = nextVideo
                             },
-                            modifier = if (isPlayerMinimized) {
-                                Modifier
-                                    .fillMaxWidth()
-                                    .align(Alignment.BottomCenter)
-                                    .navigationBarsPadding()
-                                    .padding(bottom = 76.dp)
-                            } else {
-                                Modifier.fillMaxSize()
-                            }
+                            modifier = Modifier.fillMaxSize()
                         )
                     }
                 }
@@ -172,8 +156,8 @@ class MainActivity : ComponentActivity() {
 
     override fun onUserLeaveHint() {
         super.onUserLeaveHint()
-        // Enter Picture-in-Picture only if a video is currently active
-        if (activeVideo != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        // Enter Picture-in-Picture only if video is actively playing in FULL player mode (not miniplayer / background audio)
+        if (activeVideo != null && !isPlayerMinimized && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             try {
                 val params = PictureInPictureParams.Builder()
                     .setAspectRatio(Rational(16, 9))

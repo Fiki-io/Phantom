@@ -15,9 +15,9 @@ val ObsidianDark = YouTubeDark
 val ObsidianSurface = YouTubeSurface
 val ObsidianSurfaceLight = YouTubeSurfaceLight
 
-// Bubble Dock Palette (Sleek dark floating pill)
-val BubbleDockBg = Color(0xF2212121) // 95% dark surface
-val BubbleDockBorder = Color(0x29FFFFFF) // Subtle 16% white border
+// Bubble Dock Palette (Translucent floating frosted pill)
+val BubbleDockBg = Color(0x66181818) // Semi-transparent frosted glass
+val BubbleDockBorder = Color(0x33FFFFFF) // Subtle 20% white glass border
 val BubbleDockActive = YouTubeRed
 
 // Clean dark surface tokens

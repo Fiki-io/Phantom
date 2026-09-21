@@ -46,6 +46,8 @@
         window.addEventListener('webkitvisibilitychange', function(e) { e.stopImmediatePropagation(); }, true);
         document.addEventListener('webkitvisibilitychange', function(e) { e.stopImmediatePropagation(); }, true);
         window.addEventListener('blur', function(e) { e.stopImmediatePropagation(); }, true);
+        window.addEventListener('pagehide', function(e) { e.stopImmediatePropagation(); }, true);
+        window.addEventListener('freeze', function(e) { e.stopImmediatePropagation(); }, true);
     </script>
 </head>
 <body>

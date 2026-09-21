@@ -26,6 +26,11 @@ class PhantomBackgroundWebView @JvmOverloads constructor(
         // Intercept GONE/INVISIBLE to keep Chromium audio and timers running in background / screen off
         super.onWindowVisibilityChanged(View.VISIBLE)
     }
+
+    override fun onPause() {
+        // Do NOT pause Chromium media or timers when activity is in background
+        resumeTimers()
+    }
 }
 
 class PhantomPlayerController(context: Context) {

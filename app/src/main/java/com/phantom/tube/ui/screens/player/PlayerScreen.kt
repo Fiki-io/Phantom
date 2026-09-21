@@ -564,7 +564,7 @@ fun PlayerScreen(
 
             override suspend fun onPreFling(available: Velocity): Velocity {
                 if (dragOffsetY > 0f) {
-                    if (dragOffsetY > 160f || available.y > 800f) {
+                    if (dragOffsetY > 160f || available.y > 600f) {
                         dragOffsetY = 0f
                         onMinimize()
                     } else {
@@ -573,6 +573,18 @@ fun PlayerScreen(
                     return available
                 }
                 return Velocity.Zero
+            }
+
+            override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
+                if (dragOffsetY > 0f) {
+                    if (dragOffsetY > 160f) {
+                        dragOffsetY = 0f
+                        onMinimize()
+                    } else {
+                        dragOffsetY = 0f
+                    }
+                }
+                return super.onPostFling(consumed, available)
             }
         }
     }
@@ -614,10 +626,9 @@ fun PlayerScreen(
         // 1. THE SINGLE PERSISTENT VIDEO PLAYER BOX (Always at exact same tree slot)
         val videoBoxModifier = when {
             isMinimized -> Modifier
-                .fillMaxWidth()
-                .aspectRatio(16f / 9f)
-                .offset(y = (-3000).dp)
-                .align(Alignment.TopCenter)
+                .size(1.dp)
+                .alpha(0.01f)
+                .align(Alignment.TopStart)
             isFullscreen -> Modifier.fillMaxSize()
             else -> Modifier
                 .fillMaxWidth()
@@ -914,35 +925,42 @@ fun PlayerScreen(
                         )
 
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 8.dp, vertical = 2.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(
-                                text = "${playerState.formattedCurrentTime} / ${playerState.formattedDuration}",
-                                color = TextPrimary,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Medium
-                            )
-
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                LiquidGlassIconButton(
-                                    icon = if (isFullscreen) Icons.Default.FullscreenExit else Icons.Default.Fullscreen,
-                                    contentDescription = "Fullscreen",
-                                    size = 36.dp,
-                                    iconSize = 20.dp,
-                                    onClick = {
-                                        val activity = context as? Activity
-                                        if (isFullscreen) {
-                                            activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
-                                            isFullscreen = false
-                                        } else {
-                                            activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
-                                            isFullscreen = true
-                                        }
-                                    }
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .background(Color(0x99000000))
+                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                            ) {
+                                Text(
+                                    text = "${playerState.formattedCurrentTime} / ${playerState.formattedDuration}",
+                                    color = Color.White,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Medium
                                 )
                             }
+
+                            LiquidGlassIconButton(
+                                icon = if (isFullscreen) Icons.Default.FullscreenExit else Icons.Default.Fullscreen,
+                                contentDescription = "Fullscreen",
+                                size = 36.dp,
+                                iconSize = 20.dp,
+                                onClick = {
+                                    val activity = context as? Activity
+                                    if (isFullscreen) {
+                                        activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+                                        isFullscreen = false
+                                    } else {
+                                        activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+                                        isFullscreen = true
+                                    }
+                                }
+                            )
                         }
                     }
                 }
@@ -968,7 +986,7 @@ fun PlayerScreen(
                     modifier = Modifier
                         .fillMaxSize()
                         .nestedScroll(nestedScrollConnection),
-                    contentPadding = PaddingValues(16.dp),
+                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 80.dp),
                     verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
                 // Video Details Header
@@ -1070,92 +1088,7 @@ fun PlayerScreen(
                     }
                 }
 
-                // 2. YouTube Mix Banner Card (Membuka antrean mengambang)
-                if (mixPlaylist.isNotEmpty()) {
-                    item {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(YouTubeSurface)
-                                .border(1.dp, Color(0x24FFFFFF), RoundedCornerShape(12.dp))
-                                .clickable { showMixSheet = true }
-                                .padding(14.dp)
-                        ) {
-                            Column {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        modifier = Modifier.weight(1f)
-                                    ) {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(38.dp)
-                                                .background(YouTubeRed.copy(alpha = 0.15f), CircleShape),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Default.QueueMusic,
-                                                contentDescription = null,
-                                                tint = YouTubeRed,
-                                                modifier = Modifier.size(20.dp)
-                                            )
-                                        }
-                                        Spacer(modifier = Modifier.width(10.dp))
-                                        Column {
-                                            Text(
-                                                text = mixTitle.ifBlank { "YouTube Mix" },
-                                                color = TextPrimary,
-                                                fontSize = 13.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                maxLines = 1
-                                            )
-                                            Text(
-                                                text = "Lagu ${currentMixIndex + 1} dari ${mixPlaylist.size} • Mix resmi YouTube",
-                                                color = TextMuted,
-                                                fontSize = 11.sp
-                                            )
-                                        }
-                                    }
-
-                                    Spacer(modifier = Modifier.width(8.dp))
-
-                                    // Button Lihat Antrean
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        modifier = Modifier
-                                            .background(Color(0xFF272727), RoundedCornerShape(16.dp))
-                                            .padding(horizontal = 12.dp, vertical = 6.dp)
-                                    ) {
-                                        Text(
-                                            text = "Lihat Antrean",
-                                            color = Color.White,
-                                            fontSize = 12.sp,
-                                            fontWeight = FontWeight.SemiBold
-                                        )
-                                    }
-                                }
-
-                                if (currentMixIndex < mixPlaylist.lastIndex) {
-                                    Spacer(modifier = Modifier.height(8.dp))
-                                    Text(
-                                        text = "Berikutnya: ${mixPlaylist[currentMixIndex + 1].title}",
-                                        color = TextSecondary,
-                                        fontSize = 12.sp,
-                                        maxLines = 1,
-                                        fontWeight = FontWeight.Medium
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // 3. Section Rekomendasi Video (Foto 2: Bersih & Terpisah dari Mix)
+                // 2. Section Rekomendasi Video (Foto 2: Bersih & Terpisah dari Mix)
                 item {
                     Spacer(modifier = Modifier.height(4.dp))
                     Row(
@@ -1208,7 +1141,73 @@ fun PlayerScreen(
         }
     }
 
-        // 3. FLOATING MIX QUEUE SHEET (Only in full player mode)
+        // 3. Floating YouTube Mix Bar (Official YouTube mobile bottom dock)
+        if (!isMinimized && !isFullscreen && mixPlaylist.isNotEmpty()) {
+            val nextVid = if (currentMixIndex < mixPlaylist.lastIndex) mixPlaylist[currentMixIndex + 1] else mixPlaylist.first()
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .align(Alignment.BottomCenter)
+                    .navigationBarsPadding()
+                    .padding(horizontal = 12.dp, bottom = 10.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(Color(0xF51F1F1F))
+                    .border(1.dp, Color(0x2EFFFFFF), RoundedCornerShape(14.dp))
+                    .clickable { showMixSheet = true }
+                    .padding(horizontal = 14.dp, vertical = 8.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(34.dp)
+                            .background(YouTubeRed.copy(alpha = 0.15f), CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.QueueMusic,
+                            contentDescription = null,
+                            tint = YouTubeRed,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(10.dp))
+
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Berikutnya: ${nextVid.title}",
+                            color = TextPrimary,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = mixTitle.ifBlank { "Mix - ${video.title}" },
+                            color = TextSecondary,
+                            fontSize = 11.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    Icon(
+                        imageVector = Icons.Default.ExpandLess,
+                        contentDescription = "Buka Antrean",
+                        tint = TextSecondary,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+            }
+        }
+
+        // 4. FLOATING MIX QUEUE SHEET (Only in full player mode)
         if (!isMinimized) {
             AnimatedVisibility(
                 visible = showMixSheet && !isFullscreen,
@@ -1216,100 +1215,117 @@ fun PlayerScreen(
                 exit = fadeOut() + slideOutVertically { it },
                 modifier = Modifier.fillMaxSize()
             ) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.55f))
-                .clickable { showMixSheet = false }
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .fillMaxHeight(0.72f)
-                    .align(Alignment.BottomCenter)
-                    .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
-                    .background(YouTubeSurface)
-                    .border(1.dp, Color(0x24FFFFFF), RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
-                    .clickable(enabled = false) {}
-                    .padding(horizontal = 16.dp, vertical = 12.dp)
-            ) {
-                Column(modifier = Modifier.fillMaxSize()) {
-                    // Drag Handle
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.55f))
+                        .clickable { showMixSheet = false }
+                ) {
                     Box(
                         modifier = Modifier
-                            .size(width = 42.dp, height = 4.dp)
-                            .background(Color.White.copy(alpha = 0.3f), RoundedCornerShape(2.dp))
-                            .align(Alignment.CenterHorizontally)
-                    )
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    // Header Bar
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                            .fillMaxWidth()
+                            .fillMaxHeight(0.72f)
+                            .align(Alignment.BottomCenter)
+                            .padding(horizontal = 8.dp, bottom = 12.dp)
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(YouTubeSurface)
+                            .border(1.dp, Color(0x24FFFFFF), RoundedCornerShape(20.dp))
+                            .clickable(enabled = false) {}
+                            .padding(horizontal = 16.dp, vertical = 12.dp)
                     ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = mixTitle.ifBlank { "YouTube Mix" },
-                                color = TextPrimary,
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.Bold,
-                                maxLines = 1
+                        Column(modifier = Modifier.fillMaxSize()) {
+                            // Drag Handle
+                            Box(
+                                modifier = Modifier
+                                    .size(width = 42.dp, height = 4.dp)
+                                    .background(Color.White.copy(alpha = 0.3f), RoundedCornerShape(2.dp))
+                                    .align(Alignment.CenterHorizontally)
                             )
-                            Text(
-                                text = "Lagu ${currentMixIndex + 1} dari ${mixPlaylist.size} • Mix resmi YouTube",
-                                color = TextSecondary,
-                                fontSize = 12.sp
-                            )
-                        }
 
-                        LiquidGlassIconButton(
-                            icon = Icons.Default.Close,
-                            contentDescription = "Tutup",
-                            size = 36.dp,
-                            iconSize = 18.dp,
-                            onClick = { showMixSheet = false }
-                        )
-                    }
+                            Spacer(modifier = Modifier.height(12.dp))
 
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    // Mix Playlist List (Semua lagu lengkap, tidak ada yang di-hide)
-                    val listState = rememberLazyListState()
-                    LaunchedEffect(showMixSheet) {
-                        if (showMixSheet && currentMixIndex in mixPlaylist.indices) {
-                            listState.animateScrollToItem(currentMixIndex)
-                        }
-                    }
-
-                    LazyColumn(
-                        state = listState,
-                        modifier = Modifier.fillMaxSize(),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                        contentPadding = PaddingValues(bottom = 24.dp)
-                    ) {
-                        itemsIndexed(mixPlaylist, key = { index, item -> "mix_${item.id}_$index" }) { index, item ->
-                            val isCurrent = index == currentMixIndex
-                            MixPlaylistItemCard(
-                                index = index + 1,
-                                video = item,
-                                isCurrent = isCurrent,
-                                onClick = {
-                                    playFromMix(index)
+                            // Header Bar
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = mixTitle.ifBlank { "YouTube Mix" },
+                                        color = TextPrimary,
+                                        fontSize = 15.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        maxLines = 1
+                                    )
+                                    Text(
+                                        text = "Lagu ${currentMixIndex + 1} • Mix resmi YouTube",
+                                        color = TextSecondary,
+                                        fontSize = 12.sp
+                                    )
                                 }
-                            )
+
+                                LiquidGlassIconButton(
+                                    icon = Icons.Default.Close,
+                                    contentDescription = "Tutup",
+                                    size = 36.dp,
+                                    iconSize = 18.dp,
+                                    onClick = { showMixSheet = false }
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(12.dp))
+
+                            // Mix Playlist List (Semua lagu lengkap, tidak ada yang di-hide)
+                            val listState = rememberLazyListState()
+                            LaunchedEffect(showMixSheet) {
+                                if (showMixSheet && currentMixIndex in mixPlaylist.indices) {
+                                    listState.animateScrollToItem(currentMixIndex)
+                                }
+                            }
+
+                            LazyColumn(
+                                state = listState,
+                                modifier = Modifier.fillMaxSize(),
+                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                                contentPadding = PaddingValues(bottom = 24.dp)
+                            ) {
+                                itemsIndexed(mixPlaylist, key = { index, item -> "mix_${item.id}_$index" }) { index, item ->
+                                    val isCurrent = index == currentMixIndex
+                                    MixPlaylistItemCard(
+                                        index = index + 1,
+                                        video = item,
+                                        isCurrent = isCurrent,
+                                        onClick = {
+                                            playFromMix(index)
+                                        }
+                                    )
+                                }
+                            }
                         }
                     }
                 }
             }
         }
-    }
-}
 
-        // 4. PERSISTENT LIQUID GLASS MINIPLAYER (When player is minimized)
-        if (isMinimized) {
+        // 5. PERSISTENT LIQUID GLASS MINIPLAYER (Animated enter & exit)
+        AnimatedVisibility(
+            visible = isMinimized,
+            enter = slideInVertically(
+                initialOffsetY = { it },
+                animationSpec = spring(stiffness = Spring.StiffnessMediumLow)
+            ) + fadeIn(),
+            exit = slideOutVertically(
+                targetOffsetY = { it },
+                animationSpec = spring(stiffness = Spring.StiffnessMediumLow)
+            ) + fadeOut(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .align(Alignment.BottomCenter)
+                .navigationBarsPadding()
+                .padding(bottom = 76.dp)
+                .zIndex(5f)
+        ) {
             LiquidGlassMiniPlayer(
                 video = video,
                 isPlaying = playerState.isPlaying,
@@ -1320,11 +1336,7 @@ fun PlayerScreen(
                 onTogglePlayPause = {
                     if (playerState.isPlaying) controller.pause() else controller.play()
                 },
-                onClose = onClose,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .align(Alignment.BottomCenter)
-                    .zIndex(2f)
+                onClose = onClose
             )
         }
 
