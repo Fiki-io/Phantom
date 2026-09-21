@@ -113,21 +113,51 @@ class InnerTubeClient(
     }
 
     suspend fun fetchSuggestions(query: String): List<String> = withContext(Dispatchers.IO) {
-        if (query.isBlank()) return@withContext emptyList()
+        val trimmed = query.trim()
+        if (trimmed.isBlank()) return@withContext emptyList()
         try {
-            val encoded = java.net.URLEncoder.encode(query, "UTF-8")
-            val request = Request.Builder()
-                .url("https://suggestqueries.google.com/complete/search?client=firefox&ds=yt&hl=id&gl=ID&q=$encoded")
-                .header("User-Agent", userAgent)
-                .get()
-                .build()
+            val encoded = java.net.URLEncoder.encode(trimmed, "UTF-8")
 
-            val response = httpClient.newCall(request).execute()
-            val responseBody = response.body?.string() ?: return@withContext emptyList()
-            return@withContext InnerTubeParser.parseSuggestions(responseBody)
+            // Endpoints list to try in order:
+            // 1. YouTube firefox client (clean JSON array, high speed, YouTube specific)
+            // 2. YouTube official client (JSONP window.google.ac.h format)
+            // 3. Google suggestion fallback (client=firefox, ds=yt)
+            val endpoints = listOf(
+                "https://suggestqueries-clients6.youtube.com/complete/search?client=firefox&ds=yt&hl=id&gl=ID&q=$encoded",
+                "https://suggestqueries-clients6.youtube.com/complete/search?client=youtube&ds=yt&hl=id&gl=ID&q=$encoded",
+                "https://suggestqueries.google.com/complete/search?client=firefox&ds=yt&hl=id&gl=ID&q=$encoded"
+            )
+
+            for (url in endpoints) {
+                try {
+                    val request = Request.Builder()
+                        .url(url)
+                        .header("User-Agent", userAgent)
+                        .header("Accept", "*/*")
+                        .get()
+                        .build()
+
+                    val response = httpClient.newCall(request).execute()
+                    response.use { resp ->
+                        if (resp.isSuccessful) {
+                            val bodyBytes = resp.body?.bytes()
+                            if (bodyBytes != null && bodyBytes.isNotEmpty()) {
+                                val parsed = InnerTubeParser.parseSuggestions(String(bodyBytes, Charsets.UTF_8))
+                                if (parsed.isNotEmpty()) {
+                                    return@withContext parsed
+                                }
+                            }
+                        }
+                    }
+                } catch (e: Exception) {
+                    // Try next fallback endpoint
+                }
+            }
+
+            emptyList()
         } catch (e: Exception) {
             e.printStackTrace()
-            return@withContext emptyList()
+            emptyList()
         }
     }
 }

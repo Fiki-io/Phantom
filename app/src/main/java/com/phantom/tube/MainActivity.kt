@@ -11,7 +11,14 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.Crossfade
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -70,7 +77,25 @@ class MainActivity : ComponentActivity() {
                     Box(
                         modifier = Modifier.fillMaxSize()
                     ) {
-                        Crossfade(targetState = currentTab, label = "tab_crossfade") { tab ->
+                        AnimatedContent(
+                            targetState = currentTab,
+                            transitionSpec = {
+                                val forward = targetState.ordinal > initialState.ordinal
+                                val slideDirection = if (forward) 1 else -1
+                                (slideInHorizontally(
+                                    animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing),
+                                    initialOffsetX = { fullWidth -> (fullWidth * 0.22f * slideDirection).toInt() }
+                                ) + fadeIn(
+                                    animationSpec = tween(durationMillis = 220)
+                                )) togetherWith (slideOutHorizontally(
+                                    animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing),
+                                    targetOffsetX = { fullWidth -> (-fullWidth * 0.22f * slideDirection).toInt() }
+                                ) + fadeOut(
+                                    animationSpec = tween(durationMillis = 180)
+                                ))
+                            },
+                            label = "tab_navigation_transition"
+                        ) { tab ->
                             when (tab) {
                                 NavTab.HOME -> HomeScreen(
                                     repository = repository,

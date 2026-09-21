@@ -31,6 +31,7 @@ import androidx.compose.material.icons.filled.NorthWest
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -67,6 +68,11 @@ import com.phantom.tube.ui.components.LiquidGlassVideoCard
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
+data class SearchSuggestionItem(
+    val query: String,
+    val isHistory: Boolean
+)
+
 @Composable
 fun SearchScreen(
     repository: PhantomRepository,
@@ -78,9 +84,46 @@ fun SearchScreen(
     var suggestions by remember { mutableStateOf<List<String>>(emptyList()) }
     var searchResults by remember { mutableStateOf<List<VideoItem>>(emptyList()) }
     var isSearching by remember { mutableStateOf(false) }
+    var isFetchingSuggestions by remember { mutableStateOf(false) }
     var hasSearched by remember { mutableStateOf(false) }
 
     val searchHistory by repository.getSearchHistory().collectAsState(initial = emptyList())
+
+    // Instant local history matching (0ms latency, always reactive while typing)
+    val matchingHistory = remember(searchQuery, searchHistory) {
+        val trimmed = searchQuery.trim()
+        if (trimmed.isBlank()) emptyList()
+        else searchHistory.filter { it.query.contains(trimmed, ignoreCase = true) }
+    }
+
+    // Unified hybrid suggestions: matching local search history first, then live YouTube suggestions
+    val combinedSuggestions = remember(matchingHistory, suggestions, searchQuery) {
+        val trimmed = searchQuery.trim()
+        if (trimmed.isBlank()) {
+            emptyList()
+        } else {
+            val list = mutableListOf<SearchSuggestionItem>()
+            val seen = mutableSetOf<String>()
+
+            // 1. Matching history queries first
+            matchingHistory.forEach { item ->
+                val q = item.query.trim()
+                if (q.isNotEmpty() && seen.add(q.lowercase())) {
+                    list.add(SearchSuggestionItem(query = q, isHistory = true))
+                }
+            }
+
+            // 2. YouTube network suggestions
+            suggestions.forEach { sugg ->
+                val q = sugg.trim()
+                if (q.isNotEmpty() && seen.add(q.lowercase())) {
+                    list.add(SearchSuggestionItem(query = q, isHistory = false))
+                }
+            }
+
+            list
+        }
+    }
 
     val scope = rememberCoroutineScope()
     val focusRequester = remember { FocusRequester() }
@@ -106,15 +149,23 @@ fun SearchScreen(
     }
 
     LaunchedEffect(searchQuery, hasSearched) {
-        if (searchQuery.isNotBlank() && !hasSearched) {
-            delay(250)
+        val trimmed = searchQuery.trim()
+        if (trimmed.isNotBlank() && !hasSearched) {
+            isFetchingSuggestions = true
+            delay(120) // Fast 120ms debounce for responsive typing
             try {
-                suggestions = repository.getSuggestions(searchQuery.trim())
+                val fetched = repository.getSuggestions(trimmed)
+                if (fetched.isNotEmpty()) {
+                    suggestions = fetched
+                }
             } catch (e: Exception) {
-                suggestions = emptyList()
+                // Keep suggestions if network glitches
+            } finally {
+                isFetchingSuggestions = false
             }
-        } else if (searchQuery.isBlank()) {
+        } else if (trimmed.isBlank()) {
             suggestions = emptyList()
+            isFetchingSuggestions = false
         }
     }
 
@@ -237,50 +288,113 @@ fun SearchScreen(
                         )
                     }
                 }
-                suggestions.isNotEmpty() && !hasSearched -> {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
-                        verticalArrangement = Arrangement.spacedBy(2.dp)
-                    ) {
-                        itemsIndexed(suggestions, key = { index, suggestion -> "sugg_${suggestion}_$index" }) { _, suggestion ->
-                            Row(
+                // 2. Actively typing (searchQuery is not blank) -> Show Hybrid Suggestions (Instant local history + Live YouTube suggestions)
+                !hasSearched && searchQuery.isNotBlank() -> {
+                    Column(modifier = Modifier.fillMaxSize()) {
+                        if (isFetchingSuggestions && combinedSuggestions.isEmpty()) {
+                            LinearProgressIndicator(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .clickable {
-                                        searchQuery = suggestion
-                                        executeSearch(suggestion)
+                                    .height(2.dp),
+                                color = YouTubeRed,
+                                trackColor = Color.Transparent
+                            )
+                        }
+
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                            verticalArrangement = Arrangement.spacedBy(2.dp)
+                        ) {
+                            if (combinedSuggestions.isEmpty()) {
+                                item(key = "direct_search") {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .clickable {
+                                                executeSearch(searchQuery)
+                                            }
+                                            .padding(horizontal = 12.dp, vertical = 12.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Search,
+                                            contentDescription = null,
+                                            tint = YouTubeRed,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(14.dp))
+                                        Text(
+                                            text = "Telusuri \"${searchQuery.trim()}\"",
+                                            color = TextPrimary,
+                                            fontSize = 14.sp,
+                                            fontWeight = FontWeight.Medium,
+                                            modifier = Modifier.weight(1f),
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
                                     }
-                                    .padding(horizontal = 12.dp, vertical = 10.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Search,
-                                    contentDescription = null,
-                                    tint = TextMuted,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                                Spacer(modifier = Modifier.width(14.dp))
-                                Text(
-                                    text = suggestion,
-                                    color = TextPrimary,
-                                    fontSize = 14.sp,
-                                    modifier = Modifier.weight(1f),
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Icon(
-                                    imageVector = Icons.Default.NorthWest,
-                                    contentDescription = "Gunakan kueri",
-                                    tint = TextMuted,
-                                    modifier = Modifier
-                                        .size(16.dp)
-                                        .clickable {
-                                            searchQuery = suggestion
+                                }
+                            } else {
+                                itemsIndexed(
+                                    items = combinedSuggestions,
+                                    key = { index, item -> "${item.isHistory}_${item.query}_$index" }
+                                ) { _, item ->
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .clickable {
+                                                searchQuery = item.query
+                                                executeSearch(item.query)
+                                            }
+                                            .padding(horizontal = 12.dp, vertical = 10.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(
+                                            imageVector = if (item.isHistory) Icons.Default.History else Icons.Default.Search,
+                                            contentDescription = if (item.isHistory) "Riwayat" else "Saran",
+                                            tint = if (item.isHistory) TextSecondary else TextMuted,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(14.dp))
+                                        Text(
+                                            text = item.query,
+                                            color = if (item.isHistory) TextPrimary else TextPrimary.copy(alpha = 0.95f),
+                                            fontSize = 14.sp,
+                                            modifier = Modifier.weight(1f),
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Icon(
+                                            imageVector = Icons.Default.NorthWest,
+                                            contentDescription = "Gunakan kueri",
+                                            tint = TextMuted,
+                                            modifier = Modifier
+                                                .size(16.dp)
+                                                .clickable {
+                                                    searchQuery = item.query
+                                                }
+                                        )
+                                        if (item.isHistory) {
+                                            Spacer(modifier = Modifier.width(12.dp))
+                                            Icon(
+                                                imageVector = Icons.Default.Close,
+                                                contentDescription = "Hapus kueri",
+                                                tint = TextMuted,
+                                                modifier = Modifier
+                                                    .size(16.dp)
+                                                    .clickable {
+                                                        scope.launch {
+                                                            repository.deleteSearchQuery(item.query)
+                                                        }
+                                                    }
+                                            )
                                         }
-                                )
+                                    }
+                                }
                             }
                         }
                     }
@@ -302,7 +416,7 @@ fun SearchScreen(
                 hasSearched && searchResults.isEmpty() -> {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Text(
-                            text = "Tidak ada hasil ditemukan",
+                            text = "Tidak ada hasil ditemukan untuk \"${searchQuery.trim()}\"",
                             color = TextMuted,
                             fontSize = 14.sp
                         )
