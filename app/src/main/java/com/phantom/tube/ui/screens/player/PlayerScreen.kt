@@ -157,6 +157,9 @@ fun PlayerScreen(
     var showSponsorPill by remember { mutableStateOf(false) }
     var lastSkippedSeconds by remember { mutableIntStateOf(0) }
     var lastSkippedFromSec by remember { mutableFloatStateOf(0f) }
+    var lastSkippedCategory by remember { mutableStateOf("sponsor") }
+    val skippedSegmentUuids = remember(video.id) { mutableSetOf<String>() }
+    val undoneSegmentUuids = remember(video.id) { mutableSetOf<String>() }
 
     // YouTube Mix Playlist & Session (Preserving all songs in the Mix)
     var mixPlaylist by remember { mutableStateOf<List<VideoItem>>(emptyList()) }
@@ -238,11 +241,18 @@ fun PlayerScreen(
     }
 
     val playPrevious: () -> Boolean = {
-        if (mixPlaylist.isNotEmpty() && currentMixIndex > 0) {
+        if (playerState.currentTimeSec > 3f) {
+            // Standard media playback: rewinds current track if played past 3 seconds
+            controller.seekTo(0f)
+            true
+        } else if (mixPlaylist.isNotEmpty() && currentMixIndex > 0) {
             val prevIndex = currentMixIndex - 1
             val prevVid = mixPlaylist[prevIndex]
             currentMixIndex = prevIndex
             isInternalNavigation = true
+            scope.launch {
+                repository.resetWatchPosition(prevVid.id)
+            }
             currentOnPlayNextVideo(prevVid)
             true
         } else {
@@ -278,7 +288,10 @@ fun PlayerScreen(
                     3 -> playerState = playerState.copy(isBuffering = true)
                     0 -> {
                         playerState = playerState.copy(isPlaying = false, isEnded = true)
-                        mediaService?.updatePlaybackState(false, (playerState.currentTimeSec * 1000).toLong())
+                        mediaService?.updatePlaybackState(false, 0L)
+                        scope.launch {
+                            repository.resetWatchPosition(video.id)
+                        }
                         if (isLoopEnabled) {
                             controller.seekTo(0f)
                             controller.play()
@@ -292,7 +305,12 @@ fun PlayerScreen(
                     }
                 }
             },
-            onTimeUpdateCallback = { current, duration, buffered ->
+            onTimeUpdateCallback = { reportingVideoId, current, duration, buffered ->
+                // Guard against stale time ticks from previous video during transition
+                if (reportingVideoId.isNotBlank() && reportingVideoId != currentVideo.id) {
+                    return@PhantomPlayerBridge
+                }
+
                 val wasZeroDuration = playerState.durationSec <= 0f && duration > 0f
                 playerState = playerState.copy(
                     currentTimeSec = current,
@@ -316,16 +334,28 @@ fun PlayerScreen(
                     }
                 }
 
-                // Check SponsorBlock segments
-                sponsorSegments.forEach { seg ->
-                    if (current >= seg.startSecond && current < (seg.startSecond + 1.5f)) {
-                        lastSkippedFromSec = current
-                        lastSkippedSeconds = (seg.endSecond - seg.startSecond).toInt()
-                        controller.seekTo(seg.endSecond)
-                        showSponsorPill = true
-                        scope.launch {
-                            delay(4000)
-                            showSponsorPill = false
+                // Check SponsorBlock segments (UUID tracking & valid outro bounds)
+                if (duration > 0f && current < duration) {
+                    sponsorSegments.forEach { seg ->
+                        val uuid = if (seg.uuid.isNotBlank()) seg.uuid else "${seg.category}_${seg.startSecond}_${seg.endSecond}"
+                        if (uuid !in skippedSegmentUuids && uuid !in undoneSegmentUuids) {
+                            // Outro is only valid if video is past half duration and current is past half duration
+                            val isOutroValid = if (seg.category == "outro") {
+                                seg.startSecond >= (duration * 0.5f) && current >= (duration * 0.5f)
+                            } else true
+
+                            if (isOutroValid && current >= seg.startSecond && current < (seg.endSecond - 0.5f)) {
+                                skippedSegmentUuids.add(uuid)
+                                lastSkippedFromSec = current
+                                lastSkippedSeconds = (seg.endSecond - seg.startSecond).toInt().coerceAtLeast(1)
+                                lastSkippedCategory = seg.category
+                                controller.seekTo(seg.endSecond)
+                                showSponsorPill = true
+                                scope.launch {
+                                    delay(4000)
+                                    showSponsorPill = false
+                                }
+                            }
                         }
                     }
                 }
@@ -465,9 +495,12 @@ fun PlayerScreen(
                 }
                 isLoadingQueue = false
             } else {
-                val idx = mixPlaylist.indexOfFirst { it.id == video.id }
-                if (idx != -1) {
-                    currentMixIndex = idx
+                // Internal navigation: preserve currentMixIndex and prevent duplicate ID jumps
+                if (currentMixIndex !in mixPlaylist.indices || mixPlaylist[currentMixIndex].id != video.id) {
+                    val idx = mixPlaylist.indexOfFirst { it.id == video.id }
+                    if (idx != -1) {
+                        currentMixIndex = idx
+                    }
                 }
                 if (mixPlaylist.isNotEmpty() && currentMixIndex >= mixPlaylist.size - 5) {
                     val nextData = repository.getWatchNext(video.id, "RD${video.id}")
@@ -712,10 +745,12 @@ fun PlayerScreen(
             SponsorSkipPill(
                 visible = showSponsorPill,
                 skippedSeconds = lastSkippedSeconds,
+                category = lastSkippedCategory,
                 modifier = Modifier
                     .align(Alignment.TopCenter)
                     .padding(top = 16.dp),
                 onUndo = {
+                    undoneSegmentUuids.addAll(skippedSegmentUuids)
                     controller.seekTo(lastSkippedFromSec)
                     showSponsorPill = false
                 }

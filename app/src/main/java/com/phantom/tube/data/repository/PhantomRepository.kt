@@ -122,7 +122,25 @@ class PhantomRepository(
     }
 
     suspend fun getLastPosition(videoId: String): Long {
-        return watchHistoryDao.getLastPosition(videoId) ?: 0L
+        val entry = watchHistoryDao.getEntry(videoId) ?: return 0L
+        val duration = entry.durationMs
+        val lastPos = entry.lastPositionMs
+        // If video was finished, or within 5s of end, or >= 95% watched, or < 4s: start fresh at 0
+        if (duration > 0L) {
+            if (lastPos >= duration - 5000L || (lastPos.toFloat() / duration.toFloat()) >= 0.95f) {
+                return 0L
+            }
+        }
+        if (lastPos < 4000L) {
+            return 0L
+        }
+        return lastPos
+    }
+
+    suspend fun resetWatchPosition(videoId: String) {
+        watchHistoryDao.getEntry(videoId)?.let { entry ->
+            watchHistoryDao.insertOrUpdate(entry.copy(lastPositionMs = 0L))
+        }
     }
 
     suspend fun deleteHistoryItem(videoId: String) {

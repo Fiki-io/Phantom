@@ -59,6 +59,7 @@
         var urlParams = new URLSearchParams(window.location.search);
         var initialVideoId = urlParams.get('v') || '';
         var initialStartSeconds = parseFloat(urlParams.get('start') || '0');
+        var activeVideoId = initialVideoId;
 
         // Load YouTube IFrame API
         var tag = document.createElement('script');
@@ -117,6 +118,9 @@
         }
 
         function onPlayerStateChange(event) {
+            if (event.data === 1 || event.data === 3) { // PLAYING or BUFFERING
+                startTimeTicker();
+            }
             if (window.PhantomBridge) {
                 window.PhantomBridge.onStateChange(event.data);
             }
@@ -133,11 +137,17 @@
             timeTicker = setInterval(function() {
                 try {
                     if (player && typeof player.getCurrentTime === 'function' && typeof player.getDuration === 'function') {
+                        var videoData = (typeof player.getVideoData === 'function') ? player.getVideoData() : null;
+                        var loadedId = (videoData && videoData.video_id) ? videoData.video_id : activeVideoId;
+                        if (activeVideoId && loadedId && loadedId !== activeVideoId) {
+                            // Old video still playing/transitioning in player, skip stale tick
+                            return;
+                        }
                         var current = player.getCurrentTime() || 0;
                         var duration = player.getDuration() || 0;
                         var loaded = (typeof player.getVideoLoadedFraction === 'function' ? player.getVideoLoadedFraction() : 0) || 0;
                         if (window.PhantomBridge) {
-                            window.PhantomBridge.onTimeUpdate(current, duration, loaded);
+                            window.PhantomBridge.onTimeUpdate(activeVideoId, current, duration, loaded);
                         }
                     }
                 } catch(e) {}
@@ -147,6 +157,11 @@
         // Bridge methods callable from Kotlin
         window.loadVideo = function(videoId, startSec) {
             try {
+                activeVideoId = videoId;
+                if (timeTicker) {
+                    clearInterval(timeTicker);
+                    timeTicker = null;
+                }
                 if (player && typeof player.loadVideoById === 'function') {
                     player.loadVideoById({
                         'videoId': videoId,

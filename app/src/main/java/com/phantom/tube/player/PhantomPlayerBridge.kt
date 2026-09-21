@@ -5,8 +5,8 @@ import android.webkit.JavascriptInterface
 class PhantomPlayerBridge(
     var onReadyCallback: () -> Unit = {},
     var onStateChangeCallback: (Int) -> Unit = {},
-    var onTimeUpdateCallback: (Float, Float, Float) -> Unit = { _, _, _ -> },
-    var onErrorCallback: (Int) -> Unit = {}
+    var onTimeUpdateCallback: (String, Float, Float, Float) -> Unit = { _, _, _, _ -> },
+    var onErrorCallback: () -> Unit = {}
 ) {
     @JavascriptInterface
     fun onReady() {
@@ -19,8 +19,8 @@ class PhantomPlayerBridge(
     }
 
     @JavascriptInterface
-    fun onTimeUpdate(currentTime: Float, duration: Float, bufferedFraction: Float) {
-        onTimeUpdateCallback(currentTime, duration, bufferedFraction)
+    fun onTimeUpdate(videoId: String, currentTime: Float, duration: Float, bufferedFraction: Float) {
+        onTimeUpdateCallback(videoId, currentTime, duration, bufferedFraction)
     }
 
     @JavascriptInterface

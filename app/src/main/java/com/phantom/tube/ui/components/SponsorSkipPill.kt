@@ -35,9 +35,18 @@ import com.phantom.tube.core.theme.liquidGlass
 fun SponsorSkipPill(
     visible: Boolean,
     skippedSeconds: Int,
+    category: String = "sponsor",
     modifier: Modifier = Modifier,
     onUndo: () -> Unit
 ) {
+    val categoryLabel = when (category) {
+        "intro" -> "Intro"
+        "outro" -> "Outro"
+        "selfpromo" -> "Promo"
+        "interaction" -> "Interaksi"
+        else -> "Sponsor"
+    }
+
     AnimatedVisibility(
         visible = visible,
         enter = fadeIn() + slideInVertically { it / 2 },
@@ -69,7 +78,7 @@ fun SponsorSkipPill(
                 Spacer(modifier = Modifier.width(8.dp))
 
                 Text(
-                    text = "Sponsor dilewati (${skippedSeconds}d)",
+                    text = "$categoryLabel dilewati (${skippedSeconds}d)",
                     color = TextPrimary,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Medium
