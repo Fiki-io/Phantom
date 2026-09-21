@@ -658,16 +658,16 @@ fun PlayerScreen(
                                 .liquidGlass(
                                     shape = CircleShape,
                                     borderWidth = 1.dp,
-                                    tintColor = Color(0xFF141926),
-                                    glassAlpha = 0.85f,
-                                    accentGlow = NeonCyan
+                                    tintColor = YouTubeSurface,
+                                    glassAlpha = 0.95f,
+                                    accentGlow = Color.Transparent
                                 ),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Headphones,
                                 contentDescription = null,
-                                tint = NeonCyan,
+                                tint = YouTubeRed,
                                 modifier = Modifier.size(28.dp)
                             )
                         }
@@ -1445,7 +1445,7 @@ fun MixPlaylistItemCard(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = video.title,
-                    color = if (isCurrent) NeonCyan else TextPrimary,
+                    color = if (isCurrent) YouTubeRed else TextPrimary,
                     fontSize = 13.sp,
                     fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Medium,
                     maxLines = 2,
@@ -1455,7 +1455,7 @@ fun MixPlaylistItemCard(
                 Spacer(modifier = Modifier.height(3.dp))
                 Text(
                     text = if (isCurrent) "Sedang Diputar • ${video.channelTitle}" else video.channelTitle,
-                    color = if (isCurrent) NeonCyan.copy(alpha = 0.8f) else TextSecondary,
+                    color = if (isCurrent) YouTubeRed.copy(alpha = 0.85f) else TextSecondary,
                     fontSize = 11.sp,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
