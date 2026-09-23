@@ -246,6 +246,7 @@ fun HomeScreen(
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 6.dp, bottom = 100.dp),
                         verticalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
                         itemsIndexed(
                             items = videos,
                             key = { index, video -> "home_${video.id}_$index" },

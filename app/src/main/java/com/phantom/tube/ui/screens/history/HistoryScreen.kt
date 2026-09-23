@@ -126,6 +126,7 @@ fun HistoryScreen(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(top = 4.dp, bottom = 100.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
                 itemsIndexed(
                     items = historyList,
                     key = { index, entry -> "hist_${entry.videoId}_$index" },
