@@ -59,7 +59,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.Close
@@ -492,7 +491,7 @@ fun PlayerScreen(
                         if (match != -1) match else nextData.currentIndex
                     } else 0
                     recommendedVideos = nextData.recommendations
-                    mixTitle = nextData.playlistTitle.ifBlank { "YouTube Mix" }
+                    mixTitle = nextData.playlistTitle.ifBlank { "Mix" }
                 }
                 isLoadingQueue = false
             } else {
@@ -686,13 +685,13 @@ fun PlayerScreen(
                             )
                         }
                         Text(
-                            text = "Mode Audio Only",
+                            text = "Mode Audio Saja",
                             color = TextPrimary,
                             fontSize = 13.sp,
                             fontWeight = FontWeight.SemiBold
                         )
                         Text(
-                            text = "Layar mati untuk hemat daya • Audio tetap diputar",
+                            text = "Layar dinonaktifkan untuk menghemat daya",
                             color = TextMuted,
                             fontSize = 11.sp
                         )
@@ -1109,27 +1108,15 @@ fun PlayerScreen(
                     }
                 }
 
-                // 2. Section Rekomendasi Video (Foto 2: Bersih & Terpisah dari Mix)
+                // 2. Section Video Berikutnya
                 item {
                     Spacer(modifier = Modifier.height(4.dp))
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.AutoAwesome,
-                            contentDescription = null,
-                            tint = YouTubeRed,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "Rekomendasi Video",
-                            color = TextPrimary,
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
+                    Text(
+                        text = "Berikutnya",
+                        color = TextPrimary,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
 
                 if (isLoadingQueue && recommendedVideos.isEmpty()) {
@@ -1208,7 +1195,7 @@ fun PlayerScreen(
                         )
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
-                            text = mixTitle.ifBlank { "Mix - ${video.title}" },
+                            text = mixTitle.ifBlank { "Mix" },
                             color = TextSecondary,
                             fontSize = 11.sp,
                             maxLines = 1,
@@ -1365,14 +1352,14 @@ fun PlayerScreen(
                             ) {
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
-                                        text = mixTitle.ifBlank { "YouTube Mix" },
+                                        text = mixTitle.ifBlank { "Mix" },
                                         color = TextPrimary,
                                         fontSize = 15.sp,
                                         fontWeight = FontWeight.Bold,
                                         maxLines = 1
                                     )
                                     Text(
-                                        text = "Lagu ${currentMixIndex + 1} • Mix resmi YouTube",
+                                        text = if (mixPlaylist.isNotEmpty()) "${currentMixIndex + 1} / ${mixPlaylist.size}" else "${currentMixIndex + 1}",
                                         color = TextSecondary,
                                         fontSize = 12.sp
                                     )
@@ -1579,7 +1566,7 @@ fun MixPlaylistItemCard(
                 )
                 Spacer(modifier = Modifier.height(3.dp))
                 Text(
-                    text = if (isCurrent) "Sedang Diputar • ${video.channelTitle}" else video.channelTitle,
+                    text = video.channelTitle,
                     color = if (isCurrent) YouTubeRed.copy(alpha = 0.85f) else TextSecondary,
                     fontSize = 11.sp,
                     maxLines = 1,

@@ -78,7 +78,7 @@ fun LibraryScreen(
             )
             Spacer(modifier = Modifier.width(10.dp))
             Text(
-                text = "Koleksi Favorit",
+                text = "Koleksi",
                 color = TextPrimary,
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold
@@ -99,7 +99,7 @@ fun LibraryScreen(
                     )
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
-                        text = "Belum ada video yang disimpan ke koleksi",
+                        text = "Belum ada video yang disimpan",
                         color = TextMuted,
                         fontSize = 14.sp
                     )

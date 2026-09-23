@@ -175,10 +175,10 @@ fun CrashScreen(
             ) {
                 Column {
                     Text(
-                        text = "DETAIL MASALAH:",
+                        text = "Detail Error",
                         color = NeonAmber,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
@@ -193,9 +193,9 @@ fun CrashScreen(
             Spacer(modifier = Modifier.height(14.dp))
 
             Text(
-                text = "LOG TEKNIS:",
+                text = "Log Error",
                 color = TextMuted,
-                fontSize = 11.sp,
+                fontSize = 12.sp,
                 fontWeight = FontWeight.SemiBold
             )
 

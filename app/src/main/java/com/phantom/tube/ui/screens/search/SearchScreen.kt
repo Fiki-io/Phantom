@@ -282,7 +282,7 @@ fun SearchScreen(
                         )
                         Spacer(modifier = Modifier.height(14.dp))
                         Text(
-                            text = "Mencari video...",
+                            text = "Memuat...",
                             color = TextMuted,
                             fontSize = 13.sp
                         )
@@ -416,7 +416,7 @@ fun SearchScreen(
                 hasSearched && searchResults.isEmpty() -> {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Text(
-                            text = "Tidak ada hasil ditemukan untuk \"${searchQuery.trim()}\"",
+                            text = "Tidak ada hasil untuk \"${searchQuery.trim()}\"",
                             color = TextMuted,
                             fontSize = 14.sp
                         )
@@ -440,14 +440,14 @@ fun SearchScreen(
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
-                                    text = "Riwayat Pencarian",
+                                    text = "Riwayat Penelusuran",
                                     color = TextSecondary,
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.SemiBold
                                 )
                             }
                             Text(
-                                text = "Hapus Semua",
+                                text = "Hapus semua",
                                 color = YouTubeRed,
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Medium,
@@ -528,12 +528,12 @@ fun SearchScreen(
                             Icon(
                                 imageVector = Icons.Default.Search,
                                 contentDescription = null,
-                                tint = TextMuted.copy(alpha = 0.5f),
-                                modifier = Modifier.size(52.dp)
+                                tint = TextMuted.copy(alpha = 0.35f),
+                                modifier = Modifier.size(48.dp)
                             )
                             Spacer(modifier = Modifier.height(12.dp))
                             Text(
-                                text = "Ketik judul atau kata kunci untuk mencari",
+                                text = "Telusuri video",
                                 color = TextMuted,
                                 fontSize = 13.sp
                             )

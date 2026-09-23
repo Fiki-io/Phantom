@@ -287,19 +287,8 @@ fun HomeScreen(
                         }
 
                         if (continuationToken == null && videos.isNotEmpty()) {
-                            item(key = "end_of_feed_notice") {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(vertical = 16.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(
-                                        text = "Semua video telah ditampilkan",
-                                        color = TextMuted,
-                                        fontSize = 12.sp
-                                    )
-                                }
+                            item(key = "end_of_feed_spacer") {
+                                Spacer(modifier = Modifier.height(16.dp))
                             }
                         }
                     }

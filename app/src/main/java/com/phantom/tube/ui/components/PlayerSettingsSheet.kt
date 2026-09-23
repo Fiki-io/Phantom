@@ -95,7 +95,7 @@ enum class SleepTimerOption(val label: String, val seconds: Int?) {
     MINUTES_30("30 Menit", 30 * 60),
     MINUTES_45("45 Menit", 45 * 60),
     MINUTES_60("60 Menit", 60 * 60),
-    END_OF_VIDEO("Akhir Video Ini", -1)
+    END_OF_VIDEO("Di akhir video", -1)
 }
 
 val AVAILABLE_SEEK_DURATIONS = listOf(5, 10, 15, 20, 30)
@@ -352,7 +352,7 @@ private fun MainSettingsContent(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "Pengaturan Pemutar",
+                text = "Setelan",
                 color = TextPrimary,
                 fontSize = 17.sp,
                 fontWeight = FontWeight.Bold
@@ -375,7 +375,7 @@ private fun MainSettingsContent(
             item {
                 SettingsNavigationRow(
                     icon = Icons.Default.FastForward,
-                    title = "Durasi Ketuk 2x",
+                    title = "Ketuk dua kali untuk mencari",
                     subtitle = "$doubleTapSeekSeconds Detik",
                     onClick = { onNavigate(SettingsSheetPage.DOUBLE_TAP_SEEK) }
                 )
@@ -399,7 +399,7 @@ private fun MainSettingsContent(
             item {
                 SettingsNavigationRow(
                     icon = Icons.Default.Bedtime,
-                    title = "Pengatur Waktu Tidur",
+                    title = "Timer tidur",
                     subtitle = sleepSubtitle,
                     onClick = { onNavigate(SettingsSheetPage.SLEEP_TIMER) }
                 )
@@ -416,8 +416,8 @@ private fun MainSettingsContent(
             item {
                 SettingsSwitchRow(
                     icon = Icons.Default.Repeat,
-                    title = "Ulangi Video Ini (Loop)",
-                    subtitle = "Otomatis memutar kembali video yang sama dari awal",
+                    title = "Putar ulang video",
+                    subtitle = "Putar video secara terus-menerus",
                     checked = isLoopEnabled,
                     onCheckedChange = onLoopToggle
                 )
@@ -426,8 +426,8 @@ private fun MainSettingsContent(
             item {
                 SettingsSwitchRow(
                     icon = Icons.Default.PlayCircle,
-                    title = "Putar Otomatis",
-                    subtitle = "Lanjut putar video rekomendasi berikutnya saat video selesai",
+                    title = "Putar otomatis",
+                    subtitle = "Putar video berikutnya secara otomatis",
                     checked = isAutoplayNext,
                     onCheckedChange = onAutoplayToggle
                 )
@@ -436,8 +436,8 @@ private fun MainSettingsContent(
             item {
                 SettingsSwitchRow(
                     icon = Icons.Default.Headphones,
-                    title = "Mode Audio Only",
-                    subtitle = "Tampilan visual AMOLED hitam pekat untuk menghemat daya",
+                    title = "Mode audio saja",
+                    subtitle = "Matikan video untuk menghemat daya",
                     checked = isAudioOnly,
                     onCheckedChange = onAudioOnlyToggle
                 )
@@ -466,7 +466,7 @@ private fun DoubleTapSeekSettingsContent(
             )
             Spacer(modifier = Modifier.width(12.dp))
             Text(
-                text = "Durasi Ketuk 2x",
+                text = "Ketuk dua kali untuk mencari",
                 color = TextPrimary,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold
@@ -474,7 +474,7 @@ private fun DoubleTapSeekSettingsContent(
         }
 
         Text(
-            text = "Ketuk 2x sisi kiri layar untuk mundur, dan sisi kanan untuk maju.",
+            text = "Pilih durasi lompatan saat mengetuk layar dua kali.",
             color = TextMuted,
             fontSize = 12.sp,
             modifier = Modifier.padding(start = 6.dp, top = 6.dp, bottom = 12.dp)
@@ -612,7 +612,7 @@ private fun SleepTimerSettingsContent(
             )
             Spacer(modifier = Modifier.width(12.dp))
             Text(
-                text = "Pengatur Waktu Tidur",
+                text = "Timer tidur",
                 color = TextPrimary,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold
@@ -635,7 +635,7 @@ private fun SleepTimerSettingsContent(
                 ) {
                     Column {
                         Text(
-                            text = "Timer Berjalan",
+                            text = "Timer aktif",
                             color = YouTubeRed,
                             fontSize = 11.sp,
                             fontWeight = FontWeight.SemiBold
