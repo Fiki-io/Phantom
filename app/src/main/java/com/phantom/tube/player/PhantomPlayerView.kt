@@ -192,13 +192,9 @@ object PhantomIFrameCleanEngine {
     private val cssCache = java.util.concurrent.ConcurrentHashMap<String, ByteArray>()
 
     val CSS_RULES = """
-        .html5-video-player > :not(.html5-video-container):not(.caption-window):not(.ytp-caption-window-container):not(video),
-        .html5-endscreen,
-        .html5-ypc-endscreen,
-        .modern-videowall-endscreen,
-        .video-annotations,
-        .video-legacy-annotations,
+        /* 1. Endscreen elements & annotations (video cards, playlists, videowall) */
         .ytp-ce-element,
+        .ytp-ce-element *,
         .ytp-ce-video,
         .ytp-ce-channel,
         .ytp-ce-playlist,
@@ -208,21 +204,130 @@ object PhantomIFrameCleanEngine {
         .ytp-ce-covering-image,
         .ytp-ce-expanding-overlay,
         .ytp-ce-expanding-image,
-        .ytp-ce-bottom-right-quad,
-        .ytp-ce-bottom-left-quad,
-        .ytp-ce-top-right-quad,
-        .ytp-ce-top-left-quad,
         .ytp-ce-element-show,
         .ytp-ce-shown,
         .ytp-ce-element-shadow,
         .ytp-ce-hide-button-container,
-        .ytp-chrome-top,
-        .ytp-chrome-top-buttons,
+        .html5-endscreen,
+        .html5-endscreen *,
+        .html5-ypc-endscreen,
+        .html5-ypc-endscreen *,
+        .modern-videowall-endscreen,
+        .modern-videowall-endscreen *,
+        .video-annotations,
+        .video-annotations *,
+        .video-legacy-annotations,
+        .video-legacy-annotations *,
+        .ytp-endscreen-content,
+        .ytp-endscreen-content *,
+        .ytp-endscreen-next,
+        .ytp-endscreen-paginate,
+        .ytp-endscreen-previous,
+        .ytp-endscreen-takeover,
+        .ytp-videowall-still,
+        .ytp-videowall-still *,
+        .iv-card,
+        .iv-card *,
+        .iv-promo,
+        .iv-promo *,
+        [class*="ytp-ce"],
+        [class*="ytp-ce"] *,
+        [class*="endscreen"],
+        [class*="endscreen"] *,
+        [class*="annotation"],
+        [class*="annotation"] *,
+        [class*="videowall"],
+        [class*="videowall"] *,
+        [class*="iv-card"],
+        [class*="iv-card"] *,
+        [class*="iv-promo"],
+        [class*="iv-promo"] * {
+            display: none !important;
+            opacity: 0 !important;
+            visibility: hidden !important;
+            pointer-events: none !important;
+            width: 0 !important;
+            height: 0 !important;
+            position: absolute !important;
+            top: -9999px !important;
+            left: -9999px !important;
+            z-index: -9999 !important;
+        }
+
+        /* 2. Play/Pause bezel animation, large play button & center overlays */
+        .ytp-bezel,
+        .ytp-bezel *,
+        .ytp-bezel-icon,
+        .ytp-bezel-icon *,
+        .ytp-bezel-text,
+        .ytp-bezel-text-wrapper,
+        .ytp-large-play-button,
+        .ytp-large-play-button *,
+        .ytp-large-play-button-bg,
+        .ytp-play-button,
+        .ytp-play-button *,
+        button.ytp-play-button,
+        .ytp-pause-overlay,
+        .ytp-pause-overlay *,
+        .ytp-pause-overlay-backdrop,
+        .ytp-pause-overlay-container,
+        .ytp-cued-thumbnail-overlay,
+        .ytp-cued-thumbnail-overlay-image,
+        .ytp-spinner,
+        .ytp-paid-content-overlay,
+        [class*="ytp-bezel"],
+        [class*="ytp-bezel"] *,
+        [class*="ytp-large-play"],
+        [class*="ytp-large-play"] *,
+        [class*="ytp-play-button"],
+        [class*="ytp-play-button"] *,
+        [class*="ytp-pause"],
+        [class*="ytp-pause"] * {
+            display: none !important;
+            opacity: 0 !important;
+            visibility: hidden !important;
+            pointer-events: none !important;
+            animation: none !important;
+            -webkit-animation: none !important;
+            width: 0 !important;
+            height: 0 !important;
+            position: absolute !important;
+            top: -9999px !important;
+            left: -9999px !important;
+            z-index: -9999 !important;
+        }
+
+        /* 3. Bottom controls, progress bar & gradient */
         .ytp-chrome-bottom,
-        .ytp-chrome-controls,
+        .ytp-chrome-bottom *,
+        .ytp-progress-bar-container,
+        .ytp-progress-bar-container *,
+        .ytp-progress-bar,
+        .ytp-progress-bar *,
+        .ytp-play-progress,
+        .ytp-load-progress,
+        .ytp-gradient-bottom,
+        [class*="ytp-chrome-bottom"],
+        [class*="ytp-chrome-bottom"] * {
+            display: none !important;
+            opacity: 0 !important;
+            visibility: hidden !important;
+            pointer-events: none !important;
+            width: 0 !important;
+            height: 0 !important;
+            position: absolute !important;
+            top: -9999px !important;
+            left: -9999px !important;
+            z-index: -9999 !important;
+        }
+
+        /* 4. Top bar, titles, channel logo/avatar & share button */
+        .ytp-chrome-top,
+        .ytp-chrome-top *,
         .ytp-title,
-        .ytp-title-text,
+        .ytp-title *,
         .ytp-title-channel,
+        .ytp-title-channel *,
         .ytp-title-channel-logo,
         .ytp-title-channel-name,
         span.ytp-title-channel-name,
@@ -231,97 +336,27 @@ object PhantomIFrameCleanEngine {
         .ytp-title-subtext,
         .ytp-title-expanded,
         .ytp-title-show-expanded,
-        .ytp-title-expanded-overlay,
-        .ytp-show-cards-title,
-        .ytp-cards-button,
-        .ytp-cards-button-title,
-        .ytp-cards-teaser,
-        .ytp-cards-teaser-channel-avatar,
-        .ytp-cards-teaser-box,
-        .ytp-cards-teaser-text,
-        .ytp-cards-teaser-label,
         .ytp-share-button,
-        .ytp-share-button-visible,
-        .ytp-share-icon,
+        .ytp-share-button *,
         .ytp-share-panel,
-        .ytp-share-title,
-        .ytp-overflow-button,
-        a.ytp-title-link,
-        .ytp-watermark,
-        .ytp-watermark-small,
-        .ytp-muted-autoplay-watermark,
-        .ytp-youtube-button,
-        .ytp-youtube-music-button,
-        .ytp-watch-on-youtube-button,
-        a.ytp-youtube-button,
-        .ytp-impression-link,
-        .ytp-impression-link-logo,
-        .ytp-impression-link-text,
-        .ytp-music-impression-link,
-        a.ytp-impression-link,
+        .ytp-share-panel *,
         .ytp-gradient-top,
-        .ytp-gradient-bottom,
-        .ytp-large-play-button,
-        .ytp-large-play-button-bg,
-        .ytp-large-play-button-red-bg,
-        .ytp-dni-large-play-button-bg,
-        .ytp-play-button,
-        .ytp-pause-overlay,
-        .ytp-pause-overlay-backdrop,
-        .ytp-pause-overlay-container,
-        .ytp-endscreen-content,
-        .ytp-endscreen-next,
-        .ytp-endscreen-paginate,
-        .ytp-endscreen-previous,
-        .ytp-endscreen-takeover,
-        .ytp-autonav-endscreen-countdown-container,
-        .ytp-autonav-endscreen-countdown-overlay,
-        .ytp-modern-endscreen-content,
-        .ytp-videowall-still,
-        .ytp-ce-element,
-        .ytp-bezel,
-        .ytp-bezel-text,
-        .ytp-bezel-icon,
-        .ytp-bezel-text-wrapper,
-        .ytp-doubletap-ui,
-        .ytp-cued-thumbnail-overlay,
-        .ytp-cued-thumbnail-overlay-image,
-        .ytp-spinner,
-        .ytp-contextmenu,
-        .ytp-paid-content-overlay,
-        .ytp-offline-slate,
-        .ytp-suggested-action-badge,
-        .ytp-more-videos-button,
-        .ytp-progress-bar-container,
-        .ytp-progress-bar,
-        .ytp-play-progress,
-        .ytp-load-progress,
-        .attribution-button,
-        .iv-drawer,
-        .iv-card,
-        .iv-promo,
-        [class*="ytp-chrome"],
+        .ytp-cards-teaser,
+        .ytp-cards-teaser *,
+        .ytp-cards-button,
+        .ytp-cards-button *,
+        [class*="ytp-chrome-top"],
+        [class*="ytp-chrome-top"] *,
         [class*="ytp-title"],
+        [class*="ytp-title"] *,
         [class*="ytp-share"],
-        [class*="ytp-watermark"],
-        [class*="ytp-impression"],
-        [class*="ytp-large-play"],
-        [class*="ytp-bezel"],
-        [class*="ytp-pause"],
-        [class*="ytp-gradient"],
-        [class*="ytp-endscreen"],
-        [class*="ytp-youtube"],
-        [class*="ytp-cards"],
-        [class*="ytp-ce"],
-        [class*="endscreen"],
-        [class*="annotation"],
-        [class*="videowall"],
-        [class*="iv-card"],
-        [class*="iv-promo"],
-        [class*="channel"],
-        [class*="avatar"],
-        [class*="author"],
+        [class*="ytp-share"] *,
         [class*="cards-teaser"],
+        [class*="cards-teaser"] *,
+        [class*="channel"],
+        [class*="channel"] *,
+        [class*="avatar"],
+        [class*="avatar"] *,
         a[href*="/@"],
         a[href*="/channel/"],
         a[href*="/user/"],
@@ -329,13 +364,32 @@ object PhantomIFrameCleanEngine {
         img[src*="ggpht.com"],
         img[src*="googleusercontent.com"],
         [style*="ggpht.com"],
-        [style*="googleusercontent.com"],
-        button[aria-label*="Play" i],
-        button[aria-label*="Share" i],
-        button[aria-label*="Putar" i],
-        button[aria-label*="Bagikan" i],
-        a[aria-label*="YouTube" i],
-        a[title*="YouTube" i],
+        [style*="googleusercontent.com"] {
+            display: none !important;
+            opacity: 0 !important;
+            visibility: hidden !important;
+            pointer-events: none !important;
+            width: 0 !important;
+            height: 0 !important;
+            position: absolute !important;
+            top: -9999px !important;
+            left: -9999px !important;
+            z-index: -9999 !important;
+        }
+
+        /* 5. Watermarks, YouTube logo & impression links */
+        .ytp-watermark,
+        .ytp-watermark *,
+        .ytp-youtube-button,
+        .ytp-youtube-button *,
+        .ytp-impression-link,
+        .ytp-impression-link *,
+        [class*="ytp-watermark"],
+        [class*="ytp-watermark"] *,
+        [class*="ytp-youtube"],
+        [class*="ytp-youtube"] *,
+        [class*="ytp-impression"],
+        [class*="ytp-impression"] *,
         a[href*="youtube.com/watch"] {
             display: none !important;
             opacity: 0 !important;
@@ -357,7 +411,7 @@ object PhantomIFrameCleanEngine {
         val isEmbedHtml = (url.contains("/embed/") || url.contains("/embed?")) &&
                 (url.contains("youtube.com") || url.contains("youtube-nocookie.com"))
 
-        val isPlayerCss = url.contains(".css") &&
+        val isPlayerCss = (url.contains(".css") || url.contains("/ss/")) &&
                 (url.contains("youtube.com") || url.contains("googlevideo.com") || url.contains("youtube-nocookie.com"))
 
         if (!isEmbedHtml && !isPlayerCss) return null
@@ -399,81 +453,98 @@ object PhantomIFrameCleanEngine {
 
             if (isEmbedHtml) {
                 val rawHtml = resp.body?.string() ?: ""
-                val nonceMatch = Regex("""nonce=["']([^"']+)["']""").find(rawHtml)
-                val nonceAttr = if (nonceMatch != null) " nonce=\"${nonceMatch.groupValues[1]}\"" else ""
-                val styleToInject = "<style id=\"phantom-clean-engine\"$nonceAttr>$CSS_RULES</style>"
+                val styleNonceMatch = Regex("""<style[^>]*nonce=["']([^"']+)["']""").find(rawHtml)
+                    ?: Regex("""nonce=["']([^"']+)["']""").find(rawHtml)
+                val styleNonce = styleNonceMatch?.groupValues?.get(1) ?: ""
+                val styleNonceAttr = if (styleNonce.isNotEmpty()) " nonce=\"$styleNonce\"" else ""
+
+                val scriptNonceMatch = Regex("""<script[^>]*nonce=["']([^"']+)["']""").find(rawHtml)
+                    ?: Regex("""nonce=["']([^"']+)["']""").find(rawHtml)
+                val scriptNonce = scriptNonceMatch?.groupValues?.get(1) ?: ""
+                val scriptNonceAttr = if (scriptNonce.isNotEmpty()) " nonce=\"$scriptNonce\"" else ""
+
+                val styleToInject = "<style id=\"phantom-clean-engine\"$styleNonceAttr>$CSS_RULES</style>"
                 val scriptToInject = """
-                    <script id="phantom-clean-script"$nonceAttr>
+                    <script id="phantom-clean-script"$scriptNonceAttr>
                     (function() {
                         var selectors = [
-                            '.ytp-chrome-top', '.ytp-chrome-top-buttons', '.ytp-chrome-bottom',
-                            '.ytp-watermark', '.ytp-youtube-button', '.ytp-watch-on-youtube-button',
-                            '.ytp-impression-link', '.ytp-large-play-button', '.ytp-large-play-button-bg',
-                            '.ytp-pause-overlay', '.ytp-share-button', '.ytp-share-panel', '.ytp-bezel',
-                            '.ytp-title', '.ytp-title-text', '.ytp-title-channel', '.ytp-title-channel-logo',
+                            '.ytp-ce-element', '[class*="ytp-ce"]', '.html5-endscreen', '[class*="endscreen"]',
+                            '.video-annotations', '[class*="annotation"]', '[class*="videowall"]',
+                            '.iv-card', '.iv-promo', '[class*="iv-card"]', '[class*="iv-promo"]',
+                            '.ytp-bezel', '.ytp-bezel-icon', '.ytp-bezel-text', '.ytp-bezel-text-wrapper', '[class*="ytp-bezel"]',
+                            '.ytp-large-play-button', '.ytp-large-play-button-bg', '[class*="ytp-large-play"]',
+                            '.ytp-play-button', 'button.ytp-play-button', '[class*="ytp-play-button"]',
+                            '.ytp-pause-overlay', '.ytp-pause-overlay-backdrop', '.ytp-pause-overlay-container',
+                            '.ytp-cued-thumbnail-overlay', '.ytp-spinner',
+                            '.ytp-chrome-bottom', '.ytp-progress-bar-container', '.ytp-progress-bar',
+                            '.ytp-chrome-top', '.ytp-title', '.ytp-title-channel', '.ytp-title-channel-logo',
                             '.ytp-title-channel-name', 'span.ytp-title-channel-name', 'a.ytp-title-channel',
-                            '.ytp-title-link', '.ytp-title-subtext', '.ytp-title-expanded', '.ytp-title-show-expanded',
-                            '.ytp-gradient-top', '.ytp-gradient-bottom', '.ytp-cards-button', '.ytp-cards-teaser',
-                            '.ytp-cards-teaser-channel-avatar', '.ytp-cards-teaser-box', '.ytp-cards-teaser-text',
-                            '.ytp-cards-teaser-label', '.ytp-contextmenu', '.ytp-cued-thumbnail-overlay',
-                            '.ytp-show-cards-title', '.ytp-spinner', '.ytp-progress-bar-container', '.ytp-progress-bar',
-                            '.ytp-ce-element', '.ytp-ce-video', '.ytp-ce-channel', '.ytp-ce-playlist',
-                            '.ytp-ce-covering-overlay', '.ytp-ce-expanding-overlay', '.html5-endscreen',
-                            '.video-annotations', '.iv-card', '.iv-promo',
-                            'a.ytp-title-link', 'a.ytp-youtube-button', 'a[aria-label*="YouTube"]',
-                            'button[aria-label*="Play"]', 'button[aria-label*="Share"]',
-                            '[class*="channel"]', '[class*="avatar"]', '[class*="author"]', '[class*="cards-teaser"]',
-                            '[class*="ytp-ce"]', '[class*="endscreen"]', '[class*="annotation"]', '[class*="videowall"]',
-                            '[class*="iv-card"]', '[class*="iv-promo"]',
-                            'a[href*="/@"]', 'a[href*="/channel/"]', 'a[href*="/user/"]', 'a[href*="/c/"]',
+                            '.ytp-share-button', '.ytp-cards-button', '.ytp-cards-teaser',
+                            '.ytp-watermark', '.ytp-youtube-button', '.ytp-impression-link',
+                            '[class*="channel"]', '[class*="avatar"]', '[class*="cards-teaser"]',
+                            'a[href*="/@"]', 'a[href*="/channel/"]',
                             'img[src*="ggpht.com"]', 'img[src*="googleusercontent.com"]',
                             '[style*="ggpht.com"]', '[style*="googleusercontent.com"]'
                         ];
-                        function clean() {
-                            selectors.forEach(function(sel) {
+
+                        function hideNodes() {
+                            for (var s = 0; s < selectors.length; s++) {
                                 try {
-                                    var els = document.querySelectorAll(sel);
-                                    for (var i = 0; i < els.length; i++) {
-                                        els[i].style.setProperty('display', 'none', 'important');
-                                        els[i].style.setProperty('opacity', '0', 'important');
-                                        els[i].style.setProperty('visibility', 'hidden', 'important');
-                                        els[i].style.setProperty('pointer-events', 'none', 'important');
-                                        els[i].style.setProperty('width', '0', 'important');
-                                        els[i].style.setProperty('height', '0', 'important');
-                                        try { els[i].remove(); } catch(e) {}
+                                    var nodes = document.querySelectorAll(selectors[s]);
+                                    for (var i = 0; i < nodes.length; i++) {
+                                        var n = nodes[i];
+                                        if (n.style.display !== 'none' || n.style.opacity !== '0') {
+                                            n.style.setProperty('display', 'none', 'important');
+                                            n.style.setProperty('opacity', '0', 'important');
+                                            n.style.setProperty('visibility', 'hidden', 'important');
+                                            n.style.setProperty('pointer-events', 'none', 'important');
+                                            n.style.setProperty('animation', 'none', 'important');
+                                            n.style.setProperty('-webkit-animation', 'none', 'important');
+                                            n.style.setProperty('width', '0', 'important');
+                                            n.style.setProperty('height', '0', 'important');
+                                        }
                                     }
                                 } catch(e) {}
-                            });
+                            }
 
                             try {
                                 var player = document.querySelector('.html5-video-player');
-                                if (player) {
-                                    var children = player.children;
-                                    for (var i = 0; i < children.length; i++) {
-                                        var child = children[i];
-                                        if (child.classList.contains('html5-video-container') ||
-                                            child.classList.contains('caption-window') ||
-                                            child.classList.contains('ytp-caption-window-container') ||
-                                            child.tagName.toLowerCase() === 'video') {
-                                            continue;
+                                if (player && player.children) {
+                                    for (var c = 0; c < player.children.length; c++) {
+                                        var child = player.children[c];
+                                        if (!child.classList.contains('html5-video-container') &&
+                                            !child.classList.contains('caption-window') &&
+                                            !child.classList.contains('ytp-caption-window-container') &&
+                                            child.tagName.toLowerCase() !== 'video') {
+                                            if (child.style.display !== 'none' || child.style.opacity !== '0') {
+                                                child.style.setProperty('display', 'none', 'important');
+                                                child.style.setProperty('opacity', '0', 'important');
+                                                child.style.setProperty('visibility', 'hidden', 'important');
+                                                child.style.setProperty('pointer-events', 'none', 'important');
+                                                child.style.setProperty('animation', 'none', 'important');
+                                                child.style.setProperty('-webkit-animation', 'none', 'important');
+                                                child.style.setProperty('width', '0', 'important');
+                                                child.style.setProperty('height', '0', 'important');
+                                            }
                                         }
-                                        child.style.setProperty('display', 'none', 'important');
-                                        child.style.setProperty('opacity', '0', 'important');
-                                        child.style.setProperty('visibility', 'hidden', 'important');
-                                        child.style.setProperty('pointer-events', 'none', 'important');
-                                        try { child.remove(); } catch(e) {}
                                     }
                                 }
                             } catch(e) {}
                         }
-                        clean();
-                        var obs = new MutationObserver(clean);
+
+                        hideNodes();
+                        var obs = new MutationObserver(hideNodes);
                         if (document.documentElement) {
-                            obs.observe(document.documentElement, { childList: true, subtree: true });
+                            obs.observe(document.documentElement, {
+                                childList: true,
+                                subtree: true,
+                                attributes: true,
+                                attributeFilter: ['style', 'class']
+                            });
                         }
-                        document.addEventListener('DOMContentLoaded', clean);
-                        window.addEventListener('load', clean);
-                        setInterval(clean, 150);
+                        document.addEventListener('DOMContentLoaded', hideNodes);
+                        window.addEventListener('load', hideNodes);
+                        setInterval(hideNodes, 80);
                     })();
                     </script>
                 """.trimIndent()
