@@ -158,7 +158,13 @@ fun PhantomGhostSurface(
                         view: WebView,
                         request: WebResourceRequest
                     ): WebResourceResponse? {
-                        return assetLoader.shouldInterceptRequest(request.url)
+                        val assetResp = assetLoader.shouldInterceptRequest(request.url)
+                        if (assetResp != null) return assetResp
+
+                        val cleanResp = PhantomIFrameCleanEngine.intercept(request)
+                        if (cleanResp != null) return cleanResp
+
+                        return super.shouldInterceptRequest(view, request)
                     }
                 }
 
@@ -172,4 +178,130 @@ fun PhantomGhostSurface(
         },
         update = { /* controller maintains internal state */ }
     )
+}
+
+object PhantomIFrameCleanEngine {
+    private val httpClient = okhttp3.OkHttpClient.Builder()
+        .connectTimeout(8, java.util.concurrent.TimeUnit.SECONDS)
+        .readTimeout(8, java.util.concurrent.TimeUnit.SECONDS)
+        .build()
+
+    private val cssCache = java.util.concurrent.ConcurrentHashMap<String, ByteArray>()
+
+    val CSS_RULES = """
+        .ytp-chrome-top,
+        .ytp-title,
+        .ytp-title-text,
+        .ytp-title-channel,
+        .ytp-show-cards-title,
+        .ytp-share-button,
+        .ytp-share-panel,
+        .ytp-overflow-button,
+        a.ytp-title-link,
+        .ytp-chrome-bottom,
+        .ytp-watermark,
+        .ytp-youtube-button,
+        a.ytp-youtube-button,
+        .ytp-gradient-top,
+        .ytp-gradient-bottom,
+        .ytp-large-play-button,
+        .ytp-large-play-button-bg,
+        .ytp-play-button,
+        .ytp-pause-overlay,
+        .ytp-pause-overlay-container,
+        .ytp-endscreen-content,
+        .ytp-ce-element,
+        .ytp-bezel,
+        .ytp-bezel-text,
+        .ytp-bezel-icon,
+        .ytp-cued-thumbnail-overlay,
+        .ytp-cued-thumbnail-overlay-image,
+        .ytp-spinner,
+        .ytp-contextmenu,
+        .ytp-paid-content-overlay,
+        .ytp-offline-slate,
+        .ytp-suggested-action-badge {
+            display: none !important;
+            opacity: 0 !important;
+            visibility: hidden !important;
+            pointer-events: none !important;
+            width: 0 !important;
+            height: 0 !important;
+        }
+    """.trimIndent()
+
+    val STYLE_TAG = "<style id=\"phantom-clean-engine\">$CSS_RULES</style>"
+
+    fun intercept(request: WebResourceRequest): WebResourceResponse? {
+        val url = request.url.toString()
+        if (request.method != "GET") return null
+
+        // 1. Intercept CSS files (e.g. www-player.css)
+        if (url.contains("/www-player.css") || (url.contains("youtube.com/s/player/") && url.contains(".css"))) {
+            try {
+                val cached = cssCache[url]
+                if (cached != null) {
+                    val headers = mapOf(
+                        "Content-Type" to "text/css; charset=utf-8",
+                        "Access-Control-Allow-Origin" to "*"
+                    )
+                    return WebResourceResponse("text/css", "utf-8", 200, "OK", headers, java.io.ByteArrayInputStream(cached))
+                }
+
+                val reqBuilder = okhttp3.Request.Builder().url(url)
+                for ((k, v) in request.requestHeaders) {
+                    reqBuilder.header(k, v)
+                }
+                val resp = httpClient.newCall(reqBuilder.build()).execute()
+                if (resp.isSuccessful) {
+                    val rawCss = resp.body?.string() ?: ""
+                    val modifiedCss = rawCss + "\n\n/* Phantom Clean Engine */\n" + CSS_RULES
+                    val bytes = modifiedCss.toByteArray(Charsets.UTF_8)
+                    cssCache[url] = bytes
+                    val headers = mapOf(
+                        "Content-Type" to "text/css; charset=utf-8",
+                        "Access-Control-Allow-Origin" to "*"
+                    )
+                    return WebResourceResponse("text/css", "utf-8", 200, "OK", headers, java.io.ByteArrayInputStream(bytes))
+                }
+            } catch (e: Exception) {
+                // Fallback to WebView default network
+            }
+        }
+
+        // 2. Intercept YouTube embed HTML
+        if (url.contains("youtube.com/embed/")) {
+            try {
+                val reqBuilder = okhttp3.Request.Builder().url(url)
+                for ((k, v) in request.requestHeaders) {
+                    reqBuilder.header(k, v)
+                }
+                val resp = httpClient.newCall(reqBuilder.build()).execute()
+                if (resp.isSuccessful) {
+                    val rawHtml = resp.body?.string() ?: ""
+                    val modifiedHtml = if (rawHtml.contains("</head>")) {
+                        rawHtml.replace("</head>", "$STYLE_TAG</head>")
+                    } else if (rawHtml.contains("<body")) {
+                        rawHtml.replace("<body", "$STYLE_TAG<body")
+                    } else {
+                        STYLE_TAG + rawHtml
+                    }
+                    val bytes = modifiedHtml.toByteArray(Charsets.UTF_8)
+                    val headers = mutableMapOf<String, String>()
+                    for ((k, v) in resp.headers) {
+                        if (!k.equals("content-encoding", ignoreCase = true) && !k.equals("content-length", ignoreCase = true)) {
+                            headers[k] = v
+                        }
+                    }
+                    headers["Content-Type"] = "text/html; charset=utf-8"
+                    headers["Access-Control-Allow-Origin"] = "*"
+                    return WebResourceResponse("text/html", "utf-8", 200, "OK", headers, java.io.ByteArrayInputStream(bytes))
+                }
+            } catch (e: Exception) {
+                // Fallback to WebView default network
+            }
+        }
+
+        return null
+    }
 }
