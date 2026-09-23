@@ -34,7 +34,6 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.phantom.tube.core.theme.BubbleDockActive
 import com.phantom.tube.core.theme.BubbleDockBg
 import com.phantom.tube.core.theme.BubbleDockBorder
 import com.phantom.tube.core.theme.TextPrimary
@@ -49,12 +48,10 @@ enum class NavTab(val title: String, val icon: ImageVector) {
 }
 
 /**
- * Floating Bubble Navigation Dock ("Gelembung Buttons"):
- * Retains the tactile floating pill dock with rounded capsule bubbles,
- * styled in YouTube Dark palette (clean #212121 surface, crisp white/red highlights).
+ * Navigasi dock gelembung melayang di bagian bawah layar.
  */
 @Composable
-fun LiquidGlassBottomNav(
+fun BubbleBottomNav(
     currentTab: NavTab,
     onTabSelected: (NavTab) -> Unit,
     modifier: Modifier = Modifier
@@ -66,7 +63,7 @@ fun LiquidGlassBottomNav(
             .padding(start = 24.dp, end = 24.dp, bottom = 18.dp, top = 4.dp),
         contentAlignment = Alignment.Center
     ) {
-        // Floating Bubble Pill Dock Container
+        // Kontainer dock gelembung melayang
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -98,7 +95,7 @@ fun LiquidGlassBottomNav(
 
                 val interactionSource = remember { MutableInteractionSource() }
 
-                // Individual Bubble Tab Button
+                // Tombol gelembung individu
                 Box(
                     modifier = Modifier
                         .scale(scale)

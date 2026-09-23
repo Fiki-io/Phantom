@@ -28,29 +28,27 @@ private val DefaultBorderColors = listOf(
 )
 
 /**
- * Styling modifier for sleek dark surfaces, buttons, and sheets.
- * Provides a clean YouTube Dark fill with subtle top-to-bottom shading and crisp borders.
+ * Styling modifier untuk container permukaan YouTube Dark.
  */
-fun Modifier.liquidGlass(
+fun Modifier.phantomSurface(
     shape: Shape = RoundedCornerShape(16.dp),
     borderWidth: Dp = 1.dp,
     tintColor: Color = Color(0xFF212121),
-    glassAlpha: Float = 0.95f,
+    surfaceAlpha: Float = 0.95f,
     accentGlow: Color? = null
 ): Modifier = this
     .clip(shape)
     .background(
         brush = Brush.verticalGradient(
             colors = listOf(
-                tintColor.copy(alpha = glassAlpha),
-                tintColor.copy(alpha = (glassAlpha * 0.9f).coerceIn(0f, 1f))
+                tintColor.copy(alpha = surfaceAlpha),
+                tintColor.copy(alpha = (surfaceAlpha * 0.9f).coerceIn(0f, 1f))
             )
         ),
         shape = shape
     )
     .drawWithContent {
         drawContent()
-        // Subtle sheen highlight on top half
         val sheenBrush = Brush.linearGradient(
             colors = SheenColors,
             start = Offset.Zero,
@@ -80,16 +78,16 @@ fun Modifier.liquidGlass(
     )
 
 /**
- * Clean button modifier with responsive press feedback.
+ * Modifier tombol dengan feedback saat ditekan.
  */
-fun Modifier.liquidGlassButton(
+fun Modifier.phantomButtonSurface(
     shape: Shape = RoundedCornerShape(24.dp),
     isPressed: Boolean = false,
     accentColor: Color = YouTubeRed
-): Modifier = this.liquidGlass(
+): Modifier = this.phantomSurface(
     shape = shape,
     borderWidth = 1.dp,
     tintColor = if (isPressed) Color(0xFF333333) else Color(0xFF272727),
-    glassAlpha = if (isPressed) 1f else 0.9f,
+    surfaceAlpha = if (isPressed) 1f else 0.9f,
     accentGlow = if (isPressed) accentColor else null
 )

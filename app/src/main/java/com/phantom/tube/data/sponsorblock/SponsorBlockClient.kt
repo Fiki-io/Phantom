@@ -22,7 +22,7 @@ class SponsorBlockClient(
 
             val request = Request.Builder()
                 .url(url)
-                .header("User-Agent", "Phantom-Android/1.0")
+                .header("User-Agent", "Phantom-Android/2.0")
                 .get()
                 .build()
 

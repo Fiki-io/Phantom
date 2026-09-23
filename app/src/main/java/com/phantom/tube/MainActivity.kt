@@ -36,7 +36,7 @@ import androidx.core.content.ContextCompat
 import com.phantom.tube.core.theme.ObsidianDark
 import com.phantom.tube.core.theme.PhantomTheme
 import com.phantom.tube.data.model.VideoItem
-import com.phantom.tube.ui.components.LiquidGlassBottomNav
+import com.phantom.tube.ui.components.BubbleBottomNav
 import com.phantom.tube.ui.components.NavTab
 import com.phantom.tube.ui.screens.history.HistoryScreen
 import com.phantom.tube.ui.screens.home.HomeScreen
@@ -131,9 +131,9 @@ class MainActivity : ComponentActivity() {
                         }
                     }
 
-                    // 2. LIQUID GLASS BOTTOM NAVIGATION BAR
+                    // 2. BUBBLE BOTTOM NAVIGATION DOCK
                     if (!isInPipMode && (activeVideo == null || isPlayerMinimized)) {
-                        LiquidGlassBottomNav(
+                        BubbleBottomNav(
                             currentTab = currentTab,
                             onTabSelected = { currentTab = it },
                             modifier = Modifier.align(Alignment.BottomCenter)

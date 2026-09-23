@@ -33,13 +33,13 @@ import com.phantom.tube.core.theme.TextPrimary
 import com.phantom.tube.core.theme.YouTubeRed
 
 /**
- * Standard YouTube Mobile top app bar:
- * - Brand logo: YouTube Red badge + PHANTOM bold title
- * - Actions: Refresh + Search icon buttons
- * - Horizontal category filter chips
+ * Top App Bar beranda:
+ * - Logo Phantom & nama aplikasi
+ * - Tombol Segarkan & Cari
+ * - Filter chip kategori
  */
 @Composable
-fun LiquidGlassTopBar(
+fun PhantomTopBar(
     selectedCategory: String,
     categories: List<String>,
     onCategorySelected: (String) -> Unit,
@@ -53,7 +53,7 @@ fun LiquidGlassTopBar(
             .statusBarsPadding()
             .padding(top = 4.dp, bottom = 6.dp)
     ) {
-        // Top Row: Logo & Action Buttons
+        // Baris Atas: Logo & Aksi
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -61,7 +61,7 @@ fun LiquidGlassTopBar(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            // Logo & Title
+            // Logo & Judul
             Row(
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -91,22 +91,22 @@ fun LiquidGlassTopBar(
                 )
             }
 
-            // Actions: Refresh + Search
+            // Aksi: Refresh + Cari
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 if (onRefreshClick != null) {
-                    LiquidGlassIconButton(
+                    PhantomIconButton(
                         icon = Icons.Default.Refresh,
-                        contentDescription = "Segarkan Beranda",
+                        contentDescription = "Segarkan",
                         size = 38.dp,
                         iconSize = 20.dp,
                         onClick = onRefreshClick
                     )
                 }
 
-                LiquidGlassIconButton(
+                PhantomIconButton(
                     icon = Icons.Default.Search,
                     contentDescription = "Cari",
                     size = 38.dp,
@@ -118,7 +118,7 @@ fun LiquidGlassTopBar(
 
         Spacer(modifier = Modifier.height(4.dp))
 
-        // Category Chips Scroll Row
+        // Baris Kategori
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -127,7 +127,7 @@ fun LiquidGlassTopBar(
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             categories.forEach { cat ->
-                LiquidGlassChip(
+                PhantomChip(
                     text = cat,
                     isSelected = cat == selectedCategory,
                     onClick = { onCategorySelected(cat) }

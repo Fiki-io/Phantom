@@ -5,7 +5,6 @@ import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -22,15 +21,14 @@ import androidx.compose.ui.unit.dp
 import com.phantom.tube.core.theme.YouTubeRed
 
 /**
- * YouTube Red Scrubber:
- * - Unplayed: semi-transparent gray/white
- * - Buffered: semi-transparent white
- * - Played: YouTube Red track
- * - Thumb: YouTube Red circle at the end of progress (when showThumb = true)
- * - Idle Mode (showThumb = false): Persistent thin progress line without thumb dot
+ * Scrubber timeline pemutar video:
+ * - Unplayed: putih semi-transparan
+ * - Buffered: putih sedikit lebih tebal
+ * - Played: aksen YouTube Red
+ * - Thumb: titik merah saat controls aktif
  */
 @Composable
-fun LiquidGlassScrubber(
+fun PhantomScrubber(
     progress: Float,           // 0.0f to 1.0f
     bufferedFraction: Float,   // 0.0f to 1.0f
     modifier: Modifier = Modifier,
@@ -109,7 +107,7 @@ fun LiquidGlassScrubber(
                 )
             }
 
-            // 3. Played Progress Track in YouTube Red
+            // 3. Played Progress Track
             val playedWidth = (size.width * activeFraction).coerceIn(0f, size.width)
             if (playedWidth > 0f) {
                 drawRoundRect(
@@ -120,7 +118,7 @@ fun LiquidGlassScrubber(
                 )
             }
 
-            // 4. YouTube Red Scrubber Thumb (Only shown in active controls mode)
+            // 4. Scrubber Thumb
             if (showThumb) {
                 val minX = thumbRadius
                 val maxX = (size.width - thumbRadius).coerceAtLeast(minX)

@@ -43,12 +43,11 @@ import com.phantom.tube.core.theme.TextPrimary
 import com.phantom.tube.core.theme.TextSecondary
 import com.phantom.tube.core.theme.YouTubeRed
 import com.phantom.tube.core.theme.YouTubeSurface
-import com.phantom.tube.core.theme.liquidGlass
 import com.phantom.tube.data.model.VideoItem
 import com.phantom.tube.data.repository.PhantomRepository
-import com.phantom.tube.ui.components.LiquidGlassIconButton
-import com.phantom.tube.ui.components.LiquidGlassTopBar
-import com.phantom.tube.ui.components.LiquidGlassVideoCard
+import com.phantom.tube.ui.components.PhantomIconButton
+import com.phantom.tube.ui.components.PhantomTopBar
+import com.phantom.tube.ui.components.PhantomVideoCard
 import kotlinx.coroutines.launch
 
 @Composable
@@ -167,7 +166,7 @@ fun HomeScreen(
             .fillMaxSize()
             .background(ObsidianDark)
     ) {
-        LiquidGlassTopBar(
+        PhantomTopBar(
             selectedCategory = selectedCategory,
             categories = categories,
             onCategorySelected = { selectedCategory = it },
@@ -195,7 +194,7 @@ fun HomeScreen(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "Menyegarkan Beranda...",
+                        text = "Memperbarui...",
                         color = TextPrimary,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Medium
@@ -216,7 +215,7 @@ fun HomeScreen(
                         )
                         Spacer(modifier = Modifier.height(16.dp))
                         Text(
-                            text = "Memuat video terbaru...",
+                            text = "Memuat...",
                             color = TextMuted,
                             fontSize = 13.sp
                         )
@@ -228,13 +227,13 @@ fun HomeScreen(
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(
-                            text = "Gagal memuat feed video",
+                            text = "Gagal memuat video",
                             color = TextPrimary,
                             fontSize = 15.sp,
                             fontWeight = FontWeight.SemiBold
                         )
                         Spacer(modifier = Modifier.height(12.dp))
-                        LiquidGlassIconButton(
+                        PhantomIconButton(
                             icon = Icons.Default.Refresh,
                             contentDescription = "Coba Lagi",
                             onClick = { loadFeed(selectedCategory) }
@@ -249,7 +248,7 @@ fun HomeScreen(
                         verticalArrangement = Arrangement.spacedBy(14.dp)
                     ) {
                         itemsIndexed(videos, key = { index, video -> "home_${video.id}_$index" }) { _, video ->
-                            LiquidGlassVideoCard(
+                            PhantomVideoCard(
                                 video = video,
                                 onClick = { onVideoClick(video) }
                             )
@@ -278,7 +277,7 @@ fun HomeScreen(
                                         )
                                         Spacer(modifier = Modifier.width(10.dp))
                                         Text(
-                                            text = "Memuat lebih banyak video...",
+                                            text = "Memuat...",
                                             color = TextSecondary,
                                             fontSize = 12.sp
                                         )

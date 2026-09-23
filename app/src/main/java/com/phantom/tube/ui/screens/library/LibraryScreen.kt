@@ -44,7 +44,7 @@ import com.phantom.tube.core.theme.TextSecondary
 import com.phantom.tube.core.theme.YouTubeRed
 import com.phantom.tube.data.model.VideoItem
 import com.phantom.tube.data.repository.PhantomRepository
-import com.phantom.tube.ui.components.LiquidGlassIconButton
+import com.phantom.tube.ui.components.PhantomIconButton
 import kotlinx.coroutines.launch
 
 @Composable
@@ -186,7 +186,7 @@ fun LibraryScreen(
                             )
                         }
 
-                        LiquidGlassIconButton(
+                        PhantomIconButton(
                             icon = Icons.Default.Delete,
                             contentDescription = "Hapus",
                             size = 36.dp,

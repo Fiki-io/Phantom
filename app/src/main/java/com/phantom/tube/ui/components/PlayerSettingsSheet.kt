@@ -81,7 +81,6 @@ import com.phantom.tube.core.theme.TextPrimary
 import com.phantom.tube.core.theme.TextSecondary
 import com.phantom.tube.core.theme.YouTubeRed
 import com.phantom.tube.core.theme.YouTubeSurface
-import com.phantom.tube.core.theme.liquidGlass
 
 enum class SettingsSheetPage {
     MAIN,
@@ -358,7 +357,7 @@ private fun MainSettingsContent(
                 fontSize = 17.sp,
                 fontWeight = FontWeight.Bold
             )
-            LiquidGlassIconButton(
+            PhantomIconButton(
                 icon = Icons.Default.Close,
                 contentDescription = "Tutup",
                 size = 36.dp,
@@ -376,7 +375,7 @@ private fun MainSettingsContent(
             item {
                 SettingsNavigationRow(
                     icon = Icons.Default.FastForward,
-                    title = "Lompat Ketuk Ganda",
+                    title = "Durasi Ketuk 2x",
                     subtitle = "$doubleTapSeekSeconds Detik",
                     onClick = { onNavigate(SettingsSheetPage.DOUBLE_TAP_SEEK) }
                 )
@@ -458,7 +457,7 @@ private fun DoubleTapSeekSettingsContent(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            LiquidGlassIconButton(
+            PhantomIconButton(
                 icon = Icons.Default.ArrowBack,
                 contentDescription = "Kembali",
                 size = 36.dp,
@@ -467,7 +466,7 @@ private fun DoubleTapSeekSettingsContent(
             )
             Spacer(modifier = Modifier.width(12.dp))
             Text(
-                text = "Durasi Ketuk Ganda",
+                text = "Durasi Ketuk 2x",
                 color = TextPrimary,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold
@@ -533,7 +532,7 @@ private fun SpeedSettingsContent(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            LiquidGlassIconButton(
+            PhantomIconButton(
                 icon = Icons.Default.ArrowBack,
                 contentDescription = "Kembali",
                 size = 36.dp,
@@ -604,7 +603,7 @@ private fun SleepTimerSettingsContent(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            LiquidGlassIconButton(
+            PhantomIconButton(
                 icon = Icons.Default.ArrowBack,
                 contentDescription = "Kembali",
                 size = 36.dp,
@@ -648,7 +647,7 @@ private fun SleepTimerSettingsContent(
                             fontWeight = FontWeight.Bold
                         )
                     }
-                    LiquidGlassIconButton(
+                    PhantomIconButton(
                         icon = Icons.Default.Close,
                         contentDescription = "Batalkan Timer",
                         size = 32.dp,

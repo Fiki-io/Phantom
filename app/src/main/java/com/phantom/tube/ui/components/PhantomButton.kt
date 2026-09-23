@@ -29,7 +29,7 @@ import androidx.compose.ui.unit.sp
 import com.phantom.tube.core.theme.TextPrimary
 
 @Composable
-fun LiquidGlassIconButton(
+fun PhantomIconButton(
     icon: ImageVector,
     contentDescription: String?,
     modifier: Modifier = Modifier,
@@ -69,13 +69,10 @@ fun LiquidGlassIconButton(
 }
 
 /**
- * Standard YouTube Mobile category chip:
- * - RoundedCornerShape(8.dp)
- * - Selected: White background, dark text
- * - Unselected: Dark gray (#272727) background, light text
+ * Chip kategori standar dengan rounded corner 8dp.
  */
 @Composable
-fun LiquidGlassChip(
+fun PhantomChip(
     text: String,
     isSelected: Boolean,
     modifier: Modifier = Modifier,
@@ -108,4 +105,3 @@ fun LiquidGlassChip(
         )
     }
 }
-

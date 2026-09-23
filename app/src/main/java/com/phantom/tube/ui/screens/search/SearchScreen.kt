@@ -63,8 +63,8 @@ import com.phantom.tube.core.theme.YouTubeRed
 import com.phantom.tube.core.theme.YouTubeSurface
 import com.phantom.tube.data.model.VideoItem
 import com.phantom.tube.data.repository.PhantomRepository
-import com.phantom.tube.ui.components.LiquidGlassIconButton
-import com.phantom.tube.ui.components.LiquidGlassVideoCard
+import com.phantom.tube.ui.components.PhantomIconButton
+import com.phantom.tube.ui.components.PhantomVideoCard
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -186,7 +186,7 @@ fun SearchScreen(
                 .padding(horizontal = 12.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            LiquidGlassIconButton(
+            PhantomIconButton(
                 icon = Icons.Default.ArrowBack,
                 contentDescription = "Kembali",
                 size = 38.dp,
@@ -406,7 +406,7 @@ fun SearchScreen(
                         verticalArrangement = Arrangement.spacedBy(14.dp)
                     ) {
                         itemsIndexed(searchResults, key = { index, video -> "search_${video.id}_$index" }) { _, video ->
-                            LiquidGlassVideoCard(
+                            PhantomVideoCard(
                                 video = video,
                                 onClick = { onVideoClick(video) }
                             )
@@ -496,7 +496,7 @@ fun SearchScreen(
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Icon(
                                         imageVector = Icons.Default.NorthWest,
-                                        contentDescription = "Salin ke pencarian",
+                                        contentDescription = "Masukkan ke pencarian",
                                         tint = TextMuted,
                                         modifier = Modifier
                                             .size(16.dp)
@@ -507,7 +507,7 @@ fun SearchScreen(
                                     Spacer(modifier = Modifier.width(12.dp))
                                     Icon(
                                         imageVector = Icons.Default.Close,
-                                        contentDescription = "Hapus kueri",
+                                        contentDescription = "Hapus",
                                         tint = TextMuted,
                                         modifier = Modifier
                                             .size(16.dp)

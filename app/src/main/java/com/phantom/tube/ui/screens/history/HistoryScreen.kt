@@ -45,7 +45,7 @@ import com.phantom.tube.core.theme.TextSecondary
 import com.phantom.tube.core.theme.YouTubeRed
 import com.phantom.tube.data.model.VideoItem
 import com.phantom.tube.data.repository.PhantomRepository
-import com.phantom.tube.ui.components.LiquidGlassIconButton
+import com.phantom.tube.ui.components.PhantomIconButton
 import kotlinx.coroutines.launch
 
 @Composable
@@ -89,7 +89,7 @@ fun HistoryScreen(
             }
 
             if (historyList.isNotEmpty()) {
-                LiquidGlassIconButton(
+                PhantomIconButton(
                     icon = Icons.Default.DeleteSweep,
                     contentDescription = "Hapus Riwayat",
                     size = 36.dp,

@@ -3,7 +3,6 @@ package com.phantom.tube.ui.components
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -34,22 +33,20 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
-import com.phantom.tube.core.theme.TextMuted
 import com.phantom.tube.core.theme.TextPrimary
 import com.phantom.tube.core.theme.TextSecondary
 import com.phantom.tube.core.theme.YouTubeRed
 import com.phantom.tube.data.model.VideoItem
 
 /**
- * Standard YouTube Mobile video card layout:
- * - 16:9 clean thumbnail with duration badge
- * - Channel avatar (36dp)
- * - 2-line title (14sp, SemiBold)
- * - Channel name, views, upload date
- * - 3-dots more menu icon
+ * Kartu item video standar:
+ * - Thumbnail 16:9 dengan durasi
+ * - Avatar channel
+ * - Judul video, nama channel, dan info penayangan
+ * - Tombol opsi
  */
 @Composable
-fun LiquidGlassVideoCard(
+fun PhantomVideoCard(
     video: VideoItem,
     modifier: Modifier = Modifier,
     onMoreClick: (() -> Unit)? = null,
@@ -67,7 +64,7 @@ fun LiquidGlassVideoCard(
             )
             .padding(bottom = 12.dp)
     ) {
-        // 1. Thumbnail Container (16:9, clean 8dp corners, duration pill)
+        // Thumbnail
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -82,7 +79,7 @@ fun LiquidGlassVideoCard(
                 modifier = Modifier.matchParentSize()
             )
 
-            // YouTube Duration Badge (solid dark pill with 4dp corners)
+            // Durasi video
             if (video.durationText.isNotBlank()) {
                 Box(
                     modifier = Modifier
@@ -107,14 +104,13 @@ fun LiquidGlassVideoCard(
 
         Spacer(modifier = Modifier.height(10.dp))
 
-        // 2. Info Row: Avatar + Title/Channel/Views + 3-Dots Menu
+        // Info: Avatar + Detail
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 4.dp),
             verticalAlignment = Alignment.Top
         ) {
-            // Channel Avatar
             Box(
                 modifier = Modifier
                     .size(36.dp)
@@ -143,7 +139,6 @@ fun LiquidGlassVideoCard(
 
             Spacer(modifier = Modifier.width(12.dp))
 
-            // Title and Metadata
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = video.title,
@@ -178,7 +173,6 @@ fun LiquidGlassVideoCard(
                 )
             }
 
-            // 3-dots more action button
             IconButton(
                 onClick = { onMoreClick?.invoke() },
                 modifier = Modifier

@@ -30,12 +30,12 @@ class PhantomCrashHandler private constructor(private val context: Context) : Th
             } catch (e: Exception) {
                 null
             }
-            val versionName = packageInfo?.versionName ?: "1.0.0"
+            val versionName = packageInfo?.versionName ?: "2.0.0"
             val versionCode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                packageInfo?.longVersionCode ?: 1L
+                packageInfo?.longVersionCode ?: 2L
             } else {
                 @Suppress("DEPRECATION")
-                packageInfo?.versionCode?.toLong() ?: 1L
+                packageInfo?.versionCode?.toLong() ?: 2L
             }
 
             val crashReport = buildString {

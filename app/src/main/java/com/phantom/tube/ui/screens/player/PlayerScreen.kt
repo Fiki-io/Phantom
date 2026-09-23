@@ -75,7 +75,8 @@ import androidx.compose.ui.zIndex
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import coil.compose.AsyncImage
-import com.phantom.tube.ui.components.LiquidGlassMiniPlayer
+import com.phantom.tube.player.PlayerState
+import com.phantom.tube.ui.components.PhantomMiniPlayer
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Replay10
@@ -113,7 +114,7 @@ import com.phantom.tube.core.theme.TextPrimary
 import com.phantom.tube.core.theme.TextSecondary
 import com.phantom.tube.core.theme.YouTubeRed
 import com.phantom.tube.core.theme.YouTubeSurface
-import com.phantom.tube.core.theme.liquidGlass
+import com.phantom.tube.core.theme.phantomSurface
 import com.phantom.tube.data.model.NextQueue
 import com.phantom.tube.data.model.SponsorSegment
 import com.phantom.tube.data.model.VideoItem
@@ -123,10 +124,9 @@ import androidx.compose.material.icons.filled.Settings
 import com.phantom.tube.player.PhantomGhostSurface
 import com.phantom.tube.player.PhantomPlayerBridge
 import com.phantom.tube.player.PhantomPlayerController
-import com.phantom.tube.player.PlayerState
-import com.phantom.tube.ui.components.LiquidGlassIconButton
-import com.phantom.tube.ui.components.LiquidGlassScrubber
-import com.phantom.tube.ui.components.LiquidGlassVideoCard
+import com.phantom.tube.ui.components.PhantomIconButton
+import com.phantom.tube.ui.components.PhantomScrubber
+import com.phantom.tube.ui.components.PhantomVideoCard
 import com.phantom.tube.ui.components.PlayerSettingsSheet
 import com.phantom.tube.ui.components.SleepTimerOption
 import com.phantom.tube.ui.components.SponsorSkipPill
@@ -363,12 +363,12 @@ fun PlayerScreen(
             },
             onErrorCallback = { errorCode ->
                 val msg = when (errorCode) {
-                    100 -> "Video tidak ditemukan (100)"
-                    101, 150 -> "Pemilik video membatasi pemutaran di aplikasi lain (150)"
-                    152 -> "Pemutaran dibatasi oleh YouTube (Error 152)"
-                    2 -> "Parameter request tidak valid (2)"
-                    5 -> "Kesalahan pemutar HTML5 (5)"
-                    else -> "Error pemutaran ($errorCode)"
+                    100 -> "Video tidak ditemukan"
+                    101, 150 -> "Pemilik membatasi pemutaran di aplikasi ini (Error 150)"
+                    152 -> "Video tidak dapat diputar (Error 152)"
+                    2 -> "Parameter video tidak valid"
+                    5 -> "Gagal memuat pemutar video"
+                    else -> "Terjadi kesalahan pemutaran ($errorCode)"
                 }
                 playerState = playerState.copy(isBuffering = false, errorCode = msg)
             }
@@ -669,11 +669,11 @@ fun PlayerScreen(
                         Box(
                             modifier = Modifier
                                 .size(56.dp)
-                                .liquidGlass(
+                                .phantomSurface(
                                     shape = CircleShape,
                                     borderWidth = 1.dp,
                                     tintColor = YouTubeSurface,
-                                    glassAlpha = 0.95f,
+                                    surfaceAlpha = 0.95f,
                                     accentGlow = Color.Transparent
                                 ),
                             contentAlignment = Alignment.Center
@@ -692,7 +692,7 @@ fun PlayerScreen(
                             fontWeight = FontWeight.SemiBold
                         )
                         Text(
-                            text = "Layar hemat daya AMOLED • Suara tetap diputar",
+                            text = "Layar mati untuk hemat daya • Audio tetap diputar",
                             color = TextMuted,
                             fontSize = 11.sp
                         )
@@ -736,11 +736,11 @@ fun PlayerScreen(
                 Box(
                     modifier = Modifier
                         .align(Alignment.Center)
-                        .liquidGlass(
+                        .phantomSurface(
                             shape = RoundedCornerShape(16.dp),
                             borderWidth = 1.dp,
                             tintColor = Color(0xFF261010),
-                            glassAlpha = 0.85f
+                            surfaceAlpha = 0.85f
                         )
                         .padding(horizontal = 16.dp, vertical = 10.dp)
                 ) {
@@ -797,7 +797,7 @@ fun PlayerScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        LiquidGlassIconButton(
+                        PhantomIconButton(
                             icon = Icons.Default.ExpandMore,
                             contentDescription = "Perkecil Player",
                             size = 38.dp,
@@ -842,8 +842,8 @@ fun PlayerScreen(
                                 )
                             }
 
-                            // Settings Button (opens Liquid Glass PlayerSettingsSheet)
-                            LiquidGlassIconButton(
+                            // Settings Button
+                            PhantomIconButton(
                                 icon = Icons.Default.Settings,
                                 contentDescription = "Pengaturan",
                                 size = 36.dp,
@@ -859,7 +859,7 @@ fun PlayerScreen(
                         horizontalArrangement = Arrangement.spacedBy(16.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        LiquidGlassIconButton(
+                        PhantomIconButton(
                             icon = Icons.Default.SkipPrevious,
                             contentDescription = "Video Sebelumnya",
                             size = 42.dp,
@@ -867,7 +867,7 @@ fun PlayerScreen(
                             onClick = { playPrevious() }
                         )
 
-                        LiquidGlassIconButton(
+                        PhantomIconButton(
                             icon = Icons.Default.Replay10,
                             contentDescription = "Mundur 10 Detik",
                             size = 42.dp,
@@ -878,7 +878,7 @@ fun PlayerScreen(
                             }
                         )
 
-                        LiquidGlassIconButton(
+                        PhantomIconButton(
                             icon = if (playerState.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                             contentDescription = if (playerState.isPlaying) "Pause" else "Play",
                             size = 64.dp,
@@ -892,7 +892,7 @@ fun PlayerScreen(
                             }
                         )
 
-                        LiquidGlassIconButton(
+                        PhantomIconButton(
                             icon = Icons.Default.Forward10,
                             contentDescription = "Maju 10 Detik",
                             size = 42.dp,
@@ -903,7 +903,7 @@ fun PlayerScreen(
                             }
                         )
 
-                        LiquidGlassIconButton(
+                        PhantomIconButton(
                             icon = Icons.Default.SkipNext,
                             contentDescription = "Video Berikutnya",
                             size = 42.dp,
@@ -939,7 +939,7 @@ fun PlayerScreen(
                                 )
                             }
 
-                            LiquidGlassIconButton(
+                            PhantomIconButton(
                                 icon = if (isFullscreen) Icons.Default.FullscreenExit else Icons.Default.Fullscreen,
                                 contentDescription = "Fullscreen",
                                 size = 36.dp,
@@ -958,7 +958,7 @@ fun PlayerScreen(
                         }
 
                         // Scrubber with thumb dot at the tip of progress, touching bottom edge
-                        LiquidGlassScrubber(
+                        PhantomScrubber(
                             progress = playerState.progressFraction,
                             bufferedFraction = playerState.bufferedFraction,
                             showThumb = true,
@@ -976,7 +976,7 @@ fun PlayerScreen(
 
             // Layer 5: Persistent Idle Progress Line (When controls are hidden)
             if (!isControlsVisible) {
-                LiquidGlassScrubber(
+                PhantomScrubber(
                     progress = playerState.progressFraction,
                     bufferedFraction = playerState.bufferedFraction,
                     showThumb = false,
@@ -1077,7 +1077,7 @@ fun PlayerScreen(
 
                                 Column {
                                     Text(
-                                        text = video.channelTitle.ifBlank { "Phantom Tube" },
+                                        text = video.channelTitle.ifBlank { "Channel" },
                                         color = TextPrimary,
                                         fontSize = 14.sp,
                                         fontWeight = FontWeight.SemiBold
@@ -1093,7 +1093,7 @@ fun PlayerScreen(
                             }
 
                             // Favorite Action Button
-                            LiquidGlassIconButton(
+                            PhantomIconButton(
                                 icon = if (isFavorite) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
                                 contentDescription = "Simpan",
                                 size = 42.dp,
@@ -1149,7 +1149,7 @@ fun PlayerScreen(
                     }
                 } else {
                     itemsIndexed(recommendedVideos, key = { index, item -> "rec_${item.id}_$index" }) { _, item ->
-                        LiquidGlassVideoCard(
+                        PhantomVideoCard(
                             video = item,
                             onClick = {
                                 isInternalNavigation = false
@@ -1378,7 +1378,7 @@ fun PlayerScreen(
                                     )
                                 }
 
-                                LiquidGlassIconButton(
+                                PhantomIconButton(
                                     icon = Icons.Default.Close,
                                     contentDescription = "Tutup",
                                     size = 36.dp,
@@ -1439,7 +1439,7 @@ fun PlayerScreen(
                 .padding(bottom = 76.dp)
                 .zIndex(5f)
         ) {
-            LiquidGlassMiniPlayer(
+            PhantomMiniPlayer(
                 video = video,
                 isPlaying = playerState.isPlaying,
                 isBuffering = playerState.isBuffering,

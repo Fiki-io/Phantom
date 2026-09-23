@@ -4,7 +4,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -30,13 +29,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
-import com.phantom.tube.core.theme.TextMuted
 import com.phantom.tube.core.theme.TextPrimary
 import com.phantom.tube.core.theme.TextSecondary
 import com.phantom.tube.core.theme.YouTubeRed
@@ -44,12 +43,10 @@ import com.phantom.tube.core.theme.YouTubeSurface
 import com.phantom.tube.data.model.VideoItem
 
 /**
- * YouTube Mobile style miniplayer bar:
- * Floating directly above the bubble dock with #212121 surface,
- * white playback controls, and a red real-time progress indicator line.
+ * Bar miniplayer melayang di atas dock navigasi.
  */
 @Composable
-fun LiquidGlassMiniPlayer(
+fun PhantomMiniPlayer(
     video: VideoItem,
     isPlaying: Boolean,
     isBuffering: Boolean,
@@ -134,7 +131,7 @@ fun LiquidGlassMiniPlayer(
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = video.channelTitle.ifBlank { "Phantom Tube" },
+                        text = video.channelTitle.ifBlank { "Channel" },
                         color = TextSecondary,
                         fontSize = 11.sp,
                         maxLines = 1,
@@ -162,7 +159,7 @@ fun LiquidGlassMiniPlayer(
 
                 Spacer(modifier = Modifier.width(4.dp))
 
-                // Close (X) Button
+                // Close Button
                 Box(
                     modifier = Modifier
                         .size(34.dp)
@@ -172,7 +169,7 @@ fun LiquidGlassMiniPlayer(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Close,
-                        contentDescription = "Tutup Miniplayer",
+                        contentDescription = "Tutup",
                         tint = TextSecondary,
                         modifier = Modifier.size(18.dp)
                     )

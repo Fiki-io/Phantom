@@ -59,7 +59,7 @@ import com.phantom.tube.core.theme.PhantomTheme
 import com.phantom.tube.core.theme.TextMuted
 import com.phantom.tube.core.theme.TextPrimary
 import com.phantom.tube.core.theme.TextSecondary
-import com.phantom.tube.core.theme.liquidGlass
+import com.phantom.tube.core.theme.phantomSurface
 
 class CrashActivity : ComponentActivity() {
 
@@ -124,11 +124,11 @@ fun CrashScreen(
                 Box(
                     modifier = Modifier
                         .size(46.dp)
-                        .liquidGlass(
+                        .phantomSurface(
                             shape = RoundedCornerShape(14.dp),
                             borderWidth = 1.dp,
                             tintColor = Color(0xFF330C18),
-                            glassAlpha = 0.9f,
+                            surfaceAlpha = 0.9f,
                             accentGlow = NeonPink
                         ),
                     contentAlignment = Alignment.Center
@@ -145,13 +145,13 @@ fun CrashScreen(
 
                 Column {
                     Text(
-                        text = "Phantom Ditahan (Crash)",
+                        text = "Aplikasi Terhenti",
                         color = TextPrimary,
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = "Crash berhasil ditangkap agar log dapat disalin.",
+                        text = "Terjadi kesalahan pada aplikasi. Log dapat disalin untuk pelaporan bug.",
                         color = TextSecondary,
                         fontSize = 12.sp
                     )
@@ -164,18 +164,18 @@ fun CrashScreen(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .liquidGlass(
+                    .phantomSurface(
                         shape = RoundedCornerShape(12.dp),
                         borderWidth = 0.8.dp,
                         tintColor = Color(0xFF261016),
-                        glassAlpha = 0.8f,
+                        surfaceAlpha = 0.8f,
                         accentGlow = NeonAmber
                     )
                     .padding(12.dp)
             ) {
                 Column {
                     Text(
-                        text = "PESAN KESALAHAN:",
+                        text = "DETAIL MASALAH:",
                         color = NeonAmber,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold
@@ -193,7 +193,7 @@ fun CrashScreen(
             Spacer(modifier = Modifier.height(14.dp))
 
             Text(
-                text = "LOG DETAIL & STACK TRACE:",
+                text = "LOG TEKNIS:",
                 color = TextMuted,
                 fontSize = 11.sp,
                 fontWeight = FontWeight.SemiBold
@@ -206,11 +206,11 @@ fun CrashScreen(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth()
-                    .liquidGlass(
+                    .phantomSurface(
                         shape = RoundedCornerShape(14.dp),
                         borderWidth = 1.dp,
                         tintColor = Color(0xFF090A12),
-                        glassAlpha = 0.95f
+                        surfaceAlpha = 0.95f
                     )
                     .padding(12.dp)
             ) {
@@ -245,7 +245,7 @@ fun CrashScreen(
                     val clip = ClipData.newPlainText("Phantom Crash Log", crashReport)
                     clipboard.setPrimaryClip(clip)
                     isCopied = true
-                    Toast.makeText(context, "Log crash berhasil disalin ke clipboard!", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "Log berhasil disalin ke clipboard", Toast.LENGTH_SHORT).show()
                 },
                 modifier = Modifier
                     .weight(1f)
@@ -289,7 +289,7 @@ fun CrashScreen(
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "Buka Ulang",
+                    text = "Mulai Ulang Aplikasi",
                     color = Color.White,
                     fontWeight = FontWeight.Bold,
                     fontSize = 13.sp
