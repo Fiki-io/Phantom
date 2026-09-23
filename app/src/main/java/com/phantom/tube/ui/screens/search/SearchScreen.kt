@@ -339,7 +339,8 @@ fun SearchScreen(
                             } else {
                                 itemsIndexed(
                                     items = combinedSuggestions,
-                                    key = { index, item -> "${item.isHistory}_${item.query}_$index" }
+                                    key = { index, item -> "${item.isHistory}_${item.query}_$index" },
+                                    contentType = { _, _ -> "suggestion_item" }
                                 ) { _, item ->
                                     Row(
                                         modifier = Modifier
@@ -405,7 +406,11 @@ fun SearchScreen(
                         contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 6.dp, bottom = 100.dp),
                         verticalArrangement = Arrangement.spacedBy(14.dp)
                     ) {
-                        itemsIndexed(searchResults, key = { index, video -> "search_${video.id}_$index" }) { _, video ->
+                        itemsIndexed(
+                            items = searchResults,
+                            key = { index, video -> "search_${video.id}_$index" },
+                            contentType = { _, _ -> "video_card" }
+                        ) { _, video ->
                             PhantomVideoCard(
                                 video = video,
                                 onClick = { onVideoClick(video) }
@@ -466,7 +471,11 @@ fun SearchScreen(
                             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 2.dp),
                             verticalArrangement = Arrangement.spacedBy(2.dp)
                         ) {
-                            items(searchHistory, key = { it.query }) { item ->
+                            items(
+                                items = searchHistory,
+                                key = { it.query },
+                                contentType = { "history_item" }
+                            ) { item ->
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()

@@ -5,30 +5,16 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
-private val SheenColors = listOf(
-    Color.White.copy(alpha = 0.05f),
-    Color.White.copy(alpha = 0.01f),
-    Color.Transparent
-)
-
-private val DefaultBorderColors = listOf(
-    Color.White.copy(alpha = 0.16f),
-    Color.White.copy(alpha = 0.06f),
-    Color.White.copy(alpha = 0.04f),
-    Color.White.copy(alpha = 0.10f)
-)
+private val DefaultBorderColor = Color.White.copy(alpha = 0.08f)
 
 /**
- * Styling modifier untuk container permukaan YouTube Dark.
+ * Styling modifier ringan dan berkinerja tinggi untuk container permukaan YouTube Dark.
+ * Menggunakan flat solid GPU rendering tanpa alokasi objek pada draw pass.
  */
 fun Modifier.phantomSurface(
     shape: Shape = RoundedCornerShape(16.dp),
@@ -39,41 +25,12 @@ fun Modifier.phantomSurface(
 ): Modifier = this
     .clip(shape)
     .background(
-        brush = Brush.verticalGradient(
-            colors = listOf(
-                tintColor.copy(alpha = surfaceAlpha),
-                tintColor.copy(alpha = (surfaceAlpha * 0.9f).coerceIn(0f, 1f))
-            )
-        ),
+        color = tintColor.copy(alpha = surfaceAlpha),
         shape = shape
     )
-    .drawWithContent {
-        drawContent()
-        val sheenBrush = Brush.linearGradient(
-            colors = SheenColors,
-            start = Offset.Zero,
-            end = Offset(size.width * 0.5f, size.height * 0.5f)
-        )
-        drawRect(
-            brush = sheenBrush,
-            size = Size(size.width, size.height * 0.4f)
-        )
-    }
     .border(
         width = borderWidth,
-        brush = Brush.linearGradient(
-            colors = if (accentGlow != null) {
-                listOf(
-                    accentGlow.copy(alpha = 0.6f),
-                    accentGlow.copy(alpha = 0.2f),
-                    Color.White.copy(alpha = 0.1f)
-                )
-            } else {
-                DefaultBorderColors
-            },
-            start = Offset.Zero,
-            end = Offset.Infinite
-        ),
+        color = accentGlow?.copy(alpha = 0.45f) ?: DefaultBorderColor,
         shape = shape
     )
 

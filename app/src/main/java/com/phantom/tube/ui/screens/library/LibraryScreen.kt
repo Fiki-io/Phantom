@@ -110,8 +110,11 @@ fun LibraryScreen(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(top = 4.dp, bottom = 100.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                itemsIndexed(favorites, key = { index, fav -> "fav_${fav.videoId}_$index" }) { _, fav ->
+                itemsIndexed(
+                    items = favorites,
+                    key = { index, fav -> "fav_${fav.videoId}_$index" },
+                    contentType = { _, _ -> "fav_card" }
+                ) { _, fav ->
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()

@@ -12,11 +12,24 @@
             height: 100%;
             background-color: #000000;
             overflow: hidden;
+            -webkit-user-select: none;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
         }
         #player {
             width: 100%;
             height: 100%;
-            pointer-events: none; /* Touches pass through to Jetpack Compose Liquid Glass UI */
+            pointer-events: none;
+            transform: translateZ(0);
+            will-change: transform;
+            backface-visibility: hidden;
+        }
+        iframe {
+            width: 100% !important;
+            height: 100% !important;
+            border: 0 !important;
+            outline: 0 !important;
+            transform: translateZ(0);
         }
     </style>
     <script>
@@ -122,6 +135,8 @@
         function onPlayerStateChange(event) {
             if (event.data === 1 || event.data === 3) { // PLAYING or BUFFERING
                 startTimeTicker();
+            } else {
+                stopTimeTicker();
             }
             if (window.PhantomBridge) {
                 window.PhantomBridge.onStateChange(event.data);
@@ -129,8 +144,16 @@
         }
 
         function onPlayerError(event) {
+            stopTimeTicker();
             if (window.PhantomBridge) {
                 window.PhantomBridge.onError(event.data);
+            }
+        }
+
+        function stopTimeTicker() {
+            if (timeTicker) {
+                clearInterval(timeTicker);
+                timeTicker = null;
             }
         }
 
@@ -156,14 +179,10 @@
             }, 250);
         }
 
-        // Bridge methods callable from Kotlin
         window.loadVideo = function(videoId, startSec) {
             try {
                 activeVideoId = videoId;
-                if (timeTicker) {
-                    clearInterval(timeTicker);
-                    timeTicker = null;
-                }
+                stopTimeTicker();
                 if (player && typeof player.loadVideoById === 'function') {
                     player.loadVideoById({
                         'videoId': videoId,
@@ -183,6 +202,7 @@
 
         window.pauseVideo = function() {
             try {
+                stopTimeTicker();
                 if (player && typeof player.pauseVideo === 'function') player.pauseVideo();
             } catch(e) {}
         };

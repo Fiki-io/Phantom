@@ -21,6 +21,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -183,6 +184,7 @@ fun PlayerScreen(
     var isAudioOnly by remember { mutableStateOf(false) }
     var sleepTimerOption by remember { mutableStateOf(SleepTimerOption.OFF) }
     var sleepTimerRemainingSec by remember { mutableStateOf<Int?>(null) }
+    var lastRecordedPositionSec by remember { mutableFloatStateOf(0f) }
     val isFavorite by repository.isFavorite(video.id).collectAsState(initial = false)
 
     var mediaService by remember { mutableStateOf<PhantomMediaService?>(null) }
@@ -303,6 +305,21 @@ fun PlayerScreen(
                             playNext()
                         }
                     }
+                    2 -> {
+                        // PAUSED: record exact position once
+                        val activeVid = currentVideo
+                        val pos = playerState.currentTimeSec
+                        val dur = playerState.durationSec
+                        if (pos > 1f) {
+                            scope.launch {
+                                repository.recordWatch(
+                                    video = activeVid,
+                                    positionMs = (pos * 1000).toLong(),
+                                    durationMs = (dur * 1000).toLong()
+                                )
+                            }
+                        }
+                    }
                 }
             },
             onTimeUpdateCallback = { reportingVideoId, current, duration, buffered ->
@@ -322,8 +339,9 @@ fun PlayerScreen(
                     mediaService?.updateDuration((duration * 1000).toLong())
                 }
 
-                // Record watch history
-                if (current > 2f) {
+                // Throttled watch history recording (every 5 seconds instead of 4 times/sec)
+                if (current > 2f && (current - lastRecordedPositionSec >= 5f || current < lastRecordedPositionSec)) {
+                    lastRecordedPositionSec = current
                     val activeVid = currentVideo
                     scope.launch {
                         repository.recordWatch(
@@ -447,6 +465,7 @@ fun PlayerScreen(
     LaunchedEffect(video.id, mediaService) {
         playerState = PlayerState(videoId = video.id)
         sponsorSegments = emptyList()
+        lastRecordedPositionSec = 0f
         val fromInternal = isInternalNavigation
         if (fromInternal) {
             isInternalNavigation = false
@@ -621,8 +640,11 @@ fun PlayerScreen(
         } else {
             modifier
                 .fillMaxSize()
-                .background(ObsidianDark.copy(alpha = (1f - (animatedDragOffset / 1500f)).coerceIn(0.6f, 1f)))
                 .offset { IntOffset(0, animatedDragOffset.roundToInt()) }
+                .drawBehind {
+                    val alpha = (1f - (animatedDragOffset / 1500f)).coerceIn(0.6f, 1f)
+                    drawRect(ObsidianDark.copy(alpha = alpha))
+                }
         }
     ) {
         // 1. THE SINGLE PERSISTENT VIDEO PLAYER BOX (Always at exact same tree slot)
@@ -1135,7 +1157,11 @@ fun PlayerScreen(
                         }
                     }
                 } else {
-                    itemsIndexed(recommendedVideos, key = { index, item -> "rec_${item.id}_$index" }) { _, item ->
+                    itemsIndexed(
+                        items = recommendedVideos,
+                        key = { index, item -> "rec_${item.id}_$index" },
+                        contentType = { _, _ -> "video_card" }
+                    ) { _, item ->
                         PhantomVideoCard(
                             video = item,
                             onClick = {
@@ -1390,7 +1416,11 @@ fun PlayerScreen(
                                 verticalArrangement = Arrangement.spacedBy(8.dp),
                                 contentPadding = PaddingValues(start = 0.dp, top = 0.dp, end = 0.dp, bottom = 24.dp)
                             ) {
-                                itemsIndexed(mixPlaylist, key = { index, item -> "mix_${item.id}_$index" }) { index, item ->
+                                itemsIndexed(
+                                    items = mixPlaylist,
+                                    key = { index, item -> "mix_${item.id}_$index" },
+                                    contentType = { _, _ -> "mix_item" }
+                                ) { index, item ->
                                     val isCurrent = index == currentMixIndex
                                     MixPlaylistItemCard(
                                         index = index + 1,

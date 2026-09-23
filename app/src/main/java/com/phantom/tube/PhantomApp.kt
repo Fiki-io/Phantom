@@ -10,6 +10,8 @@ import com.phantom.tube.core.database.PhantomDatabase
 import com.phantom.tube.data.innertube.InnerTubeClient
 import com.phantom.tube.data.repository.PhantomRepository
 import com.phantom.tube.data.sponsorblock.SponsorBlockClient
+import okhttp3.Cache
+import okhttp3.ConnectionPool
 import okhttp3.OkHttpClient
 import java.util.concurrent.TimeUnit
 
@@ -23,8 +25,10 @@ class PhantomApp : Application(), ImageLoaderFactory {
 
     val sharedHttpClient: OkHttpClient by lazy {
         OkHttpClient.Builder()
-            .connectTimeout(15, TimeUnit.SECONDS)
-            .readTimeout(15, TimeUnit.SECONDS)
+            .connectTimeout(10, TimeUnit.SECONDS)
+            .readTimeout(10, TimeUnit.SECONDS)
+            .connectionPool(ConnectionPool(8, 5, TimeUnit.MINUTES))
+            .cache(Cache(cacheDir.resolve("http_cache"), 40L * 1024 * 1024))
             .build()
     }
 
@@ -52,11 +56,12 @@ class PhantomApp : Application(), ImageLoaderFactory {
             .diskCache {
                 DiskCache.Builder()
                     .directory(cacheDir.resolve("image_cache"))
-                    .maxSizeBytes(50L * 1024 * 1024) // 50 MB disk cache
+                    .maxSizeBytes(80L * 1024 * 1024)
                     .build()
             }
-            .crossfade(true)
+            .respectCacheHeaders(false) // Aggressive disk caching for smooth thumbnail scrolling
+            .allowHardware(true)        // Direct GPU rendering of bitmap textures
+            .crossfade(150)             // Fast and smooth crossfade
             .build()
     }
 }
-

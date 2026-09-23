@@ -246,8 +246,11 @@ fun HomeScreen(
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 6.dp, bottom = 100.dp),
                         verticalArrangement = Arrangement.spacedBy(14.dp)
-                    ) {
-                        itemsIndexed(videos, key = { index, video -> "home_${video.id}_$index" }) { _, video ->
+                        itemsIndexed(
+                            items = videos,
+                            key = { index, video -> "home_${video.id}_$index" },
+                            contentType = { _, _ -> "video_card" }
+                        ) { _, video ->
                             PhantomVideoCard(
                                 video = video,
                                 onClick = { onVideoClick(video) }
@@ -256,7 +259,7 @@ fun HomeScreen(
 
                         // Infinite scroll loader at bottom
                         if (isLoadingMore) {
-                            item(key = "loading_more_indicator") {
+                            item(key = "loading_more_indicator", contentType = "loader") {
                                 Box(
                                     modifier = Modifier
                                         .fillMaxWidth()

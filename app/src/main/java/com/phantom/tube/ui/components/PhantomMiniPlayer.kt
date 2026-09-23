@@ -28,6 +28,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
@@ -188,16 +190,15 @@ fun PhantomMiniPlayer(
                     .fillMaxWidth()
                     .height(2.dp)
                     .background(Color.White.copy(alpha = 0.12f))
-            ) {
-                if (progressFraction > 0.001f) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth(fraction = progressFraction.coerceIn(0.001f, 1f))
-                            .fillMaxHeight()
-                            .background(YouTubeRed)
-                    )
-                }
-            }
+                    .drawBehind {
+                        if (progressFraction > 0.001f) {
+                            drawRect(
+                                color = YouTubeRed,
+                                size = Size(size.width * progressFraction, size.height)
+                            )
+                        }
+                    }
+            )
         }
     }
 }

@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Color
 import android.util.AttributeSet
+import android.os.Looper
 import android.view.View
 import android.view.ViewGroup
 import android.webkit.WebChromeClient
@@ -22,6 +23,15 @@ class PhantomBackgroundWebView @JvmOverloads constructor(
     attrs: AttributeSet? = null,
     defStyleAttr: Int = 0
 ) : WebView(context, attrs, defStyleAttr) {
+
+    init {
+        // Enforce GPU hardware acceleration layer for smooth 60/120fps video rendering
+        setLayerType(View.LAYER_TYPE_HARDWARE, null)
+        isVerticalScrollBarEnabled = false
+        isHorizontalScrollBarEnabled = false
+        overScrollMode = View.OVER_SCROLL_NEVER
+    }
+
     override fun onWindowVisibilityChanged(visibility: Int) {
         // Intercept GONE/INVISIBLE to keep Chromium audio and timers running in background / screen off
         super.onWindowVisibilityChanged(View.VISIBLE)
@@ -83,8 +93,11 @@ class PhantomPlayerController(context: Context) {
     }
 
     private fun evaluateJs(script: String) {
-        webView?.post {
-            webView?.evaluateJavascript(script, null)
+        val target = webView ?: return
+        if (Looper.myLooper() == Looper.getMainLooper()) {
+            target.evaluateJavascript(script, null)
+        } else {
+            target.post { target.evaluateJavascript(script, null) }
         }
     }
 
@@ -132,6 +145,7 @@ fun PhantomGhostSurface(
                     mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
                     allowFileAccess = false
                     allowContentAccess = false
+                    offscreenPreRaster = true
 
                     // Clean Chrome User-Agent
                     userAgentString = "Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Mobile Safari/537.36"
