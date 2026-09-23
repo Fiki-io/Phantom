@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -94,7 +95,7 @@ fun SearchScreen(
     var isLoadingMore by remember { mutableStateOf(false) }
     var isFetchingSuggestions by remember { mutableStateOf(false) }
     var hasSearched by remember { mutableStateOf(false) }
-    val searchListState = rememberLazyListState()
+    val searchListState = remember(lastSearchQuery) { LazyListState() }
 
     val searchHistory by repository.getSearchHistory().collectAsState(initial = emptyList())
 
@@ -160,18 +161,15 @@ fun SearchScreen(
             suggestions = emptyList()
             searchContinuationToken = null
             lastSearchQuery = trimmed
-            searchListState.scrollToItem(0)
             try {
                 val pageResult = repository.searchPage(query = trimmed)
                 searchResults = pageResult.videos
                 searchContinuationToken = pageResult.continuationToken
-                searchListState.scrollToItem(0)
             } catch (e: Exception) {
                 searchResults = emptyList()
                 searchContinuationToken = null
             } finally {
                 isSearching = false
-                searchListState.scrollToItem(0)
             }
         }
     }
@@ -208,13 +206,6 @@ fun SearchScreen(
             if (total > 0 && last >= total - 3 && searchContinuationToken != null && !isLoadingMore && !isSearching) {
                 loadMoreSearch()
             }
-        }
-    }
-
-    // Always reset search list to top when a new search query's results are presented
-    LaunchedEffect(lastSearchQuery, hasSearched) {
-        if (hasSearched && lastSearchQuery.isNotBlank()) {
-            searchListState.scrollToItem(0)
         }
     }
 
@@ -329,9 +320,7 @@ fun SearchScreen(
                                     hasSearched = false
                                     searchResults = emptyList()
                                     searchContinuationToken = null
-                                    scope.launch {
-                                        searchListState.scrollToItem(0)
-                                    }
+                                    lastSearchQuery = ""
                                 }
                         )
                     }
