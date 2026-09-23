@@ -65,12 +65,40 @@ class PhantomRepository(
         return innerTubeClient.search(query)
     }
 
+    suspend fun searchPage(query: String? = null, continuation: String? = null): FeedResult {
+        return innerTubeClient.searchPage(query, continuation)
+    }
+
     suspend fun getSuggestions(query: String): List<String> {
         return innerTubeClient.fetchSuggestions(query)
     }
 
     suspend fun getWatchNext(videoId: String, playlistId: String? = null): NextQueue? {
         return innerTubeClient.fetchWatchNext(videoId, playlistId)
+    }
+
+    suspend fun getMoreRecommendations(
+        video: VideoItem,
+        continuation: String? = null
+    ): FeedResult {
+        // 1. Try YouTube official watch next continuation if available
+        if (!continuation.isNullOrBlank() && !continuation.startsWith("search_fallback_")) {
+            val result = innerTubeClient.fetchWatchNextContinuation(continuation, currentVideoId = video.id)
+            if (result.videos.isNotEmpty()) {
+                return result
+            }
+        }
+
+        // 2. Intelligent related content fallback
+        val searchQuery = "${video.title} ${video.channelTitle}".trim().ifBlank { video.title }
+        val searchContinuation = if (continuation?.startsWith("search_fallback_") == true) {
+            continuation.removePrefix("search_fallback_")
+        } else null
+
+        val feedResult = innerTubeClient.fetchFeedPage(query = searchQuery, continuation = searchContinuation)
+        val filtered = feedResult.videos.filter { it.id != video.id }
+        val nextToken = feedResult.continuationToken?.let { "search_fallback_$it" }
+        return FeedResult(videos = filtered, continuationToken = nextToken)
     }
 
     suspend fun getSponsorSegments(videoId: String): List<SponsorSegment> {

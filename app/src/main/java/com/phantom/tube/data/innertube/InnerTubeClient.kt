@@ -67,25 +67,14 @@ class InnerTubeClient(
     }
 
     suspend fun search(query: String): List<VideoItem> = withContext(Dispatchers.IO) {
-        try {
-            val bodyJson = JSONObject().apply {
-                put("context", createClientContext())
-                put("query", query)
-            }
-            val request = Request.Builder()
-                .url("https://www.youtube.com/youtubei/v1/search?prettyPrint=false")
-                .header("Content-Type", "application/json")
-                .header("User-Agent", userAgent)
-                .post(bodyJson.toString().toRequestBody(jsonMediaType))
-                .build()
+        return@withContext fetchFeedPage(query = query).videos
+    }
 
-            val response = httpClient.newCall(request).execute()
-            val responseBody = response.body?.string() ?: return@withContext emptyList()
-            return@withContext InnerTubeParser.parseSearchResults(responseBody)
-        } catch (e: Exception) {
-            e.printStackTrace()
-            return@withContext emptyList()
-        }
+    suspend fun searchPage(
+        query: String? = null,
+        continuation: String? = null
+    ): FeedResult = withContext(Dispatchers.IO) {
+        return@withContext fetchFeedPage(query = query, continuation = continuation)
     }
 
     suspend fun fetchWatchNext(videoId: String, playlistId: String? = null): NextQueue? = withContext(Dispatchers.IO) {
@@ -109,6 +98,31 @@ class InnerTubeClient(
         } catch (e: Exception) {
             e.printStackTrace()
             return@withContext null
+        }
+    }
+
+    suspend fun fetchWatchNextContinuation(
+        continuation: String,
+        currentVideoId: String = ""
+    ): FeedResult = withContext(Dispatchers.IO) {
+        try {
+            val bodyJson = JSONObject().apply {
+                put("context", createClientContext())
+                put("continuation", continuation)
+            }
+            val request = Request.Builder()
+                .url("https://www.youtube.com/youtubei/v1/next?prettyPrint=false")
+                .header("Content-Type", "application/json")
+                .header("User-Agent", userAgent)
+                .post(bodyJson.toString().toRequestBody(jsonMediaType))
+                .build()
+
+            val response = httpClient.newCall(request).execute()
+            val responseBody = response.body?.string() ?: return@withContext FeedResult()
+            return@withContext InnerTubeParser.parseWatchNextContinuation(responseBody, currentVideoId)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            return@withContext FeedResult()
         }
     }
 

@@ -187,14 +187,50 @@ object InnerTubeParser {
 
             // 3. Recommended Videos (Photo 2: Rekomendasi di bawah video)
             val recommendationsList = mutableListOf<VideoItem>()
+            var recContinuationToken: String? = null
             val secondary = watchNext.optJSONObject("secondaryResults")?.optJSONObject("secondaryResults")
             val secondaryResults = secondary?.optJSONArray("results") ?: JSONArray()
 
             for (i in 0 until secondaryResults.length()) {
                 val item = secondaryResults.optJSONObject(i) ?: continue
-                parseVideoItem(item)?.let {
-                    if (it.id != currentVideoId) {
-                        recommendationsList.add(it)
+
+                val continuationItem = item.optJSONObject("continuationItemRenderer")
+                if (continuationItem != null) {
+                    val token = continuationItem
+                        .optJSONObject("continuationEndpoint")
+                        ?.optJSONObject("continuationCommand")
+                        ?.optString("token")
+                    if (!token.isNullOrBlank()) {
+                        recContinuationToken = token
+                    }
+                }
+
+                val itemSection = item.optJSONObject("itemSectionRenderer")
+                if (itemSection != null) {
+                    val subContents = itemSection.optJSONArray("contents") ?: JSONArray()
+                    for (k in 0 until subContents.length()) {
+                        val subItem = subContents.optJSONObject(k) ?: continue
+                        val subCont = subItem.optJSONObject("continuationItemRenderer")
+                        if (subCont != null) {
+                            val token = subCont
+                                .optJSONObject("continuationEndpoint")
+                                ?.optJSONObject("continuationCommand")
+                                ?.optString("token")
+                            if (!token.isNullOrBlank()) {
+                                recContinuationToken = token
+                            }
+                        }
+                        parseVideoItem(subItem)?.let {
+                            if (it.id != currentVideoId) {
+                                recommendationsList.add(it)
+                            }
+                        }
+                    }
+                } else {
+                    parseVideoItem(item)?.let {
+                        if (it.id != currentVideoId) {
+                            recommendationsList.add(it)
+                        }
                     }
                 }
             }
@@ -211,6 +247,7 @@ object InnerTubeParser {
                 currentVideo = currentVideo,
                 mixPlaylist = fullPlaylist,
                 recommendations = recommendationsList,
+                recommendationsContinuationToken = recContinuationToken,
                 playlistTitle = playlistTitle,
                 currentIndex = detectedCurrentIndex
             )
@@ -218,6 +255,58 @@ object InnerTubeParser {
             e.printStackTrace()
             return null
         }
+    }
+
+    fun parseWatchNextContinuation(jsonString: String, currentVideoId: String = ""): FeedResult {
+        val items = mutableListOf<VideoItem>()
+        var continuationToken: String? = null
+
+        try {
+            val root = JSONObject(jsonString)
+            val commands = root.optJSONArray("onResponseReceivedEndpoints")
+                ?: root.optJSONArray("onResponseReceivedCommands")
+                ?: JSONArray()
+
+            for (i in 0 until commands.length()) {
+                val cmd = commands.optJSONObject(i) ?: continue
+                val appendAction = cmd.optJSONObject("appendContinuationItemsAction") ?: continue
+                val continuationItems = appendAction.optJSONArray("continuationItems") ?: JSONArray()
+
+                for (j in 0 until continuationItems.length()) {
+                    val cItem = continuationItems.optJSONObject(j) ?: continue
+
+                    val nextTokenItem = cItem.optJSONObject("continuationItemRenderer")
+                    if (nextTokenItem != null) {
+                        val token = nextTokenItem
+                            .optJSONObject("continuationEndpoint")
+                            ?.optJSONObject("continuationCommand")
+                            ?.optString("token")
+                        if (!token.isNullOrBlank()) {
+                            continuationToken = token
+                        }
+                    }
+
+                    val itemSection = cItem.optJSONObject("itemSectionRenderer")
+                    if (itemSection != null) {
+                        val subContents = itemSection.optJSONArray("contents") ?: JSONArray()
+                        for (k in 0 until subContents.length()) {
+                            val subItem = subContents.optJSONObject(k) ?: continue
+                            parseVideoItem(subItem)?.let {
+                                if (it.id != currentVideoId) items.add(it)
+                            }
+                        }
+                    } else {
+                        parseVideoItem(cItem)?.let {
+                            if (it.id != currentVideoId) items.add(it)
+                        }
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+
+        return FeedResult(videos = items, continuationToken = continuationToken)
     }
 
     fun parseSuggestions(jsonString: String): List<String> {

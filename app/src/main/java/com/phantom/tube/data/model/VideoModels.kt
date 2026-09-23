@@ -21,6 +21,7 @@ data class NextQueue(
     val currentVideo: VideoItem,
     val mixPlaylist: List<VideoItem> = emptyList(),
     val recommendations: List<VideoItem> = emptyList(),
+    val recommendationsContinuationToken: String? = null,
     val playlistTitle: String = "",
     val currentIndex: Int = 0
 ) {

@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
@@ -41,6 +42,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -83,9 +85,12 @@ fun SearchScreen(
     var searchQuery by remember { mutableStateOf("") }
     var suggestions by remember { mutableStateOf<List<String>>(emptyList()) }
     var searchResults by remember { mutableStateOf<List<VideoItem>>(emptyList()) }
+    var searchContinuationToken by remember { mutableStateOf<String?>(null) }
     var isSearching by remember { mutableStateOf(false) }
+    var isLoadingMore by remember { mutableStateOf(false) }
     var isFetchingSuggestions by remember { mutableStateOf(false) }
     var hasSearched by remember { mutableStateOf(false) }
+    val searchListState = rememberLazyListState()
 
     val searchHistory by repository.getSearchHistory().collectAsState(initial = emptyList())
 
@@ -138,12 +143,51 @@ fun SearchScreen(
             isSearching = true
             hasSearched = true
             suggestions = emptyList()
+            searchContinuationToken = null
             try {
-                searchResults = repository.search(trimmed)
+                val pageResult = repository.searchPage(query = trimmed)
+                searchResults = pageResult.videos
+                searchContinuationToken = pageResult.continuationToken
             } catch (e: Exception) {
                 searchResults = emptyList()
+                searchContinuationToken = null
             } finally {
                 isSearching = false
+            }
+        }
+    }
+
+    fun loadMoreSearch() {
+        val token = searchContinuationToken ?: return
+        if (isLoadingMore || isSearching) return
+        scope.launch {
+            isLoadingMore = true
+            try {
+                val pageResult = repository.searchPage(continuation = token)
+                if (pageResult.videos.isNotEmpty()) {
+                    val existingIds = searchResults.map { it.id }.toSet()
+                    val newVideos = pageResult.videos.filterNot { it.id in existingIds }
+                    searchResults = searchResults + newVideos
+                }
+                searchContinuationToken = pageResult.continuationToken
+            } catch (e: Exception) {
+                e.printStackTrace()
+            } finally {
+                isLoadingMore = false
+            }
+        }
+    }
+
+    // Infinite scroll listener: detects when user scrolls near the end of search results
+    LaunchedEffect(searchListState, searchContinuationToken, isLoadingMore, searchResults.size) {
+        snapshotFlow {
+            val layoutInfo = searchListState.layoutInfo
+            val total = layoutInfo.totalItemsCount
+            val last = layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
+            total to last
+        }.collect { (total, last) ->
+            if (total > 0 && last >= total - 3 && searchContinuationToken != null && !isLoadingMore && !isSearching) {
+                loadMoreSearch()
             }
         }
     }
@@ -402,6 +446,7 @@ fun SearchScreen(
                 }
                 hasSearched && searchResults.isNotEmpty() -> {
                     LazyColumn(
+                        state = searchListState,
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 6.dp, bottom = 100.dp),
                         verticalArrangement = Arrangement.spacedBy(14.dp)
@@ -415,6 +460,38 @@ fun SearchScreen(
                                 video = video,
                                 onClick = { onVideoClick(video) }
                             )
+                        }
+
+                        if (isLoadingMore) {
+                            item(key = "loading_more_search", contentType = "loader") {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 14.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(16.dp))
+                                            .background(YouTubeSurface)
+                                            .padding(horizontal = 16.dp, vertical = 8.dp)
+                                    ) {
+                                        CircularProgressIndicator(
+                                            color = YouTubeRed,
+                                            strokeWidth = 2.dp,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(10.dp))
+                                        Text(
+                                            text = "Memuat...",
+                                            color = TextSecondary,
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Medium
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
                 }

@@ -98,6 +98,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -166,10 +167,15 @@ fun PlayerScreen(
     var mixPlaylist by remember { mutableStateOf<List<VideoItem>>(emptyList()) }
     var currentMixIndex by remember { mutableIntStateOf(0) }
     var recommendedVideos by remember { mutableStateOf<List<VideoItem>>(emptyList()) }
+    var recContinuationToken by remember { mutableStateOf<String?>(null) }
+    var isLoadingMoreRecs by remember { mutableStateOf(false) }
+    var canLoadMoreRecs by remember { mutableStateOf(true) }
     var activeAvatarUrl by remember { mutableStateOf(video.channelAvatarUrl) }
 
     LaunchedEffect(video.id) {
         activeAvatarUrl = video.channelAvatarUrl
+        recContinuationToken = null
+        canLoadMoreRecs = true
     }
     var mixTitle by remember { mutableStateOf("") }
     var showMixSheet by remember { mutableStateOf(false) }
@@ -510,6 +516,8 @@ fun PlayerScreen(
                         if (match != -1) match else nextData.currentIndex
                     } else 0
                     recommendedVideos = nextData.recommendations
+                    recContinuationToken = nextData.recommendationsContinuationToken
+                    canLoadMoreRecs = true
                     mixTitle = nextData.playlistTitle.ifBlank { "Mix" }
                 }
                 isLoadingQueue = false
@@ -633,6 +641,50 @@ fun PlayerScreen(
             )
         }
     } else Modifier
+
+    val loadMoreRecommendations: () -> Unit = {
+        if (!isLoadingMoreRecs && !isLoadingQueue && canLoadMoreRecs) {
+            scope.launch {
+                isLoadingMoreRecs = true
+                try {
+                    val result = repository.getMoreRecommendations(
+                        video = currentVideo,
+                        continuation = recContinuationToken
+                    )
+                    if (result.videos.isNotEmpty()) {
+                        val existingIds = (recommendedVideos + mixPlaylist).map { it.id }.toSet()
+                        val freshVideos = result.videos.filterNot { it.id in existingIds }
+                        if (freshVideos.isNotEmpty()) {
+                            recommendedVideos = recommendedVideos + freshVideos
+                        }
+                    } else {
+                        if (result.continuationToken == null) {
+                            canLoadMoreRecs = false
+                        }
+                    }
+                    recContinuationToken = result.continuationToken
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                } finally {
+                    isLoadingMoreRecs = false
+                }
+            }
+        }
+    }
+
+    // Infinite scroll listener for recommendations list below the video
+    LaunchedEffect(lazyListState, recContinuationToken, isLoadingMoreRecs, canLoadMoreRecs, recommendedVideos.size) {
+        snapshotFlow {
+            val layoutInfo = lazyListState.layoutInfo
+            val total = layoutInfo.totalItemsCount
+            val last = layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
+            total to last
+        }.collect { (total, last) ->
+            if (total > 0 && last >= total - 3 && !isLoadingMoreRecs && !isLoadingQueue && canLoadMoreRecs && recommendedVideos.isNotEmpty()) {
+                loadMoreRecommendations()
+            }
+        }
+    }
 
     Box(
         modifier = if (isMinimized) {
@@ -1169,6 +1221,38 @@ fun PlayerScreen(
                                 currentOnPlayNextVideo(item)
                             }
                         )
+                    }
+
+                    if (isLoadingMoreRecs) {
+                        item(key = "loading_more_recs", contentType = "loader") {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 14.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(16.dp))
+                                        .background(YouTubeSurface)
+                                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                                ) {
+                                    CircularProgressIndicator(
+                                        color = YouTubeRed,
+                                        strokeWidth = 2.dp,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                    Text(
+                                        text = "Memuat...",
+                                        color = TextSecondary,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
             }
