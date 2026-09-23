@@ -141,7 +141,7 @@ fun PhantomGhostSurface(
                     domStorageEnabled = true
                     databaseEnabled = true
                     mediaPlaybackRequiresUserGesture = false
-                    cacheMode = WebSettings.LOAD_DEFAULT
+                    cacheMode = WebSettings.LOAD_NO_CACHE
                     mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
                     allowFileAccess = false
                     allowContentAccess = false
@@ -151,6 +151,7 @@ fun PhantomGhostSurface(
                     userAgentString = "Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Mobile Safari/537.36"
                 }
 
+                clearCache(true)
                 webChromeClient = WebChromeClient()
 
                 webViewClient = object : WebViewClient() {
@@ -182,63 +183,131 @@ fun PhantomGhostSurface(
 
 object PhantomIFrameCleanEngine {
     private val httpClient = okhttp3.OkHttpClient.Builder()
-        .connectTimeout(8, java.util.concurrent.TimeUnit.SECONDS)
-        .readTimeout(8, java.util.concurrent.TimeUnit.SECONDS)
+        .connectTimeout(10, java.util.concurrent.TimeUnit.SECONDS)
+        .readTimeout(10, java.util.concurrent.TimeUnit.SECONDS)
+        .followRedirects(true)
+        .followSslRedirects(true)
         .build()
 
     private val cssCache = java.util.concurrent.ConcurrentHashMap<String, ByteArray>()
 
     val CSS_RULES = """
         .ytp-chrome-top,
+        .ytp-chrome-top-buttons,
+        .ytp-chrome-bottom,
+        .ytp-chrome-controls,
         .ytp-title,
         .ytp-title-text,
         .ytp-title-channel,
+        .ytp-title-channel-logo,
+        .ytp-title-channel-name,
+        .ytp-title-link,
+        .ytp-title-subtext,
+        .ytp-title-expanded,
         .ytp-show-cards-title,
+        .ytp-cards-button,
+        .ytp-cards-button-title,
+        .ytp-cards-teaser,
         .ytp-share-button,
+        .ytp-share-button-visible,
+        .ytp-share-icon,
         .ytp-share-panel,
+        .ytp-share-title,
         .ytp-overflow-button,
         a.ytp-title-link,
-        .ytp-chrome-bottom,
         .ytp-watermark,
+        .ytp-watermark-small,
+        .ytp-muted-autoplay-watermark,
         .ytp-youtube-button,
+        .ytp-youtube-music-button,
+        .ytp-watch-on-youtube-button,
         a.ytp-youtube-button,
+        .ytp-impression-link,
+        .ytp-impression-link-logo,
+        .ytp-impression-link-text,
+        .ytp-music-impression-link,
+        a.ytp-impression-link,
         .ytp-gradient-top,
         .ytp-gradient-bottom,
         .ytp-large-play-button,
         .ytp-large-play-button-bg,
+        .ytp-large-play-button-red-bg,
+        .ytp-dni-large-play-button-bg,
         .ytp-play-button,
         .ytp-pause-overlay,
+        .ytp-pause-overlay-backdrop,
         .ytp-pause-overlay-container,
         .ytp-endscreen-content,
+        .ytp-autonav-endscreen-countdown-container,
+        .ytp-autonav-endscreen-countdown-overlay,
+        .ytp-modern-endscreen-content,
         .ytp-ce-element,
         .ytp-bezel,
         .ytp-bezel-text,
         .ytp-bezel-icon,
+        .ytp-bezel-text-wrapper,
+        .ytp-doubletap-ui,
         .ytp-cued-thumbnail-overlay,
         .ytp-cued-thumbnail-overlay-image,
         .ytp-spinner,
         .ytp-contextmenu,
         .ytp-paid-content-overlay,
         .ytp-offline-slate,
-        .ytp-suggested-action-badge {
+        .ytp-suggested-action-badge,
+        .ytp-more-videos-button,
+        .ytp-progress-bar-container,
+        .ytp-progress-bar,
+        .ytp-play-progress,
+        .ytp-load-progress,
+        .attribution-button,
+        .iv-drawer,
+        .iv-card,
+        [class*="ytp-chrome"],
+        [class*="ytp-title"],
+        [class*="ytp-share"],
+        [class*="ytp-watermark"],
+        [class*="ytp-impression"],
+        [class*="ytp-large-play"],
+        [class*="ytp-bezel"],
+        [class*="ytp-pause"],
+        [class*="ytp-gradient"],
+        [class*="ytp-endscreen"],
+        [class*="ytp-youtube"],
+        [class*="ytp-cards"],
+        button[aria-label*="Play" i],
+        button[aria-label*="Share" i],
+        button[aria-label*="Putar" i],
+        button[aria-label*="Bagikan" i],
+        a[aria-label*="YouTube" i],
+        a[title*="YouTube" i],
+        a[href*="youtube.com/watch"] {
             display: none !important;
             opacity: 0 !important;
             visibility: hidden !important;
             pointer-events: none !important;
             width: 0 !important;
             height: 0 !important;
+            position: absolute !important;
+            top: -9999px !important;
+            left: -9999px !important;
+            z-index: -9999 !important;
         }
     """.trimIndent()
-
-    val STYLE_TAG = "<style id=\"phantom-clean-engine\">$CSS_RULES</style>"
 
     fun intercept(request: WebResourceRequest): WebResourceResponse? {
         val url = request.url.toString()
         if (request.method != "GET") return null
 
-        // 1. Intercept CSS files (e.g. www-player.css)
-        if (url.contains("/www-player.css") || (url.contains("youtube.com/s/player/") && url.contains(".css"))) {
-            try {
+        val isEmbedHtml = (url.contains("/embed/") || url.contains("/embed?")) &&
+                (url.contains("youtube.com") || url.contains("youtube-nocookie.com"))
+
+        val isPlayerCss = url.contains(".css") &&
+                (url.contains("youtube.com") || url.contains("googlevideo.com") || url.contains("youtube-nocookie.com"))
+
+        if (!isEmbedHtml && !isPlayerCss) return null
+
+        try {
+            if (isPlayerCss) {
                 val cached = cssCache[url]
                 if (cached != null) {
                     val headers = mapOf(
@@ -247,59 +316,105 @@ object PhantomIFrameCleanEngine {
                     )
                     return WebResourceResponse("text/css", "utf-8", 200, "OK", headers, java.io.ByteArrayInputStream(cached))
                 }
-
-                val reqBuilder = okhttp3.Request.Builder().url(url)
-                for ((k, v) in request.requestHeaders) {
-                    reqBuilder.header(k, v)
-                }
-                val resp = httpClient.newCall(reqBuilder.build()).execute()
-                if (resp.isSuccessful) {
-                    val rawCss = resp.body?.string() ?: ""
-                    val modifiedCss = rawCss + "\n\n/* Phantom Clean Engine */\n" + CSS_RULES
-                    val bytes = modifiedCss.toByteArray(Charsets.UTF_8)
-                    cssCache[url] = bytes
-                    val headers = mapOf(
-                        "Content-Type" to "text/css; charset=utf-8",
-                        "Access-Control-Allow-Origin" to "*"
-                    )
-                    return WebResourceResponse("text/css", "utf-8", 200, "OK", headers, java.io.ByteArrayInputStream(bytes))
-                }
-            } catch (e: Exception) {
-                // Fallback to WebView default network
             }
-        }
 
-        // 2. Intercept YouTube embed HTML
-        if (url.contains("youtube.com/embed/")) {
-            try {
-                val reqBuilder = okhttp3.Request.Builder().url(url)
-                for ((k, v) in request.requestHeaders) {
+            val reqBuilder = okhttp3.Request.Builder().url(url)
+            for ((k, v) in request.requestHeaders) {
+                // Strip Accept-Encoding so OkHttp decompresses gzip transparently
+                if (!k.equals("accept-encoding", ignoreCase = true)) {
                     reqBuilder.header(k, v)
                 }
-                val resp = httpClient.newCall(reqBuilder.build()).execute()
-                if (resp.isSuccessful) {
-                    val rawHtml = resp.body?.string() ?: ""
-                    val modifiedHtml = if (rawHtml.contains("</head>")) {
-                        rawHtml.replace("</head>", "$STYLE_TAG</head>")
-                    } else if (rawHtml.contains("<body")) {
-                        rawHtml.replace("<body", "$STYLE_TAG<body")
-                    } else {
-                        STYLE_TAG + rawHtml
-                    }
-                    val bytes = modifiedHtml.toByteArray(Charsets.UTF_8)
-                    val headers = mutableMapOf<String, String>()
-                    for ((k, v) in resp.headers) {
-                        if (!k.equals("content-encoding", ignoreCase = true) && !k.equals("content-length", ignoreCase = true)) {
-                            headers[k] = v
+            }
+
+            val resp = httpClient.newCall(reqBuilder.build()).execute()
+            if (!resp.isSuccessful) return null
+
+            if (isPlayerCss) {
+                val rawCss = resp.body?.string() ?: ""
+                val modifiedCss = rawCss + "\n\n/* Phantom Clean Engine */\n" + CSS_RULES
+                val bytes = modifiedCss.toByteArray(Charsets.UTF_8)
+                cssCache[url] = bytes
+                val headers = mapOf(
+                    "Content-Type" to "text/css; charset=utf-8",
+                    "Access-Control-Allow-Origin" to "*"
+                )
+                return WebResourceResponse("text/css", "utf-8", 200, "OK", headers, java.io.ByteArrayInputStream(bytes))
+            }
+
+            if (isEmbedHtml) {
+                val rawHtml = resp.body?.string() ?: ""
+                val nonceMatch = Regex("""nonce=["']([^"']+)["']""").find(rawHtml)
+                val nonceAttr = if (nonceMatch != null) " nonce=\"${nonceMatch.groupValues[1]}\"" else ""
+                val styleToInject = "<style id=\"phantom-clean-engine\"$nonceAttr>$CSS_RULES</style>"
+                val scriptToInject = """
+                    <script id="phantom-clean-script"$nonceAttr>
+                    (function() {
+                        var selectors = [
+                            '.ytp-chrome-top', '.ytp-chrome-top-buttons', '.ytp-chrome-bottom',
+                            '.ytp-watermark', '.ytp-youtube-button', '.ytp-watch-on-youtube-button',
+                            '.ytp-impression-link', '.ytp-large-play-button', '.ytp-large-play-button-bg',
+                            '.ytp-pause-overlay', '.ytp-share-button', '.ytp-share-panel', '.ytp-bezel',
+                            '.ytp-title', '.ytp-title-text', '.ytp-title-channel', '.ytp-gradient-top',
+                            '.ytp-gradient-bottom', '.ytp-cards-button', '.ytp-contextmenu',
+                            '.ytp-cued-thumbnail-overlay', '.ytp-show-cards-title', '.ytp-spinner',
+                            '.ytp-progress-bar-container', '.ytp-progress-bar',
+                            'a.ytp-title-link', 'a.ytp-youtube-button', 'a[aria-label*="YouTube"]',
+                            'button[aria-label*="Play"]', 'button[aria-label*="Share"]'
+                        ];
+                        function clean() {
+                            selectors.forEach(function(sel) {
+                                try {
+                                    var els = document.querySelectorAll(sel);
+                                    for (var i = 0; i < els.length; i++) {
+                                        els[i].style.setProperty('display', 'none', 'important');
+                                        els[i].style.setProperty('opacity', '0', 'important');
+                                        els[i].style.setProperty('visibility', 'hidden', 'important');
+                                        els[i].style.setProperty('pointer-events', 'none', 'important');
+                                        els[i].style.setProperty('width', '0', 'important');
+                                        els[i].style.setProperty('height', '0', 'important');
+                                    }
+                                } catch(e) {}
+                            });
                         }
-                    }
-                    headers["Content-Type"] = "text/html; charset=utf-8"
-                    headers["Access-Control-Allow-Origin"] = "*"
-                    return WebResourceResponse("text/html", "utf-8", 200, "OK", headers, java.io.ByteArrayInputStream(bytes))
+                        clean();
+                        var obs = new MutationObserver(clean);
+                        if (document.documentElement) {
+                            obs.observe(document.documentElement, { childList: true, subtree: true });
+                        }
+                        document.addEventListener('DOMContentLoaded', clean);
+                        window.addEventListener('load', clean);
+                        setInterval(clean, 250);
+                    })();
+                    </script>
+                """.trimIndent()
+
+                val payload = styleToInject + scriptToInject
+                val modifiedHtml = when {
+                    rawHtml.contains("</head>") -> rawHtml.replace("</head>", "$payload</head>")
+                    rawHtml.contains("<body") -> rawHtml.replace("<body", "$payload<body")
+                    else -> payload + rawHtml
                 }
-            } catch (e: Exception) {
-                // Fallback to WebView default network
+
+                val bytes = modifiedHtml.toByteArray(Charsets.UTF_8)
+                val headers = mutableMapOf<String, String>()
+                for ((k, v) in resp.headers) {
+                    val lower = k.lowercase()
+                    // Strip CSP and encoding headers so injected styles and scripts run unhindered
+                    if (lower != "content-encoding" &&
+                        lower != "content-length" &&
+                        !lower.contains("content-security-policy") &&
+                        !lower.contains("x-content-security-policy") &&
+                        !lower.contains("x-webkit-csp")
+                    ) {
+                        headers[k] = v
+                    }
+                }
+                headers["Content-Type"] = "text/html; charset=utf-8"
+                headers["Access-Control-Allow-Origin"] = "*"
+                return WebResourceResponse("text/html", "utf-8", 200, "OK", headers, java.io.ByteArrayInputStream(bytes))
             }
+        } catch (e: Exception) {
+            android.util.Log.e("PhantomCleanEngine", "Intercept error for $url", e)
         }
 
         return null
