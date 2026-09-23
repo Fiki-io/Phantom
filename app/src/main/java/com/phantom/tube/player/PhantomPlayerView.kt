@@ -468,41 +468,68 @@ object PhantomIFrameCleanEngine {
                     <script id="phantom-clean-script"$scriptNonceAttr>
                     (function() {
                         var selectors = [
-                            '.ytp-ce-element', '[class*="ytp-ce"]', '.html5-endscreen', '[class*="endscreen"]',
-                            '.video-annotations', '[class*="annotation"]', '[class*="videowall"]',
+                            // Endscreen recommendations, videos, channels, playlists, walls & cards
+                            '.ytp-ce-element', '.ytp-ce-video', '.ytp-ce-channel', '.ytp-ce-playlist',
+                            '.ytp-ce-website', '.ytp-ce-merchandise', '.ytp-ce-covering-overlay',
+                            '.ytp-ce-covering-image', '.ytp-ce-expanding-overlay', '.ytp-ce-expanding-image',
+                            '.ytp-ce-element-show', '.ytp-ce-shown', '.ytp-ce-element-shadow',
+                            '.ytp-ce-hide-button-container', '.ytp-ce-size-medium', '.ytp-ce-size-large',
+                            '.ytp-ce-bottom-right-quad', '.ytp-ce-bottom-left-quad', '.ytp-ce-top-right-quad', '.ytp-ce-top-left-quad',
+                            '[class*="ytp-ce"]', '.html5-endscreen', '.html5-ypc-endscreen',
+                            '.modern-videowall-endscreen', '.ytp-endscreen-content', '.ytp-endscreen-next',
+                            '.ytp-endscreen-paginate', '.ytp-endscreen-previous', '.ytp-endscreen-takeover',
+                            '.ytp-videowall-still', '[class*="endscreen"]',
                             '.iv-card', '.iv-promo', '[class*="iv-card"]', '[class*="iv-promo"]',
+                            '.video-annotations', '.video-legacy-annotations', '[class*="annotation"]', '[class*="videowall"]',
+
+                            // Play, Pause, Bezel animated flash, Center overlays & spinner
                             '.ytp-bezel', '.ytp-bezel-icon', '.ytp-bezel-text', '.ytp-bezel-text-wrapper', '[class*="ytp-bezel"]',
                             '.ytp-large-play-button', '.ytp-large-play-button-bg', '[class*="ytp-large-play"]',
                             '.ytp-play-button', 'button.ytp-play-button', '[class*="ytp-play-button"]',
-                            '.ytp-pause-overlay', '.ytp-pause-overlay-backdrop', '.ytp-pause-overlay-container',
-                            '.ytp-cued-thumbnail-overlay', '.ytp-spinner',
+                            '.ytp-pause-overlay', '.ytp-pause-overlay-backdrop', '.ytp-pause-overlay-container', '[class*="ytp-pause"]',
+                            '.ytp-cued-thumbnail-overlay', '.ytp-cued-thumbnail-overlay-image', '.ytp-spinner',
+                            'button[aria-label*="Play"]', 'button[aria-label*="Putar"]',
+                            'button[aria-label*="Pause"]', 'button[aria-label*="Jeda"]',
+
+                            // Bottom scrubber, progress bar & gradient
                             '.ytp-chrome-bottom', '.ytp-progress-bar-container', '.ytp-progress-bar',
-                            '.ytp-chrome-top', '.ytp-title', '.ytp-title-channel', '.ytp-title-channel-logo',
+                            '.ytp-play-progress', '.ytp-load-progress', '.ytp-gradient-bottom',
+                            '[class*="ytp-chrome-bottom"]',
+
+                            // Top bar, title, channel avatar, logo, share button & panels
+                            '.ytp-chrome-top', '.ytp-chrome-top-buttons',
+                            '.ytp-title', '.ytp-title-text', '.ytp-title-channel', '.ytp-title-channel-logo',
                             '.ytp-title-channel-name', 'span.ytp-title-channel-name', 'a.ytp-title-channel',
-                            '.ytp-share-button', '.ytp-cards-button', '.ytp-cards-teaser',
-                            '.ytp-watermark', '.ytp-youtube-button', '.ytp-impression-link',
-                            '[class*="channel"]', '[class*="avatar"]', '[class*="cards-teaser"]',
-                            'a[href*="/@"]', 'a[href*="/channel/"]',
+                            '.ytp-title-link', '.ytp-title-subtext', '.ytp-title-expanded', '.ytp-title-show-expanded',
+                            '.ytp-share-button', '.ytp-share-panel', '.ytp-share-icon',
+                            'button[aria-label*="Share"]', 'button[aria-label*="Bagikan"]', '[class*="ytp-share"]',
+                            '.ytp-gradient-top', '.ytp-cards-button', '.ytp-cards-teaser',
+                            '.ytp-cards-teaser-channel-avatar', '.ytp-cards-teaser-box', '.ytp-cards-teaser-text', '.ytp-cards-teaser-label',
+                            '[class*="ytp-chrome-top"]', '[class*="ytp-title"]', '[class*="cards-teaser"]',
+                            '[class*="channel"]', '[class*="avatar"]', '[class*="author"]',
+                            'a[href*="/@"]', 'a[href*="/channel/"]', 'a[href*="/user/"]', 'a[href*="/c/"]',
                             'img[src*="ggpht.com"]', 'img[src*="googleusercontent.com"]',
-                            '[style*="ggpht.com"]', '[style*="googleusercontent.com"]'
+                            '[style*="ggpht.com"]', '[style*="googleusercontent.com"]',
+
+                            // Watermark, YouTube Logo & Watch on YouTube buttons
+                            '.ytp-watermark', '.ytp-youtube-button', '.ytp-watch-on-youtube-button',
+                            '.ytp-impression-link', '.ytp-impression-link-logo', '.ytp-impression-link-text',
+                            '[class*="ytp-watermark"]', '[class*="ytp-youtube"]', '[class*="ytp-impression"]',
+                            'a[aria-label*="YouTube"]', 'a[href*="youtube.com/watch"]'
                         ];
 
-                        function hideNodes() {
+                        function clean() {
                             for (var s = 0; s < selectors.length; s++) {
                                 try {
-                                    var nodes = document.querySelectorAll(selectors[s]);
-                                    for (var i = 0; i < nodes.length; i++) {
-                                        var n = nodes[i];
-                                        if (n.style.display !== 'none' || n.style.opacity !== '0') {
-                                            n.style.setProperty('display', 'none', 'important');
-                                            n.style.setProperty('opacity', '0', 'important');
-                                            n.style.setProperty('visibility', 'hidden', 'important');
-                                            n.style.setProperty('pointer-events', 'none', 'important');
-                                            n.style.setProperty('animation', 'none', 'important');
-                                            n.style.setProperty('-webkit-animation', 'none', 'important');
-                                            n.style.setProperty('width', '0', 'important');
-                                            n.style.setProperty('height', '0', 'important');
-                                        }
+                                    var els = document.querySelectorAll(selectors[s]);
+                                    for (var i = 0; i < els.length; i++) {
+                                        try {
+                                            els[i].style.setProperty('display', 'none', 'important');
+                                            els[i].style.setProperty('opacity', '0', 'important');
+                                            els[i].style.setProperty('visibility', 'hidden', 'important');
+                                            els[i].style.setProperty('pointer-events', 'none', 'important');
+                                            els[i].remove();
+                                        } catch(e) {}
                                     }
                                 } catch(e) {}
                             }
@@ -510,41 +537,38 @@ object PhantomIFrameCleanEngine {
                             try {
                                 var player = document.querySelector('.html5-video-player');
                                 if (player && player.children) {
-                                    for (var c = 0; c < player.children.length; c++) {
-                                        var child = player.children[c];
-                                        if (!child.classList.contains('html5-video-container') &&
-                                            !child.classList.contains('caption-window') &&
-                                            !child.classList.contains('ytp-caption-window-container') &&
-                                            child.tagName.toLowerCase() !== 'video') {
-                                            if (child.style.display !== 'none' || child.style.opacity !== '0') {
-                                                child.style.setProperty('display', 'none', 'important');
-                                                child.style.setProperty('opacity', '0', 'important');
-                                                child.style.setProperty('visibility', 'hidden', 'important');
-                                                child.style.setProperty('pointer-events', 'none', 'important');
-                                                child.style.setProperty('animation', 'none', 'important');
-                                                child.style.setProperty('-webkit-animation', 'none', 'important');
-                                                child.style.setProperty('width', '0', 'important');
-                                                child.style.setProperty('height', '0', 'important');
-                                            }
+                                    var kids = Array.prototype.slice.call(player.children);
+                                    for (var k = 0; k < kids.length; k++) {
+                                        var child = kids[k];
+                                        if (child.classList.contains('html5-video-container') ||
+                                            child.classList.contains('caption-window') ||
+                                            child.classList.contains('ytp-caption-window-container') ||
+                                            child.tagName.toLowerCase() === 'video') {
+                                            continue;
                                         }
+                                        try {
+                                            child.style.setProperty('display', 'none', 'important');
+                                            child.style.setProperty('opacity', '0', 'important');
+                                            child.style.setProperty('visibility', 'hidden', 'important');
+                                            child.style.setProperty('pointer-events', 'none', 'important');
+                                            child.remove();
+                                        } catch(e) {}
                                     }
                                 }
                             } catch(e) {}
                         }
 
-                        hideNodes();
-                        var obs = new MutationObserver(hideNodes);
+                        clean();
+                        var obs = new MutationObserver(clean);
                         if (document.documentElement) {
                             obs.observe(document.documentElement, {
                                 childList: true,
-                                subtree: true,
-                                attributes: true,
-                                attributeFilter: ['style', 'class']
+                                subtree: true
                             });
                         }
-                        document.addEventListener('DOMContentLoaded', hideNodes);
-                        window.addEventListener('load', hideNodes);
-                        setInterval(hideNodes, 80);
+                        document.addEventListener('DOMContentLoaded', clean);
+                        window.addEventListener('load', clean);
+                        setInterval(clean, 50);
                     })();
                     </script>
                 """.trimIndent()
