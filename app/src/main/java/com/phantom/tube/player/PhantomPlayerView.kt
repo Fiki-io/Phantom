@@ -192,6 +192,7 @@ object PhantomIFrameCleanEngine {
     private val cssCache = java.util.concurrent.ConcurrentHashMap<String, ByteArray>()
 
     val CSS_RULES = """
+        .html5-video-player > :not(.html5-video-container):not(.caption-window):not(.ytp-caption-window-container):not(video),
         .ytp-chrome-top,
         .ytp-chrome-top-buttons,
         .ytp-chrome-bottom,
@@ -201,13 +202,21 @@ object PhantomIFrameCleanEngine {
         .ytp-title-channel,
         .ytp-title-channel-logo,
         .ytp-title-channel-name,
+        span.ytp-title-channel-name,
+        a.ytp-title-channel,
         .ytp-title-link,
         .ytp-title-subtext,
         .ytp-title-expanded,
+        .ytp-title-show-expanded,
+        .ytp-title-expanded-overlay,
         .ytp-show-cards-title,
         .ytp-cards-button,
         .ytp-cards-button-title,
         .ytp-cards-teaser,
+        .ytp-cards-teaser-channel-avatar,
+        .ytp-cards-teaser-box,
+        .ytp-cards-teaser-text,
+        .ytp-cards-teaser-label,
         .ytp-share-button,
         .ytp-share-button-visible,
         .ytp-share-icon,
@@ -274,6 +283,18 @@ object PhantomIFrameCleanEngine {
         [class*="ytp-endscreen"],
         [class*="ytp-youtube"],
         [class*="ytp-cards"],
+        [class*="channel"],
+        [class*="avatar"],
+        [class*="author"],
+        [class*="cards-teaser"],
+        a[href*="/@"],
+        a[href*="/channel/"],
+        a[href*="/user/"],
+        a[href*="/c/"],
+        img[src*="ggpht.com"],
+        img[src*="googleusercontent.com"],
+        [style*="ggpht.com"],
+        [style*="googleusercontent.com"],
         button[aria-label*="Play" i],
         button[aria-label*="Share" i],
         button[aria-label*="Putar" i],
@@ -354,12 +375,19 @@ object PhantomIFrameCleanEngine {
                             '.ytp-watermark', '.ytp-youtube-button', '.ytp-watch-on-youtube-button',
                             '.ytp-impression-link', '.ytp-large-play-button', '.ytp-large-play-button-bg',
                             '.ytp-pause-overlay', '.ytp-share-button', '.ytp-share-panel', '.ytp-bezel',
-                            '.ytp-title', '.ytp-title-text', '.ytp-title-channel', '.ytp-gradient-top',
-                            '.ytp-gradient-bottom', '.ytp-cards-button', '.ytp-contextmenu',
-                            '.ytp-cued-thumbnail-overlay', '.ytp-show-cards-title', '.ytp-spinner',
-                            '.ytp-progress-bar-container', '.ytp-progress-bar',
+                            '.ytp-title', '.ytp-title-text', '.ytp-title-channel', '.ytp-title-channel-logo',
+                            '.ytp-title-channel-name', 'span.ytp-title-channel-name', 'a.ytp-title-channel',
+                            '.ytp-title-link', '.ytp-title-subtext', '.ytp-title-expanded', '.ytp-title-show-expanded',
+                            '.ytp-gradient-top', '.ytp-gradient-bottom', '.ytp-cards-button', '.ytp-cards-teaser',
+                            '.ytp-cards-teaser-channel-avatar', '.ytp-cards-teaser-box', '.ytp-cards-teaser-text',
+                            '.ytp-cards-teaser-label', '.ytp-contextmenu', '.ytp-cued-thumbnail-overlay',
+                            '.ytp-show-cards-title', '.ytp-spinner', '.ytp-progress-bar-container', '.ytp-progress-bar',
                             'a.ytp-title-link', 'a.ytp-youtube-button', 'a[aria-label*="YouTube"]',
-                            'button[aria-label*="Play"]', 'button[aria-label*="Share"]'
+                            'button[aria-label*="Play"]', 'button[aria-label*="Share"]',
+                            '[class*="channel"]', '[class*="avatar"]', '[class*="author"]', '[class*="cards-teaser"]',
+                            'a[href*="/@"]', 'a[href*="/channel/"]', 'a[href*="/user/"]', 'a[href*="/c/"]',
+                            'img[src*="ggpht.com"]', 'img[src*="googleusercontent.com"]',
+                            '[style*="ggpht.com"]', '[style*="googleusercontent.com"]'
                         ];
                         function clean() {
                             selectors.forEach(function(sel) {
@@ -372,9 +400,31 @@ object PhantomIFrameCleanEngine {
                                         els[i].style.setProperty('pointer-events', 'none', 'important');
                                         els[i].style.setProperty('width', '0', 'important');
                                         els[i].style.setProperty('height', '0', 'important');
+                                        try { els[i].remove(); } catch(e) {}
                                     }
                                 } catch(e) {}
                             });
+
+                            try {
+                                var player = document.querySelector('.html5-video-player');
+                                if (player) {
+                                    var children = player.children;
+                                    for (var i = 0; i < children.length; i++) {
+                                        var child = children[i];
+                                        if (child.classList.contains('html5-video-container') ||
+                                            child.classList.contains('caption-window') ||
+                                            child.classList.contains('ytp-caption-window-container') ||
+                                            child.tagName.toLowerCase() === 'video') {
+                                            continue;
+                                        }
+                                        child.style.setProperty('display', 'none', 'important');
+                                        child.style.setProperty('opacity', '0', 'important');
+                                        child.style.setProperty('visibility', 'hidden', 'important');
+                                        child.style.setProperty('pointer-events', 'none', 'important');
+                                        try { child.remove(); } catch(e) {}
+                                    }
+                                }
+                            } catch(e) {}
                         }
                         clean();
                         var obs = new MutationObserver(clean);
@@ -383,7 +433,7 @@ object PhantomIFrameCleanEngine {
                         }
                         document.addEventListener('DOMContentLoaded', clean);
                         window.addEventListener('load', clean);
-                        setInterval(clean, 250);
+                        setInterval(clean, 150);
                     })();
                     </script>
                 """.trimIndent()
