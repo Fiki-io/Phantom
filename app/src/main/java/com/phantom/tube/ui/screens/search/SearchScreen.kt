@@ -51,9 +51,11 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -82,7 +84,9 @@ fun SearchScreen(
     onBackClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var searchQuery by remember { mutableStateOf("") }
+    var searchTextFieldValue by remember { mutableStateOf(TextFieldValue("")) }
+    val searchQuery = searchTextFieldValue.text
+    var lastSearchQuery by remember { mutableStateOf("") }
     var suggestions by remember { mutableStateOf<List<String>>(emptyList()) }
     var searchResults by remember { mutableStateOf<List<VideoItem>>(emptyList()) }
     var searchContinuationToken by remember { mutableStateOf<String?>(null) }
@@ -134,6 +138,17 @@ fun SearchScreen(
     val focusRequester = remember { FocusRequester() }
     val keyboardController = LocalSoftwareKeyboardController.current
 
+    fun updateSearchInput(newText: String, requestKeyboardFocus: Boolean = false) {
+        searchTextFieldValue = TextFieldValue(
+            text = newText,
+            selection = TextRange(newText.length)
+        )
+        if (requestKeyboardFocus) {
+            focusRequester.requestFocus()
+            keyboardController?.show()
+        }
+    }
+
     fun executeSearch(query: String) {
         val trimmed = query.trim()
         if (trimmed.isBlank()) return
@@ -144,15 +159,19 @@ fun SearchScreen(
             hasSearched = true
             suggestions = emptyList()
             searchContinuationToken = null
+            lastSearchQuery = trimmed
+            searchListState.scrollToItem(0)
             try {
                 val pageResult = repository.searchPage(query = trimmed)
                 searchResults = pageResult.videos
                 searchContinuationToken = pageResult.continuationToken
+                searchListState.scrollToItem(0)
             } catch (e: Exception) {
                 searchResults = emptyList()
                 searchContinuationToken = null
             } finally {
                 isSearching = false
+                searchListState.scrollToItem(0)
             }
         }
     }
@@ -189,6 +208,13 @@ fun SearchScreen(
             if (total > 0 && last >= total - 3 && searchContinuationToken != null && !isLoadingMore && !isSearching) {
                 loadMoreSearch()
             }
+        }
+    }
+
+    // Always reset search list to top when a new search query's results are presented
+    LaunchedEffect(lastSearchQuery, hasSearched) {
+        if (hasSearched && lastSearchQuery.isNotBlank()) {
+            searchListState.scrollToItem(0)
         }
     }
 
@@ -261,9 +287,9 @@ fun SearchScreen(
                     Spacer(modifier = Modifier.width(8.dp))
 
                     BasicTextField(
-                        value = searchQuery,
+                        value = searchTextFieldValue,
                         onValueChange = {
-                            searchQuery = it
+                            searchTextFieldValue = it
                             hasSearched = false
                         },
                         modifier = Modifier
@@ -298,10 +324,14 @@ fun SearchScreen(
                             modifier = Modifier
                                 .size(18.dp)
                                 .clickable {
-                                    searchQuery = ""
+                                    updateSearchInput("")
                                     suggestions = emptyList()
                                     hasSearched = false
                                     searchResults = emptyList()
+                                    searchContinuationToken = null
+                                    scope.launch {
+                                        searchListState.scrollToItem(0)
+                                    }
                                 }
                         )
                     }
@@ -391,7 +421,7 @@ fun SearchScreen(
                                             .fillMaxWidth()
                                             .clip(RoundedCornerShape(8.dp))
                                             .clickable {
-                                                searchQuery = item.query
+                                                updateSearchInput(item.query)
                                                 executeSearch(item.query)
                                             }
                                             .padding(horizontal = 12.dp, vertical = 10.dp),
@@ -420,7 +450,7 @@ fun SearchScreen(
                                             modifier = Modifier
                                                 .size(16.dp)
                                                 .clickable {
-                                                    searchQuery = item.query
+                                                    updateSearchInput(item.query, requestKeyboardFocus = true)
                                                 }
                                         )
                                         if (item.isHistory) {
@@ -558,7 +588,7 @@ fun SearchScreen(
                                         .fillMaxWidth()
                                         .clip(RoundedCornerShape(8.dp))
                                         .clickable {
-                                            searchQuery = item.query
+                                            updateSearchInput(item.query)
                                             executeSearch(item.query)
                                         }
                                         .padding(horizontal = 12.dp, vertical = 10.dp),
@@ -587,7 +617,7 @@ fun SearchScreen(
                                         modifier = Modifier
                                             .size(16.dp)
                                             .clickable {
-                                                searchQuery = item.query
+                                                updateSearchInput(item.query, requestKeyboardFocus = true)
                                             }
                                     )
                                     Spacer(modifier = Modifier.width(12.dp))
