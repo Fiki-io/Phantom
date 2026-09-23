@@ -47,6 +47,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.HighQuality
 import androidx.compose.material.icons.filled.Bedtime
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ChevronRight
@@ -84,10 +85,29 @@ import com.phantom.tube.core.theme.YouTubeSurface
 
 enum class SettingsSheetPage {
     MAIN,
+    QUALITY,
     DOUBLE_TAP_SEEK,
     SPEED,
     SLEEP_TIMER
 }
+
+data class VideoQualityOption(
+    val code: String,
+    val label: String
+)
+
+val ALL_STANDARD_QUALITIES = listOf(
+    VideoQualityOption("auto", "Otomatis (Disarankan)"),
+    VideoQualityOption("highres", "Kualitas Tertinggi (4K / 2K)"),
+    VideoQualityOption("hd2160", "2160p (4K UHD)"),
+    VideoQualityOption("hd1440", "1440p (QHD)"),
+    VideoQualityOption("hd1080", "1080p (Full HD)"),
+    VideoQualityOption("hd720", "720p (HD)"),
+    VideoQualityOption("large", "480p"),
+    VideoQualityOption("medium", "360p"),
+    VideoQualityOption("small", "240p"),
+    VideoQualityOption("tiny", "144p (Hemat Kuota)")
+)
 
 enum class SleepTimerOption(val label: String, val seconds: Int?) {
     OFF("Nonaktif", null),
@@ -108,6 +128,8 @@ fun PlayerSettingsSheet(
     visible: Boolean,
     isFullscreen: Boolean,
     currentSpeed: Float,
+    currentQuality: String = "auto",
+    availableQualities: List<String> = emptyList(),
     doubleTapSeekSeconds: Int,
     isLoopEnabled: Boolean,
     isAutoplayNext: Boolean,
@@ -116,6 +138,7 @@ fun PlayerSettingsSheet(
     sleepTimerOption: SleepTimerOption,
     onDismiss: () -> Unit,
     onSpeedSelected: (Float) -> Unit,
+    onQualitySelected: (String) -> Unit = {},
     onDoubleTapSeekSelected: (Int) -> Unit,
     onSleepTimerSelected: (SleepTimerOption) -> Unit,
     onLoopToggle: (Boolean) -> Unit,
@@ -278,6 +301,7 @@ fun PlayerSettingsSheet(
                             SettingsSheetPage.MAIN -> {
                                 MainSettingsContent(
                                     currentSpeed = currentSpeed,
+                                    currentQuality = currentQuality,
                                     doubleTapSeekSeconds = doubleTapSeekSeconds,
                                     isLoopEnabled = isLoopEnabled,
                                     isAutoplayNext = isAutoplayNext,
@@ -289,6 +313,17 @@ fun PlayerSettingsSheet(
                                     onAutoplayToggle = onAutoplayToggle,
                                     onAudioOnlyToggle = onAudioOnlyToggle,
                                     onClose = onDismiss
+                                )
+                            }
+                            SettingsSheetPage.QUALITY -> {
+                                QualitySettingsContent(
+                                    currentQuality = currentQuality,
+                                    availableQualities = availableQualities,
+                                    onSelectQuality = {
+                                        onQualitySelected(it)
+                                        currentPage = SettingsSheetPage.MAIN
+                                    },
+                                    onBack = { currentPage = SettingsSheetPage.MAIN }
                                 )
                             }
                             SettingsSheetPage.DOUBLE_TAP_SEEK -> {
@@ -333,6 +368,7 @@ fun PlayerSettingsSheet(
 @Composable
 private fun MainSettingsContent(
     currentSpeed: Float,
+    currentQuality: String,
     doubleTapSeekSeconds: Int,
     isLoopEnabled: Boolean,
     isAutoplayNext: Boolean,
@@ -372,6 +408,28 @@ private fun MainSettingsContent(
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
+            val qualitySubtitle = when (currentQuality) {
+                "auto" -> "Otomatis"
+                "highres" -> "2160p / 1440p"
+                "hd2160" -> "2160p (4K)"
+                "hd1440" -> "1440p (2K)"
+                "hd1080" -> "1080p (FHD)"
+                "hd720" -> "720p (HD)"
+                "large" -> "480p"
+                "medium" -> "360p"
+                "small" -> "240p"
+                "tiny" -> "144p"
+                else -> currentQuality
+            }
+            item {
+                SettingsNavigationRow(
+                    icon = Icons.Default.HighQuality,
+                    title = "Kualitas Video",
+                    subtitle = qualitySubtitle,
+                    onClick = { onNavigate(SettingsSheetPage.QUALITY) }
+                )
+            }
+
             item {
                 SettingsNavigationRow(
                     icon = Icons.Default.FastForward,
@@ -815,6 +873,93 @@ private fun SettingsSwitchRow(
                     uncheckedBorderColor = Color.White.copy(alpha = 0.15f)
                 )
             )
+        }
+    }
+}
+
+@Composable
+private fun QualitySettingsContent(
+    currentQuality: String,
+    availableQualities: List<String>,
+    onSelectQuality: (String) -> Unit,
+    onBack: () -> Unit
+) {
+    val options = remember(availableQualities) {
+        if (availableQualities.isNotEmpty()) {
+            val list = mutableListOf(VideoQualityOption("auto", "Otomatis (Disarankan)"))
+            val availableSet = availableQualities.toSet()
+            ALL_STANDARD_QUALITIES.filter { it.code != "auto" && availableSet.contains(it.code) }.forEach {
+                list.add(it)
+            }
+            if (list.size == 1) {
+                ALL_STANDARD_QUALITIES
+            } else {
+                list
+            }
+        } else {
+            ALL_STANDARD_QUALITIES
+        }
+    }
+
+    Column(modifier = Modifier.fillMaxSize()) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            PhantomIconButton(
+                icon = Icons.Default.ArrowBack,
+                contentDescription = "Kembali",
+                size = 36.dp,
+                iconSize = 18.dp,
+                onClick = onBack
+            )
+            Spacer(modifier = Modifier.width(12.dp))
+            Text(
+                text = "Kualitas Video",
+                color = TextPrimary,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold
+            )
+        }
+
+        Spacer(modifier = Modifier.height(14.dp))
+
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            items(options) { opt ->
+                val isSelected = (opt.code == currentQuality)
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(if (isSelected) YouTubeSurface else Color.Transparent)
+                        .clickable { onSelectQuality(opt.code) }
+                        .padding(horizontal = 14.dp, vertical = 12.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = opt.label,
+                            color = if (isSelected) YouTubeRed else TextPrimary,
+                            fontSize = 14.sp,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                        )
+                        if (isSelected) {
+                            Icon(
+                                imageVector = Icons.Default.Check,
+                                contentDescription = "Terpilih",
+                                tint = YouTubeRed,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+                }
+            }
         }
     }
 }

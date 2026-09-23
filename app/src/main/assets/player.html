@@ -138,6 +138,15 @@
         function onPlayerStateChange(event) {
             if (event.data === 1 || event.data === 3) { // PLAYING or BUFFERING
                 startTimeTicker();
+                try {
+                    if (player && typeof player.getAvailableQualityLevels === 'function') {
+                        var lvls = player.getAvailableQualityLevels() || [];
+                        var cur = (typeof player.getPlaybackQuality === 'function') ? player.getPlaybackQuality() : 'auto';
+                        if (window.PhantomBridge && typeof window.PhantomBridge.onQualityChange === 'function') {
+                            window.PhantomBridge.onQualityChange(cur || 'auto', JSON.stringify(lvls));
+                        }
+                    }
+                } catch(e) {}
             } else {
                 stopTimeTicker();
             }
@@ -181,6 +190,15 @@
                 } catch(e) {}
             }, 250);
         }
+
+        // Listen for internal quality report from inside YouTube IFrame
+        window.addEventListener('message', function(e) {
+            if (e.data && e.data.type === 'PHANTOM_QUALITY_REPORT') {
+                if (window.PhantomBridge && typeof window.PhantomBridge.onQualityChange === 'function') {
+                    window.PhantomBridge.onQualityChange(e.data.current || 'auto', JSON.stringify(e.data.levels || []));
+                }
+            }
+        });
 
         window.loadVideo = function(videoId, startSec) {
             try {
@@ -226,6 +244,23 @@
             try {
                 if (player && typeof player.setLoop === 'function') {
                     player.setLoop(loop);
+                }
+            } catch(e) {}
+        };
+
+        window.setPlaybackQuality = function(quality) {
+            try {
+                if (player) {
+                    if (typeof player.setPlaybackQualityRange === 'function') {
+                        player.setPlaybackQualityRange(quality, quality);
+                    }
+                    if (typeof player.setPlaybackQuality === 'function') {
+                        player.setPlaybackQuality(quality);
+                    }
+                }
+                var iframe = document.querySelector('iframe');
+                if (iframe && iframe.contentWindow) {
+                    iframe.contentWindow.postMessage({ type: 'PHANTOM_SET_QUALITY', quality: quality }, '*');
                 }
             } catch(e) {}
         };

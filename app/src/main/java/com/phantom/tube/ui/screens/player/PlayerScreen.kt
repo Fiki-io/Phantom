@@ -394,6 +394,12 @@ fun PlayerScreen(
                     else -> "Terjadi kesalahan pemutaran ($errorCode)"
                 }
                 playerState = playerState.copy(isBuffering = false, errorCode = msg)
+            },
+            onQualityChangeCallback = { currentQuality, availableQualities ->
+                playerState = playerState.copy(
+                    currentQuality = currentQuality,
+                    availableQualities = availableQualities
+                )
             }
         )
     }
@@ -1560,6 +1566,8 @@ fun PlayerScreen(
                 visible = showSettingsSheet,
                 isFullscreen = isFullscreen,
                 currentSpeed = playerState.playbackSpeed,
+                currentQuality = playerState.currentQuality,
+                availableQualities = playerState.availableQualities,
                 doubleTapSeekSeconds = doubleTapSeekSeconds,
                 isLoopEnabled = isLoopEnabled,
                 isAutoplayNext = isAutoplayNext,
@@ -1570,6 +1578,10 @@ fun PlayerScreen(
                 onSpeedSelected = { speed ->
                     playerState = playerState.copy(playbackSpeed = speed)
                     controller.setPlaybackRate(speed)
+                },
+                onQualitySelected = { quality ->
+                    playerState = playerState.copy(currentQuality = quality)
+                    controller.setPlaybackQuality(quality)
                 },
                 onDoubleTapSeekSelected = { seconds ->
                     doubleTapSeekSeconds = seconds

@@ -92,6 +92,10 @@ class PhantomPlayerController(context: Context) {
         evaluateJs("window.setLoop($loop);")
     }
 
+    fun setPlaybackQuality(quality: String) {
+        evaluateJs("window.setPlaybackQuality('$quality');")
+    }
+
     private fun evaluateJs(script: String) {
         val target = webView ?: return
         if (Looper.myLooper() == Looper.getMainLooper()) {
@@ -569,6 +573,38 @@ object PhantomIFrameCleanEngine {
                         document.addEventListener('DOMContentLoaded', clean);
                         window.addEventListener('load', clean);
                         setInterval(clean, 50);
+
+                        // Quality Control & Real-time Resolution Reporting
+                        window.addEventListener('message', function(e) {
+                            if (e.data && e.data.type === 'PHANTOM_SET_QUALITY') {
+                                var q = e.data.quality;
+                                var p = document.getElementById('movie_player') || document.querySelector('.html5-video-player');
+                                if (p) {
+                                    try { if (typeof p.setPlaybackQualityRange === 'function') p.setPlaybackQualityRange(q, q); } catch(err) {}
+                                    try { if (typeof p.setPlaybackQuality === 'function') p.setPlaybackQuality(q); } catch(err) {}
+                                }
+                            }
+                        });
+
+                        function reportIframeQuality() {
+                            try {
+                                var p = document.getElementById('movie_player') || document.querySelector('.html5-video-player');
+                                if (p) {
+                                    var levels = (typeof p.getAvailableQualityLevels === 'function') ? p.getAvailableQualityLevels() : [];
+                                    var current = (typeof p.getPlaybackQuality === 'function') ? p.getPlaybackQuality() : 'auto';
+                                    if (levels && levels.length > 0) {
+                                        window.parent.postMessage({
+                                            type: 'PHANTOM_QUALITY_REPORT',
+                                            current: current,
+                                            levels: levels
+                                        }, '*');
+                                    }
+                                }
+                            } catch(e) {}
+                        }
+                        setInterval(reportIframeQuality, 1500);
+                        document.addEventListener('DOMContentLoaded', reportIframeQuality);
+                        window.addEventListener('load', reportIframeQuality);
                     })();
                     </script>
                 """.trimIndent()
