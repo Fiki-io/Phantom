@@ -18,6 +18,7 @@ import com.phantom.tube.ui.screens.player.components.PlayerMixSheet
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.core.FastOutLinearInEasing
@@ -73,7 +74,8 @@ import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ExpandLess
-import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.FastForward
+import androidx.compose.material.icons.filled.FastRewind
 import androidx.compose.material.icons.filled.Forward10
 import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material.icons.filled.FullscreenExit
@@ -154,6 +156,8 @@ import com.phantom.tube.data.model.VideoComment
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
+enum class SeekFeedbackDirection { FORWARD, REWIND }
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PlayerScreen(
@@ -175,6 +179,18 @@ fun PlayerScreen(
     var playerState by remember { mutableStateOf(PlayerState(videoId = video.id)) }
     var isControlsVisible by remember { mutableStateOf(true) }
     var isFullscreen by remember { mutableStateOf(false) }
+
+    // Double-Tap Seek Visual Feedback State
+    var seekAnimationSide by remember { mutableStateOf<SeekFeedbackDirection?>(null) }
+    var seekAccumulatedSeconds by remember { mutableIntStateOf(0) }
+
+    LaunchedEffect(seekAnimationSide, seekAccumulatedSeconds) {
+        if (seekAnimationSide != null) {
+            delay(750L)
+            seekAnimationSide = null
+            seekAccumulatedSeconds = 0
+        }
+    }
 
     // SponsorBlock state
     var sponsorSegments by remember { mutableStateOf<List<SponsorSegment>>(emptyList()) }
@@ -838,18 +854,105 @@ fun PlayerScreen(
                                 isControlsVisible = !isControlsVisible
                             },
                             onDoubleTap = { offset ->
-                                val delta = doubleTapSeekSeconds.toFloat()
+                                val delta = doubleTapSeekSeconds
                                 if (offset.x < size.width / 2) {
-                                    val newTime = (playerState.currentTimeSec - delta).coerceAtLeast(0f)
+                                    seekAccumulatedSeconds = if (seekAnimationSide == SeekFeedbackDirection.REWIND) {
+                                        seekAccumulatedSeconds + delta
+                                    } else {
+                                        delta
+                                    }
+                                    seekAnimationSide = SeekFeedbackDirection.REWIND
+                                    val newTime = (playerState.currentTimeSec - delta.toFloat()).coerceAtLeast(0f)
                                     controller.seekTo(newTime)
                                 } else {
-                                    val newTime = (playerState.currentTimeSec + delta).coerceAtMost(playerState.durationSec)
+                                    seekAccumulatedSeconds = if (seekAnimationSide == SeekFeedbackDirection.FORWARD) {
+                                        seekAccumulatedSeconds + delta
+                                    } else {
+                                        delta
+                                    }
+                                    seekAnimationSide = SeekFeedbackDirection.FORWARD
+                                    val newTime = (playerState.currentTimeSec + delta.toFloat()).coerceAtMost(playerState.durationSec)
                                     controller.seekTo(newTime)
                                 }
                             }
                         )
                     }
             )
+
+            // Layer 1.5: Double-Tap Seek Visual Ripple Indicator
+            AnimatedVisibility(
+                visible = seekAnimationSide == SeekFeedbackDirection.REWIND,
+                enter = fadeIn(tween(120)) + scaleIn(initialScale = 0.85f),
+                exit = fadeOut(tween(250)),
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .fillMaxWidth(0.42f)
+                    .align(Alignment.CenterStart)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(RoundedCornerShape(topEndPercent = 100, bottomEndPercent = 100))
+                        .background(Color(0x55000000)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.FastRewind,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(32.dp)
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "-${seekAccumulatedSeconds} dtk",
+                            color = Color.White,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
+
+            AnimatedVisibility(
+                visible = seekAnimationSide == SeekFeedbackDirection.FORWARD,
+                enter = fadeIn(tween(120)) + scaleIn(initialScale = 0.85f),
+                exit = fadeOut(tween(250)),
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .fillMaxWidth(0.42f)
+                    .align(Alignment.CenterEnd)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(RoundedCornerShape(topStartPercent = 100, bottomStartPercent = 100))
+                        .background(Color(0x55000000)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.FastForward,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(32.dp)
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "+${seekAccumulatedSeconds} dtk",
+                            color = Color.White,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
 
             // Layer 2: Buffering & Error Indicator
             if (playerState.isBuffering) {

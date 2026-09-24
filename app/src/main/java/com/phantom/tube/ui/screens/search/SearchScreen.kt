@@ -72,6 +72,7 @@ import com.phantom.tube.data.model.VideoItem
 import com.phantom.tube.data.repository.PhantomRepository
 import com.phantom.tube.ui.components.PhantomIconButton
 import com.phantom.tube.ui.components.PhantomVideoCard
+import com.phantom.tube.ui.components.VideoFeedSkeleton
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -101,6 +102,10 @@ fun SearchScreen(
     val searchListState = remember(lastSearchQuery) { LazyListState() }
 
     val searchHistory by repository.getSearchHistory().collectAsState(initial = emptyList())
+    val watchHistory by repository.getWatchHistory().collectAsState(initial = emptyList())
+    val historyMap = remember(watchHistory) {
+        watchHistory.associate { it.videoId to it.progressFraction }
+    }
 
     // Instant local history matching (0ms latency, always reactive while typing)
     val matchingHistory = remember(searchQuery, searchHistory) {
@@ -340,22 +345,7 @@ fun SearchScreen(
         Box(modifier = Modifier.fillMaxSize()) {
             when {
                 isSearching -> {
-                    Column(
-                        modifier = Modifier.align(Alignment.Center),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        CircularProgressIndicator(
-                            color = YouTubeRed,
-                            strokeWidth = 3.dp,
-                            modifier = Modifier.size(40.dp)
-                        )
-                        Spacer(modifier = Modifier.height(14.dp))
-                        Text(
-                            text = "Memuat...",
-                            color = TextMuted,
-                            fontSize = 13.sp
-                        )
-                    }
+                    VideoFeedSkeleton()
                 }
                 // 2. Actively typing (searchQuery is not blank) -> Show Hybrid Suggestions (Instant local history + Live YouTube suggestions)
                 !hasSearched && searchQuery.isNotBlank() -> {
@@ -483,6 +473,7 @@ fun SearchScreen(
                         ) { _, video ->
                             PhantomVideoCard(
                                 video = video,
+                                progressFraction = historyMap[video.id] ?: 0f,
                                 onChannelClick = { chId ->
                                     onChannelClick(chId.ifBlank { video.channelTitle }, video.channelTitle)
                                 },

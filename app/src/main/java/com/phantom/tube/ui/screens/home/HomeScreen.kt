@@ -24,6 +24,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -50,6 +51,7 @@ import com.phantom.tube.data.repository.PhantomRepository
 import com.phantom.tube.ui.components.PhantomIconButton
 import com.phantom.tube.ui.components.PhantomTopBar
 import com.phantom.tube.ui.components.PhantomVideoCard
+import com.phantom.tube.ui.components.VideoFeedSkeleton
 import kotlinx.coroutines.launch
 
 @Composable
@@ -71,6 +73,10 @@ fun HomeScreen(
 
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
+    val watchHistory by repository.getWatchHistory().collectAsState(initial = emptyList())
+    val historyMap = remember(watchHistory) {
+        watchHistory.associate { it.videoId to it.progressFraction }
+    }
 
     fun categoryToQuery(category: String): String = when (category) {
         "Semua" -> "trending indonesia"
@@ -210,22 +216,7 @@ fun HomeScreen(
 
             when {
                 isLoading -> {
-                    Column(
-                        modifier = Modifier.align(Alignment.Center),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        CircularProgressIndicator(
-                            color = YouTubeRed,
-                            strokeWidth = 3.dp,
-                            modifier = Modifier.size(40.dp)
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text(
-                            text = "Memuat...",
-                            color = TextMuted,
-                            fontSize = 13.sp
-                        )
-                    }
+                    VideoFeedSkeleton()
                 }
                 hasError && videos.isEmpty() -> {
                     Column(
@@ -260,6 +251,7 @@ fun HomeScreen(
                         ) { _, video ->
                             PhantomVideoCard(
                                 video = video,
+                                progressFraction = historyMap[video.id] ?: 0f,
                                 onChannelClick = { chId ->
                                     onChannelClick(chId.ifBlank { video.channelTitle }, video.channelTitle)
                                 },

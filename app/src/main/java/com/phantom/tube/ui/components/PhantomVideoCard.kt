@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -41,6 +42,7 @@ import com.phantom.tube.data.model.VideoItem
 /**
  * Kartu item video standar:
  * - Thumbnail 16:9 dengan durasi
+ * - Indikator progres tonton riil
  * - Avatar channel
  * - Judul video, nama channel, dan info penayangan
  * - Tombol opsi
@@ -49,20 +51,16 @@ import com.phantom.tube.data.model.VideoItem
 fun PhantomVideoCard(
     video: VideoItem,
     modifier: Modifier = Modifier,
+    progressFraction: Float = 0f,
     onChannelClick: ((String) -> Unit)? = null,
     onMoreClick: (() -> Unit)? = null,
     onClick: () -> Unit
 ) {
-    val interactionSource = remember { MutableInteractionSource() }
-
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .clickable(
-                interactionSource = interactionSource,
-                indication = null,
-                onClick = onClick
-            )
+            .clip(RoundedCornerShape(8.dp))
+            .clickable(onClick = onClick)
             .padding(bottom = 12.dp)
     ) {
         // Thumbnail
@@ -98,6 +96,24 @@ fun PhantomVideoCard(
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Medium,
                         letterSpacing = 0.5.sp
+                    )
+                }
+            }
+
+            // Real Watch Progress Bar from SQLite history
+            if (progressFraction > 0f) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(3.dp)
+                        .align(Alignment.BottomCenter)
+                        .background(Color(0x66000000))
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth(fraction = progressFraction.coerceIn(0f, 1f))
+                            .fillMaxHeight()
+                            .background(YouTubeRed)
                     )
                 }
             }
