@@ -40,14 +40,12 @@ import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Divider
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.ScrollableTabRow
 import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRowDefaults
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -499,15 +497,22 @@ fun ChannelScreen(
                             edgePadding = 16.dp,
                             indicator = { tabPositions ->
                                 if (selectedTabIndex < tabPositions.size) {
-                                    TabRowDefaults.Indicator(
-                                        modifier = Modifier.tabIndicatorOffset(tabPositions[selectedTabIndex]),
-                                        color = Color.White,
-                                        height = 2.dp
+                                    Box(
+                                        modifier = Modifier
+                                            .tabIndicatorOffset(tabPositions[selectedTabIndex])
+                                            .fillMaxWidth()
+                                            .height(2.dp)
+                                            .background(Color.White)
                                     )
                                 }
                             },
                             divider = {
-                                Divider(color = Color(0x22FFFFFF), thickness = 0.5.dp)
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(0.5.dp)
+                                        .background(Color(0x22FFFFFF))
+                                )
                             }
                         ) {
                             tabs.forEachIndexed { index, title ->

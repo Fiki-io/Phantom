@@ -43,6 +43,8 @@ import com.phantom.tube.ui.screens.home.HomeScreen
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import com.phantom.tube.ui.screens.channel.ChannelScreen
+import com.phantom.tube.ui.screens.player.PlayerScreen
+import com.phantom.tube.ui.screens.search.SearchScreen
 import com.phantom.tube.ui.screens.subscription.SubscriptionScreen
 
 class MainActivity : ComponentActivity() {
@@ -109,11 +111,11 @@ class MainActivity : ComponentActivity() {
                             when (tab) {
                                 NavTab.HOME -> HomeScreen(
                                     repository = repository,
-                                    onVideoClick = { video ->
+                                    onVideoClick = { video: VideoItem ->
                                         activeVideo = video
                                         isPlayerMinimized = false
                                     },
-                                    onChannelClick = { chId, chTitle ->
+                                    onChannelClick = { chId: String, chTitle: String ->
                                         activeChannelId = chId
                                         activeChannelTitle = chTitle
                                     },
@@ -121,11 +123,11 @@ class MainActivity : ComponentActivity() {
                                 )
                                 NavTab.SEARCH -> SearchScreen(
                                     repository = repository,
-                                    onVideoClick = { video ->
+                                    onVideoClick = { video: VideoItem ->
                                         activeVideo = video
                                         isPlayerMinimized = false
                                     },
-                                    onChannelClick = { chId, chTitle ->
+                                    onChannelClick = { chId: String, chTitle: String ->
                                         activeChannelId = chId
                                         activeChannelTitle = chTitle
                                     },
@@ -133,18 +135,18 @@ class MainActivity : ComponentActivity() {
                                 )
                                 NavTab.HISTORY -> HistoryScreen(
                                     repository = repository,
-                                    onVideoClick = { video ->
+                                    onVideoClick = { video: VideoItem ->
                                         activeVideo = video
                                         isPlayerMinimized = false
                                     }
                                 )
                                 NavTab.SUBSCRIPTION -> SubscriptionScreen(
                                     repository = repository,
-                                    onVideoClick = { video ->
+                                    onVideoClick = { video: VideoItem ->
                                         activeVideo = video
                                         isPlayerMinimized = false
                                     },
-                                    onChannelClick = { chId, chTitle ->
+                                    onChannelClick = { chId: String, chTitle: String ->
                                         activeChannelId = chId
                                         activeChannelTitle = chTitle
                                     },
@@ -180,7 +182,7 @@ class MainActivity : ComponentActivity() {
                                 channelId = activeChannelId!!,
                                 initialChannelTitle = activeChannelTitle,
                                 repository = repository,
-                                onVideoClick = { video ->
+                                onVideoClick = { video: VideoItem ->
                                     activeVideo = video
                                     isPlayerMinimized = false
                                 },
@@ -210,10 +212,10 @@ class MainActivity : ComponentActivity() {
                                 activeVideo = null
                                 isPlayerMinimized = false
                             },
-                            onPlayNextVideo = { nextVideo ->
+                            onPlayNextVideo = { nextVideo: VideoItem ->
                                 activeVideo = nextVideo
                             },
-                            onChannelClick = { chId, chTitle ->
+                            onChannelClick = { chId: String, chTitle: String ->
                                 activeChannelId = chId
                                 activeChannelTitle = chTitle
                             },

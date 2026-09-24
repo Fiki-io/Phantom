@@ -567,6 +567,19 @@ object InnerTubeParser {
         return sb.toString()
     }
 
+    private fun extractThumbnail(obj: JSONObject?, videoId: String): String {
+        if (obj == null) return if (videoId.isNotBlank()) "https://i.ytimg.com/vi/$videoId/hqdefault.jpg" else ""
+        val thumbnails = obj.optJSONArray("thumbnails")
+        if (thumbnails != null && thumbnails.length() > 0) {
+            val last = thumbnails.optJSONObject(thumbnails.length() - 1)
+            val url = last?.optString("url") ?: ""
+            if (url.isNotBlank()) {
+                return if (url.startsWith("//")) "https:$url" else url
+            }
+        }
+        return if (videoId.isNotBlank()) "https://i.ytimg.com/vi/$videoId/hqdefault.jpg" else ""
+    }
+
     fun parseChannelPage(jsonString: String, fallbackChannelId: String): ChannelProfile? {
         try {
             val root = JSONObject(jsonString)
