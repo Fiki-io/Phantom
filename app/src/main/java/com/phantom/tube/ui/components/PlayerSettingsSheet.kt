@@ -3,9 +3,12 @@ package com.phantom.tube.ui.components
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.ExperimentalAnimationApi
+import androidx.compose.animation.core.FastOutLinearInEasing
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
@@ -153,7 +156,7 @@ fun PlayerSettingsSheet(
     var sheetOffsetY by remember { mutableFloatStateOf(0f) }
     val animatedOffsetY by animateFloatAsState(
         targetValue = sheetOffsetY,
-        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+        animationSpec = spring(stiffness = Spring.StiffnessHigh),
         label = "settings_sheet_offset"
     )
 
@@ -164,9 +167,6 @@ fun PlayerSettingsSheet(
         }
     }
 
-    val density = LocalDensity.current
-    val dismissThresholdPx = remember(density) { with(density) { 90.dp.toPx() } }
-
     val handleDragModifier = Modifier.pointerInput(Unit) {
         detectVerticalDragGestures(
             onVerticalDrag = { change, dragAmount ->
@@ -174,7 +174,7 @@ fun PlayerSettingsSheet(
                 sheetOffsetY = (sheetOffsetY + dragAmount).coerceAtLeast(0f)
             },
             onDragEnd = {
-                if (sheetOffsetY > dismissThresholdPx) {
+                if (sheetOffsetY > 140f) {
                     onDismiss()
                 } else {
                     sheetOffsetY = 0f
@@ -186,49 +186,10 @@ fun PlayerSettingsSheet(
         )
     }
 
-    val nestedScrollConnection = remember(dismissThresholdPx) {
-        object : NestedScrollConnection {
-            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
-                if (sheetOffsetY > 0f && available.y < 0f) {
-                    val consumed = available.y.coerceAtLeast(-sheetOffsetY)
-                    sheetOffsetY += consumed
-                    return Offset(0f, consumed)
-                }
-                return Offset.Zero
-            }
-
-            override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
-                if (available.y > 0f) {
-                    sheetOffsetY = (sheetOffsetY + available.y).coerceAtLeast(0f)
-                    return Offset(0f, available.y)
-                }
-                return Offset.Zero
-            }
-
-            override suspend fun onPreFling(available: Velocity): Velocity {
-                if (sheetOffsetY > dismissThresholdPx || available.y > 800f) {
-                    onDismiss()
-                } else {
-                    sheetOffsetY = 0f
-                }
-                return Velocity.Zero
-            }
-
-            override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
-                if (sheetOffsetY > dismissThresholdPx || available.y > 800f) {
-                    onDismiss()
-                } else {
-                    sheetOffsetY = 0f
-                }
-                return Velocity.Zero
-            }
-        }
-    }
-
     AnimatedVisibility(
         visible = visible,
-        enter = fadeIn() + slideInVertically { it },
-        exit = fadeOut() + slideOutVertically { it },
+        enter = fadeIn(animationSpec = tween(180)) + slideInVertically(animationSpec = tween(220, easing = FastOutSlowInEasing)) { it },
+        exit = fadeOut(animationSpec = tween(100)) + slideOutVertically(animationSpec = tween(150, easing = FastOutLinearInEasing)) { it },
         modifier = modifier.fillMaxSize()
     ) {
         // Scrim background: tap empty area to dismiss. Transparent so top video is unobstructed!
@@ -263,7 +224,6 @@ fun PlayerSettingsSheet(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null
                     ) {}
-                    .nestedScroll(nestedScrollConnection)
                     .navigationBarsPadding()
                     .padding(top = 8.dp, bottom = 12.dp)
             ) {

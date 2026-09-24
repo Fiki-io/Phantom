@@ -30,6 +30,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -148,18 +150,21 @@ fun HomeScreen(
         loadFeed(selectedCategory)
     }
 
-    // Automatic infinite scroll engine: monitors scroll state on every frame
-    LaunchedEffect(listState, continuationToken, isLoadingMore, videos.size) {
+    // Automatic infinite scroll engine: monitors scroll state efficiently
+    LaunchedEffect(listState, continuationToken, isLoadingMore, isLoading, isRefreshing) {
         snapshotFlow {
             val layoutInfo = listState.layoutInfo
             val total = layoutInfo.totalItemsCount
             val last = layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
-            total to last
-        }.collect { (total, last) ->
-            if (total > 0 && last >= total - 3 && continuationToken != null && !isLoadingMore && !isLoading && !isRefreshing) {
-                loadMore()
-            }
+            total > 0 && last >= total - 3
         }
+            .distinctUntilChanged()
+            .filter { it }
+            .collect {
+                if (continuationToken != null && !isLoadingMore && !isLoading && !isRefreshing) {
+                    loadMore()
+                }
+            }
     }
 
     Column(

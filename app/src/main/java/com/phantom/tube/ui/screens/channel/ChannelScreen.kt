@@ -59,6 +59,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -214,17 +216,20 @@ fun ChannelScreen(
     val listState = rememberLazyListState()
 
     // Pagination for channel videos on scroll
-    LaunchedEffect(listState) {
+    LaunchedEffect(listState, selectedTabIndex, videoContinuationToken, isLoadingMoreVideos) {
         snapshotFlow {
             val layoutInfo = listState.layoutInfo
             val total = layoutInfo.totalItemsCount
             val last = layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
-            total to last
-        }.collect { (total, last) ->
-            if (selectedTabIndex == 1 && total > 0 && last >= total - 4 && !videoContinuationToken.isNullOrBlank() && !isLoadingMoreVideos) {
-                loadMoreVideos()
-            }
+            total > 0 && last >= total - 4
         }
+            .distinctUntilChanged()
+            .filter { it }
+            .collect {
+                if (selectedTabIndex == 1 && !videoContinuationToken.isNullOrBlank() && !isLoadingMoreVideos) {
+                    loadMoreVideos()
+                }
+            }
     }
 
     Box(

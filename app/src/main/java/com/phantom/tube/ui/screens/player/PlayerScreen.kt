@@ -16,9 +16,14 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.core.FastOutLinearInEasing
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.ui.draw.drawBehind
@@ -661,7 +666,7 @@ fun PlayerScreen(
     var descSheetOffsetY by remember { mutableFloatStateOf(0f) }
     val animatedDescSheetOffsetY by animateFloatAsState(
         targetValue = descSheetOffsetY,
-        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+        animationSpec = spring(stiffness = Spring.StiffnessHigh),
         label = "desc_sheet_offset"
     )
     LaunchedEffect(showDescriptionSheet) {
@@ -677,7 +682,7 @@ fun PlayerScreen(
                 descSheetOffsetY = (descSheetOffsetY + dragAmount).coerceAtLeast(0f)
             },
             onDragEnd = {
-                if (descSheetOffsetY > 180f) {
+                if (descSheetOffsetY > 140f) {
                     showDescriptionSheet = false
                 } else {
                     descSheetOffsetY = 0f
@@ -692,12 +697,34 @@ fun PlayerScreen(
     var commentsSheetOffsetY by remember { mutableFloatStateOf(0f) }
     val animatedCommentsSheetOffsetY by animateFloatAsState(
         targetValue = commentsSheetOffsetY,
-        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+        animationSpec = spring(stiffness = Spring.StiffnessHigh),
         label = "comments_sheet_offset"
     )
     LaunchedEffect(showCommentsSheet) {
         if (showCommentsSheet) {
             commentsSheetOffsetY = 0f
+            if (commentsList.isEmpty() && !isLoadingComments) {
+                val token = commentsContinuationToken ?: nextQueueData?.commentsContinuationToken
+                if (!token.isNullOrBlank()) {
+                    scope.launch {
+                        isLoadingComments = true
+                        try {
+                            val cResult = repository.getComments(token)
+                            commentsList = cResult.comments
+                            if (cResult.totalCountText.isNotBlank()) {
+                                commentsTotalCountText = cResult.totalCountText
+                            } else if (commentsTotalCountText.isBlank()) {
+                                commentsTotalCountText = nextQueueData?.commentsCountText ?: ""
+                            }
+                            commentsContinuationToken = cResult.continuationToken
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                        } finally {
+                            isLoadingComments = false
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -708,7 +735,7 @@ fun PlayerScreen(
                 commentsSheetOffsetY = (commentsSheetOffsetY + dragAmount).coerceAtLeast(0f)
             },
             onDragEnd = {
-                if (commentsSheetOffsetY > 180f) {
+                if (commentsSheetOffsetY > 140f) {
                     showCommentsSheet = false
                 } else {
                     commentsSheetOffsetY = 0f
@@ -751,17 +778,20 @@ fun PlayerScreen(
     }
 
     // Infinite scroll listener for recommendations list below the video
-    LaunchedEffect(lazyListState, recContinuationToken, isLoadingMoreRecs, canLoadMoreRecs, recommendedVideos.size) {
+    LaunchedEffect(lazyListState, recContinuationToken, isLoadingMoreRecs, canLoadMoreRecs) {
         snapshotFlow {
             val layoutInfo = lazyListState.layoutInfo
             val total = layoutInfo.totalItemsCount
             val last = layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
-            total to last
-        }.collect { (total, last) ->
-            if (total > 0 && last >= total - 3 && !isLoadingMoreRecs && !isLoadingQueue && canLoadMoreRecs && recommendedVideos.isNotEmpty()) {
-                loadMoreRecommendations()
-            }
+            total > 0 && last >= total - 3
         }
+            .distinctUntilChanged()
+            .filter { it }
+            .collect {
+                if (!isLoadingMoreRecs && !isLoadingQueue && canLoadMoreRecs && recommendedVideos.isNotEmpty()) {
+                    loadMoreRecommendations()
+                }
+            }
     }
 
     Box(
@@ -1704,7 +1734,7 @@ fun PlayerScreen(
             var mixSheetOffsetY by remember { mutableFloatStateOf(0f) }
             val animatedMixSheetOffsetY by animateFloatAsState(
                 targetValue = mixSheetOffsetY,
-                animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+                animationSpec = spring(stiffness = Spring.StiffnessHigh),
                 label = "mix_sheet_offset"
             )
 
@@ -1721,7 +1751,7 @@ fun PlayerScreen(
                         mixSheetOffsetY = (mixSheetOffsetY + dragAmount).coerceAtLeast(0f)
                     },
                     onDragEnd = {
-                        if (mixSheetOffsetY > 180f) {
+                        if (mixSheetOffsetY > 140f) {
                             showMixSheet = false
                         } else {
                             mixSheetOffsetY = 0f
@@ -1735,8 +1765,8 @@ fun PlayerScreen(
 
             AnimatedVisibility(
                 visible = showMixSheet && !isFullscreen,
-                enter = fadeIn() + slideInVertically { it },
-                exit = fadeOut() + slideOutVertically { it },
+                enter = fadeIn(animationSpec = tween(180)) + slideInVertically(animationSpec = tween(220, easing = FastOutSlowInEasing)) { it },
+                exit = fadeOut(animationSpec = tween(100)) + slideOutVertically(animationSpec = tween(150, easing = FastOutLinearInEasing)) { it },
                 modifier = Modifier
                     .fillMaxSize()
                     .zIndex(5f)
@@ -1943,8 +1973,8 @@ fun PlayerScreen(
         // 5. Deskripsi Bottom Sheet (YouTube standard, non-screen-covering)
         AnimatedVisibility(
             visible = showDescriptionSheet && !isMinimized && !isFullscreen,
-            enter = fadeIn() + slideInVertically { it },
-            exit = fadeOut() + slideOutVertically { it },
+            enter = fadeIn(animationSpec = tween(180)) + slideInVertically(animationSpec = tween(220, easing = FastOutSlowInEasing)) { it },
+            exit = fadeOut(animationSpec = tween(100)) + slideOutVertically(animationSpec = tween(150, easing = FastOutLinearInEasing)) { it },
             modifier = Modifier
                 .fillMaxSize()
                 .zIndex(5f)
@@ -2193,8 +2223,8 @@ fun PlayerScreen(
         // 6. Komentar Bottom Sheet (YouTube standard, non-screen-covering)
         AnimatedVisibility(
             visible = showCommentsSheet && !isMinimized && !isFullscreen,
-            enter = fadeIn() + slideInVertically { it },
-            exit = fadeOut() + slideOutVertically { it },
+            enter = fadeIn(animationSpec = tween(180)) + slideInVertically(animationSpec = tween(220, easing = FastOutSlowInEasing)) { it },
+            exit = fadeOut(animationSpec = tween(100)) + slideOutVertically(animationSpec = tween(150, easing = FastOutLinearInEasing)) { it },
             modifier = Modifier
                 .fillMaxSize()
                 .zIndex(5f)
@@ -2207,26 +2237,29 @@ fun PlayerScreen(
                     val info = commentsLazyState.layoutInfo
                     val total = info.totalItemsCount
                     val last = info.visibleItemsInfo.lastOrNull()?.index ?: 0
-                    total to last
-                }.collect { (total, last) ->
-                    if (total > 0 && last >= total - 3 && !isLoadingComments && !commentsContinuationToken.isNullOrBlank()) {
-                        val token = commentsContinuationToken ?: return@collect
-                        isLoadingComments = true
-                        try {
-                            val res = repository.getComments(token)
-                            if (res.comments.isNotEmpty()) {
-                                val existingIds = commentsList.map { it.id }.toSet()
-                                val fresh = res.comments.filterNot { it.id in existingIds }
-                                commentsList = commentsList + fresh
+                    total > 0 && last >= total - 3
+                }
+                    .distinctUntilChanged()
+                    .filter { it }
+                    .collect {
+                        if (!isLoadingComments && !commentsContinuationToken.isNullOrBlank()) {
+                            val token = commentsContinuationToken ?: return@collect
+                            isLoadingComments = true
+                            try {
+                                val res = repository.getComments(token)
+                                if (res.comments.isNotEmpty()) {
+                                    val existingIds = commentsList.map { it.id }.toSet()
+                                    val fresh = res.comments.filterNot { it.id in existingIds }
+                                    commentsList = commentsList + fresh
+                                }
+                                commentsContinuationToken = res.continuationToken
+                            } catch (e: Exception) {
+                                e.printStackTrace()
+                            } finally {
+                                isLoadingComments = false
                             }
-                            commentsContinuationToken = res.continuationToken
-                        } catch (e: Exception) {
-                            e.printStackTrace()
-                        } finally {
-                            isLoadingComments = false
                         }
                     }
-                }
             }
 
             Box(
@@ -2347,121 +2380,16 @@ fun PlayerScreen(
                                 verticalArrangement = Arrangement.spacedBy(16.dp),
                                 contentPadding = PaddingValues(top = 4.dp, bottom = 24.dp)
                             ) {
-                                items(commentsList, key = { it.id.ifBlank { "${it.authorName}_${it.contentText.hashCode()}" } }) { comment ->
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        verticalAlignment = Alignment.Top
-                                    ) {
-                                        // Author Avatar
-                                        if (comment.authorAvatarUrl.isNotBlank()) {
-                                            AsyncImage(
-                                                model = comment.authorAvatarUrl,
-                                                contentDescription = comment.authorName,
-                                                modifier = Modifier
-                                                    .size(32.dp)
-                                                    .clip(CircleShape),
-                                                contentScale = ContentScale.Crop
-                                            )
-                                        } else {
-                                            Box(
-                                                modifier = Modifier
-                                                    .size(32.dp)
-                                                    .clip(CircleShape)
-                                                    .background(Color(0xFF333333)),
-                                                contentAlignment = Alignment.Center
-                                            ) {
-                                                Text(
-                                                    text = comment.authorName.take(1).uppercase(),
-                                                    color = Color.White,
-                                                    fontSize = 13.sp,
-                                                    fontWeight = FontWeight.Bold
-                                                )
-                                            }
-                                        }
-
-                                        Spacer(modifier = Modifier.width(10.dp))
-
-                                        Column(modifier = Modifier.weight(1f)) {
-                                            // Author handle + Published time
-                                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                                Text(
-                                                    text = comment.authorHandle.ifBlank { comment.authorName },
-                                                    color = TextMuted,
-                                                    fontSize = 11.sp,
-                                                    fontWeight = FontWeight.Medium
-                                                )
-                                                if (comment.publishedTimeText.isNotBlank()) {
-                                                    Text(
-                                                        text = " • ${comment.publishedTimeText}",
-                                                        color = TextMuted,
-                                                        fontSize = 11.sp
-                                                    )
-                                                }
-                                            }
-
-                                            Spacer(modifier = Modifier.height(4.dp))
-
-                                            // Comment content
-                                            Text(
-                                                text = comment.contentText,
-                                                color = TextPrimary,
-                                                fontSize = 13.sp,
-                                                lineHeight = 18.sp
-                                            )
-
-                                            Spacer(modifier = Modifier.height(6.dp))
-
-                                            // Actions: Like count, Dislike, Reply
-                                            Row(
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.spacedBy(16.dp)
-                                            ) {
-                                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                                    Icon(
-                                                        imageVector = Icons.Default.ThumbUp,
-                                                        contentDescription = "Suka",
-                                                        tint = TextMuted,
-                                                        modifier = Modifier.size(14.dp)
-                                                    )
-                                                    if (comment.likeCountText.isNotBlank()) {
-                                                        Spacer(modifier = Modifier.width(4.dp))
-                                                        Text(
-                                                            text = comment.likeCountText,
-                                                            color = TextMuted,
-                                                            fontSize = 11.sp
-                                                        )
-                                                    }
-                                                }
-                                                Icon(
-                                                    imageVector = Icons.Default.ThumbDown,
-                                                    contentDescription = "Tidak suka",
-                                                    tint = TextMuted,
-                                                    modifier = Modifier.size(14.dp)
-                                                )
-                                                Icon(
-                                                    imageVector = Icons.Default.Reply,
-                                                    contentDescription = "Balas",
-                                                    tint = TextMuted,
-                                                    modifier = Modifier.size(14.dp)
-                                                )
-                                            }
-
-                                            // Reply Count Link
-                                            if (comment.replyCountText.isNotBlank()) {
-                                                Spacer(modifier = Modifier.height(6.dp))
-                                                Text(
-                                                    text = "${comment.replyCountText} balasan",
-                                                    color = Color(0xFF3EA6FF),
-                                                    fontSize = 12.sp,
-                                                    fontWeight = FontWeight.SemiBold
-                                                )
-                                            }
-                                        }
-                                    }
+                                items(
+                                    items = commentsList,
+                                    key = { it.id.ifBlank { "${it.authorName}_${it.contentText.hashCode()}" } },
+                                    contentType = { "comment" }
+                                ) { comment ->
+                                    CommentItemRow(comment = comment)
                                 }
 
                                 if (isLoadingComments) {
-                                    item {
+                                    item(key = "loading_more_comments", contentType = "loader") {
                                         Box(
                                             modifier = Modifier
                                                 .fillMaxWidth()
@@ -2471,7 +2399,7 @@ fun PlayerScreen(
                                             CircularProgressIndicator(
                                                 color = YouTubeRed,
                                                 strokeWidth = 2.dp,
-                                                modifier = Modifier.size(20.dp)
+                                                modifier = Modifier.size(24.dp)
                                             )
                                         }
                                     }
@@ -2581,6 +2509,123 @@ fun MixPlaylistItemCard(
                     fontSize = 11.sp,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun CommentItemRow(
+    comment: VideoComment,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.Top
+    ) {
+        // Author Avatar
+        if (comment.authorAvatarUrl.isNotBlank()) {
+            AsyncImage(
+                model = comment.authorAvatarUrl,
+                contentDescription = comment.authorName,
+                modifier = Modifier
+                    .size(32.dp)
+                    .clip(CircleShape),
+                contentScale = ContentScale.Crop
+            )
+        } else {
+            Box(
+                modifier = Modifier
+                    .size(32.dp)
+                    .clip(CircleShape)
+                    .background(Color(0xFF333333)),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = comment.authorName.take(1).uppercase(),
+                    color = Color.White,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.width(10.dp))
+
+        Column(modifier = Modifier.weight(1f)) {
+            // Author handle + Published time
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = comment.authorHandle.ifBlank { comment.authorName },
+                    color = TextMuted,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Medium
+                )
+                if (comment.publishedTimeText.isNotBlank()) {
+                    Text(
+                        text = " • ${comment.publishedTimeText}",
+                        color = TextMuted,
+                        fontSize = 11.sp
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            // Comment content
+            Text(
+                text = comment.contentText,
+                color = TextPrimary,
+                fontSize = 13.sp,
+                lineHeight = 18.sp
+            )
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            // Actions: Like count, Dislike, Reply
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.ThumbUp,
+                        contentDescription = "Suka",
+                        tint = TextMuted,
+                        modifier = Modifier.size(14.dp)
+                    )
+                    if (comment.likeCountText.isNotBlank()) {
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = comment.likeCountText,
+                            color = TextMuted,
+                            fontSize = 11.sp
+                        )
+                    }
+                }
+                Icon(
+                    imageVector = Icons.Default.ThumbDown,
+                    contentDescription = "Tidak suka",
+                    tint = TextMuted,
+                    modifier = Modifier.size(14.dp)
+                )
+                Icon(
+                    imageVector = Icons.Default.Reply,
+                    contentDescription = "Balas",
+                    tint = TextMuted,
+                    modifier = Modifier.size(14.dp)
+                )
+            }
+
+            // Reply Count Link
+            if (comment.replyCountText.isNotBlank()) {
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    text = "${comment.replyCountText} balasan",
+                    color = Color(0xFF3EA6FF),
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold
                 )
             }
         }

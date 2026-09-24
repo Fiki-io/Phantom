@@ -27,7 +27,7 @@ class PhantomApp : Application(), ImageLoaderFactory {
         OkHttpClient.Builder()
             .connectTimeout(10, TimeUnit.SECONDS)
             .readTimeout(10, TimeUnit.SECONDS)
-            .connectionPool(ConnectionPool(8, 5, TimeUnit.MINUTES))
+            .connectionPool(ConnectionPool(16, 5, TimeUnit.MINUTES))
             .cache(Cache(cacheDir.resolve("http_cache"), 40L * 1024 * 1024))
             .build()
     }

@@ -82,8 +82,15 @@ class PhantomRepository(
         return innerTubeClient.fetchWatchNext(videoId, playlistId)
     }
 
+    private val commentsCache = java.util.concurrent.ConcurrentHashMap<String, CommentsResult>()
+
     suspend fun getComments(continuationToken: String): CommentsResult {
-        return innerTubeClient.fetchComments(continuationToken)
+        commentsCache[continuationToken]?.let { return it }
+        val result = innerTubeClient.fetchComments(continuationToken)
+        if (result.comments.isNotEmpty()) {
+            commentsCache[continuationToken] = result
+        }
+        return result
     }
 
     suspend fun getMoreRecommendations(

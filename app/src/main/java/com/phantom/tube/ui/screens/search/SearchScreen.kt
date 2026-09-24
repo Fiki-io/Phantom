@@ -44,6 +44,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -197,17 +199,20 @@ fun SearchScreen(
     }
 
     // Infinite scroll listener: detects when user scrolls near the end of search results
-    LaunchedEffect(searchListState, searchContinuationToken, isLoadingMore, searchResults.size) {
+    LaunchedEffect(searchListState, searchContinuationToken, isLoadingMore, isSearching) {
         snapshotFlow {
             val layoutInfo = searchListState.layoutInfo
             val total = layoutInfo.totalItemsCount
             val last = layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
-            total to last
-        }.collect { (total, last) ->
-            if (total > 0 && last >= total - 3 && searchContinuationToken != null && !isLoadingMore && !isSearching) {
-                loadMoreSearch()
-            }
+            total > 0 && last >= total - 3
         }
+            .distinctUntilChanged()
+            .filter { it }
+            .collect {
+                if (searchContinuationToken != null && !isLoadingMore && !isSearching) {
+                    loadMoreSearch()
+                }
+            }
     }
 
     LaunchedEffect(searchQuery, hasSearched) {

@@ -446,44 +446,47 @@ object InnerTubeParser {
                 }
             }
 
-            // 2. Parse modern framework mutations (commentEntityPayload)
-            val mutations = root.optJSONObject("frameworkUpdates")
-                ?.optJSONObject("entityBatchUpdate")
-                ?.optJSONArray("mutations") ?: JSONArray()
+            // 2. Parse modern framework mutations only if primary endpoints didn't yield comments
+            val finalComments = if (comments.isNotEmpty()) {
+                comments
+            } else {
+                val mutations = root.optJSONObject("frameworkUpdates")
+                    ?.optJSONObject("entityBatchUpdate")
+                    ?.optJSONArray("mutations") ?: JSONArray()
 
-            val mutationComments = mutableListOf<VideoComment>()
-            for (i in 0 until mutations.length()) {
-                val m = mutations.optJSONObject(i) ?: continue
-                val cep = m.optJSONObject("payload")?.optJSONObject("commentEntityPayload") ?: continue
-                val props = cep.optJSONObject("properties")
-                val author = cep.optJSONObject("author")
-                val toolbar = cep.optJSONObject("toolbar")
+                val mutationComments = mutableListOf<VideoComment>()
+                for (i in 0 until mutations.length()) {
+                    val m = mutations.optJSONObject(i) ?: continue
+                    val cep = m.optJSONObject("payload")?.optJSONObject("commentEntityPayload") ?: continue
+                    val props = cep.optJSONObject("properties")
+                    val author = cep.optJSONObject("author")
+                    val toolbar = cep.optJSONObject("toolbar")
 
-                val cId = props?.optString("commentId") ?: ""
-                val content = props?.optJSONObject("content")?.optString("content") ?: ""
-                val published = props?.optString("publishedTime") ?: ""
-                val displayName = author?.optString("displayName") ?: ""
-                val avatarUrl = author?.optString("avatarThumbnailUrl") ?: ""
-                val likes = toolbar?.optString("likeCountNotliked") ?: ""
-                val replies = toolbar?.optString("replyCount") ?: ""
+                    val cId = props?.optString("commentId") ?: ""
+                    val content = props?.optJSONObject("content")?.optString("content") ?: ""
+                    val published = props?.optString("publishedTime") ?: ""
+                    val displayName = author?.optString("displayName") ?: ""
+                    val avatarUrl = author?.optString("avatarThumbnailUrl") ?: ""
+                    val likes = toolbar?.optString("likeCountNotliked") ?: ""
+                    val replies = toolbar?.optString("replyCount") ?: ""
 
-                if (content.isNotBlank()) {
-                    mutationComments.add(
-                        VideoComment(
-                            id = cId,
-                            authorName = displayName,
-                            authorHandle = displayName,
-                            authorAvatarUrl = avatarUrl,
-                            publishedTimeText = published,
-                            contentText = content,
-                            likeCountText = likes,
-                            replyCountText = replies
+                    if (content.isNotBlank()) {
+                        mutationComments.add(
+                            VideoComment(
+                                id = cId,
+                                authorName = displayName,
+                                authorHandle = displayName,
+                                authorAvatarUrl = avatarUrl,
+                                publishedTimeText = published,
+                                contentText = content,
+                                likeCountText = likes,
+                                replyCountText = replies
+                            )
                         )
-                    )
+                    }
                 }
+                mutationComments
             }
-
-            val finalComments = if (comments.isNotEmpty()) comments else mutationComments
 
             return CommentsResult(
                 comments = finalComments,
