@@ -2192,17 +2192,15 @@ fun PlayerScreen(
                             item {
                                 val desc = nextQueueData?.description?.ifBlank { "Tidak ada deskripsi." }
                                     ?: "Tidak ada deskripsi."
-                                SelectionContainer {
-                                    Text(
-                                        text = desc,
-                                        color = TextSecondary,
-                                        fontSize = 13.sp,
-                                        lineHeight = 20.sp,
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(bottom = 24.dp)
-                                    )
-                                }
+                                Text(
+                                    text = desc,
+                                    color = TextSecondary,
+                                    fontSize = 13.sp,
+                                    lineHeight = 20.sp,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(bottom = 24.dp)
+                                )
                             }
                         }
                     }
