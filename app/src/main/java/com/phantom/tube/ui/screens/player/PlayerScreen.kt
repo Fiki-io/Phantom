@@ -1819,10 +1819,12 @@ fun PlayerScreen(
                                 }
                             }
 
-                            Divider(
-                                color = Color(0xFF2E2E2E),
-                                thickness = 1.dp,
-                                modifier = Modifier.padding(vertical = 6.dp)
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 6.dp)
+                                    .height(1.dp)
+                                    .background(Color(0xFF2E2E2E))
                             )
 
                             // Mix Playlist List (Semua lagu lengkap, tidak ada yang di-hide)
@@ -2013,10 +2015,12 @@ fun PlayerScreen(
                             }
                         }
 
-                        Divider(
-                            color = Color(0xFF2E2E2E),
-                            thickness = 1.dp,
-                            modifier = Modifier.padding(vertical = 6.dp)
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 6.dp)
+                                .height(1.dp)
+                                .background(Color(0xFF2E2E2E))
                         )
 
                         LazyColumn(
@@ -2301,10 +2305,12 @@ fun PlayerScreen(
                             }
                         }
 
-                        Divider(
-                            color = Color(0xFF2E2E2E),
-                            thickness = 1.dp,
-                            modifier = Modifier.padding(vertical = 6.dp)
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 6.dp)
+                                .height(1.dp)
+                                .background(Color(0xFF2E2E2E))
                         )
 
                         // Comments List (No write input, display only as requested)
