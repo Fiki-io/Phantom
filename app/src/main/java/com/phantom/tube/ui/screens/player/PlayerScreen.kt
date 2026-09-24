@@ -1616,12 +1616,13 @@ fun PlayerScreen(
     }
 
         // 3. Floating YouTube Mix Bar (Official YouTube mobile bottom dock)
-        if (!isMinimized && !isFullscreen && mixPlaylist.isNotEmpty()) {
+        if (!isMinimized && !isFullscreen && mixPlaylist.isNotEmpty() && !showMixSheet && !showCommentsSheet && !showDescriptionSheet && !showSettingsSheet) {
             val nextVid = if (currentMixIndex < mixPlaylist.lastIndex) mixPlaylist[currentMixIndex + 1] else mixPlaylist.first()
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .align(Alignment.BottomCenter)
+                    .zIndex(4f)
                     .navigationBarsPadding()
                     .padding(start = 12.dp, end = 12.dp, bottom = 10.dp)
                     .clip(RoundedCornerShape(14.dp))
@@ -1765,11 +1766,10 @@ fun PlayerScreen(
                     .fillMaxSize()
                     .zIndex(5f)
             ) {
-                // Scrim background (tap empty area to dismiss)
+                // Scrim background (tap empty area to dismiss). Transparent so video on top continues playing clearly
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(Color.Black.copy(alpha = (0.55f * (1f - (mixSheetOffsetY / 800f)).coerceIn(0.2f, 1f))))
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null
@@ -1780,17 +1780,17 @@ fun PlayerScreen(
                             .fillMaxWidth()
                             .fillMaxHeight(0.72f)
                             .align(Alignment.BottomCenter)
-                            .padding(start = 8.dp, end = 8.dp, bottom = 12.dp)
                             .offset { IntOffset(0, animatedMixSheetOffsetY.roundToInt()) }
-                            .clip(RoundedCornerShape(20.dp))
-                            .background(YouTubeSurface)
-                            .border(1.dp, Color(0x24FFFFFF), RoundedCornerShape(20.dp))
+                            .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
+                            .background(Color(0xFF181818))
+                            .border(1.dp, Color(0x22FFFFFF), RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
                             .clickable(
                                 interactionSource = remember { MutableInteractionSource() },
                                 indication = null
                             ) {}
                             .nestedScroll(mixNestedScrollConnection)
-                            .padding(horizontal = 16.dp, vertical = 12.dp)
+                            .navigationBarsPadding()
+                            .padding(horizontal = 16.dp, vertical = 8.dp)
                     ) {
                         Column(modifier = Modifier.fillMaxSize()) {
                             // Drag Handle with touch target and vertical drag

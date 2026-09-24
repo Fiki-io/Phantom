@@ -14,7 +14,6 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.with
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -27,61 +26,60 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
-import androidx.compose.ui.input.nestedscroll.NestedScrollSource
-import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.unit.IntOffset
-import androidx.compose.ui.unit.Velocity
-import kotlin.math.roundToInt
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.HighQuality
 import androidx.compose.material.icons.filled.Bedtime
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.FastForward
 import androidx.compose.material.icons.filled.Headphones
+import androidx.compose.material.icons.filled.HighQuality
 import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material3.Divider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.phantom.tube.core.theme.ObsidianSurfaceLight
 import com.phantom.tube.core.theme.TextMuted
 import com.phantom.tube.core.theme.TextPrimary
 import com.phantom.tube.core.theme.TextSecondary
 import com.phantom.tube.core.theme.YouTubeRed
-import com.phantom.tube.core.theme.YouTubeSurface
+import kotlin.math.roundToInt
 
 enum class SettingsSheetPage {
     MAIN,
@@ -122,6 +120,11 @@ val AVAILABLE_SEEK_DURATIONS = listOf(5, 10, 15, 20, 30)
 
 val AVAILABLE_SPEEDS = listOf(0.25f, 0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 1.75f, 2.0f)
 
+/**
+ * Standard YouTube Player Settings Bottom Sheet.
+ * Clean, flat list UI without bulky card boxes, with transparent backdrop so the video
+ * continues playing unobstructed at the top of the screen.
+ */
 @OptIn(ExperimentalAnimationApi::class)
 @Composable
 fun PlayerSettingsSheet(
@@ -228,11 +231,10 @@ fun PlayerSettingsSheet(
         exit = fadeOut() + slideOutVertically { it },
         modifier = modifier.fillMaxSize()
     ) {
-        // Scrim background (tap empty area to dismiss)
+        // Scrim background: tap empty area to dismiss. Transparent so top video is unobstructed!
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.Black.copy(alpha = (0.6f * (1f - (sheetOffsetY / 800f)).coerceIn(0.2f, 1f))))
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null
@@ -241,47 +243,46 @@ fun PlayerSettingsSheet(
             val sheetModifier = if (isFullscreen) {
                 Modifier
                     .fillMaxHeight(0.88f)
-                    .width(420.dp)
+                    .width(380.dp)
                     .align(Alignment.CenterEnd)
                     .padding(end = 16.dp)
             } else {
                 Modifier
                     .fillMaxWidth()
-                    .fillMaxHeight(0.68f)
+                    .fillMaxHeight(0.70f)
                     .align(Alignment.BottomCenter)
             }
 
-            val sheetShape = if (isFullscreen) RoundedCornerShape(16.dp) else RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
+            val sheetShape = if (isFullscreen) RoundedCornerShape(16.dp) else RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
             Box(
                 modifier = sheetModifier
                     .offset { IntOffset(0, animatedOffsetY.roundToInt()) }
                     .clip(sheetShape)
-                    .background(YouTubeSurface)
-                    .border(1.dp, Color(0x24FFFFFF), sheetShape)
+                    .background(Color(0xFF212121))
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null
                     ) {}
                     .nestedScroll(nestedScrollConnection)
-                    .padding(horizontal = 18.dp, vertical = 12.dp)
+                    .navigationBarsPadding()
+                    .padding(top = 8.dp, bottom = 12.dp)
             ) {
                 Column(modifier = Modifier.fillMaxSize()) {
                     if (!isFullscreen) {
-                        // Drag Handle with touch target and vertical drag
+                        // Drag Handle
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .then(handleDragModifier)
-                                .padding(vertical = 6.dp),
+                                .padding(vertical = 4.dp),
                             contentAlignment = Alignment.Center
                         ) {
                             Box(
                                 modifier = Modifier
-                                    .size(width = 44.dp, height = 4.dp)
+                                    .size(width = 38.dp, height = 4.dp)
                                     .background(Color.White.copy(alpha = 0.35f), RoundedCornerShape(2.dp))
                             )
                         }
-                        Spacer(modifier = Modifier.height(6.dp))
                     }
 
                     AnimatedContent(
@@ -383,7 +384,9 @@ private fun MainSettingsContent(
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 6.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -393,20 +396,27 @@ private fun MainSettingsContent(
                 fontSize = 17.sp,
                 fontWeight = FontWeight.Bold
             )
-            PhantomIconButton(
-                icon = Icons.Default.Close,
-                contentDescription = "Tutup",
-                size = 36.dp,
-                iconSize = 18.dp,
-                onClick = onClose
-            )
+            IconButton(
+                onClick = onClose,
+                modifier = Modifier.size(32.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Close,
+                    contentDescription = "Tutup",
+                    tint = TextSecondary,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
         }
 
-        Spacer(modifier = Modifier.height(10.dp))
+        Divider(
+            color = Color(0xFF2E2E2E),
+            thickness = 1.dp,
+            modifier = Modifier.padding(bottom = 2.dp)
+        )
 
         LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
+            modifier = Modifier.fillMaxSize()
         ) {
             val qualitySubtitle = when (currentQuality) {
                 "auto" -> "Otomatis"
@@ -427,15 +437,6 @@ private fun MainSettingsContent(
                     title = "Kualitas Video",
                     subtitle = qualitySubtitle,
                     onClick = { onNavigate(SettingsSheetPage.QUALITY) }
-                )
-            }
-
-            item {
-                SettingsNavigationRow(
-                    icon = Icons.Default.FastForward,
-                    title = "Ketuk dua kali untuk mencari",
-                    subtitle = "$doubleTapSeekSeconds Detik",
-                    onClick = { onNavigate(SettingsSheetPage.DOUBLE_TAP_SEEK) }
                 )
             }
 
@@ -464,10 +465,19 @@ private fun MainSettingsContent(
             }
 
             item {
+                SettingsNavigationRow(
+                    icon = Icons.Default.FastForward,
+                    title = "Ketuk dua kali untuk mencari",
+                    subtitle = "$doubleTapSeekSeconds Detik",
+                    onClick = { onNavigate(SettingsSheetPage.DOUBLE_TAP_SEEK) }
+                )
+            }
+
+            item {
                 Divider(
-                    color = Color.White.copy(alpha = 0.08f),
+                    color = Color(0xFF2E2E2E),
                     thickness = 1.dp,
-                    modifier = Modifier.padding(vertical = 8.dp)
+                    modifier = Modifier.padding(vertical = 4.dp)
                 )
             }
 
@@ -512,17 +522,20 @@ private fun DoubleTapSeekSettingsContent(
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            PhantomIconButton(
-                icon = Icons.Default.ArrowBack,
-                contentDescription = "Kembali",
-                size = 36.dp,
-                iconSize = 18.dp,
-                onClick = onBack
-            )
-            Spacer(modifier = Modifier.width(12.dp))
+            IconButton(onClick = onBack, modifier = Modifier.size(36.dp)) {
+                Icon(
+                    imageVector = Icons.Default.ArrowBack,
+                    contentDescription = "Kembali",
+                    tint = TextPrimary,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+            Spacer(modifier = Modifier.width(8.dp))
             Text(
                 text = "Ketuk dua kali untuk mencari",
                 color = TextPrimary,
@@ -531,47 +544,39 @@ private fun DoubleTapSeekSettingsContent(
             )
         }
 
-        Text(
-            text = "Pilih durasi lompatan saat mengetuk layar dua kali.",
-            color = TextMuted,
-            fontSize = 12.sp,
-            modifier = Modifier.padding(start = 6.dp, top = 6.dp, bottom = 12.dp)
+        Divider(
+            color = Color(0xFF2E2E2E),
+            thickness = 1.dp,
+            modifier = Modifier.padding(bottom = 6.dp)
         )
 
         LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
+            modifier = Modifier.fillMaxSize()
         ) {
             items(AVAILABLE_SEEK_DURATIONS) { seconds ->
                 val isSelected = seconds == currentSeconds
                 val label = if (seconds == 10) "$seconds Detik (Bawaan)" else "$seconds Detik"
-                Box(
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(if (isSelected) Color(0xFF2E2E2E) else Color(0xFF1B1B1B))
                         .clickable { onSelectSeconds(seconds) }
-                        .padding(horizontal = 16.dp, vertical = 12.dp)
+                        .padding(horizontal = 20.dp, vertical = 14.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = label,
-                            color = if (isSelected) YouTubeRed else TextPrimary,
-                            fontSize = 14.sp,
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                    Text(
+                        text = label,
+                        color = if (isSelected) YouTubeRed else TextPrimary,
+                        fontSize = 15.sp,
+                        fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
+                    )
+                    if (isSelected) {
+                        Icon(
+                            imageVector = Icons.Default.Check,
+                            contentDescription = "Terpilih",
+                            tint = YouTubeRed,
+                            modifier = Modifier.size(20.dp)
                         )
-                        if (isSelected) {
-                            Icon(
-                                imageVector = Icons.Default.Check,
-                                contentDescription = "Terpilih",
-                                tint = YouTubeRed,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
                     }
                 }
             }
@@ -587,17 +592,20 @@ private fun SpeedSettingsContent(
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            PhantomIconButton(
-                icon = Icons.Default.ArrowBack,
-                contentDescription = "Kembali",
-                size = 36.dp,
-                iconSize = 18.dp,
-                onClick = onBack
-            )
-            Spacer(modifier = Modifier.width(12.dp))
+            IconButton(onClick = onBack, modifier = Modifier.size(36.dp)) {
+                Icon(
+                    imageVector = Icons.Default.ArrowBack,
+                    contentDescription = "Kembali",
+                    tint = TextPrimary,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+            Spacer(modifier = Modifier.width(8.dp))
             Text(
                 text = "Kecepatan Pemutaran",
                 color = TextPrimary,
@@ -606,42 +614,39 @@ private fun SpeedSettingsContent(
             )
         }
 
-        Spacer(modifier = Modifier.height(14.dp))
+        Divider(
+            color = Color(0xFF2E2E2E),
+            thickness = 1.dp,
+            modifier = Modifier.padding(bottom = 6.dp)
+        )
 
         LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
+            modifier = Modifier.fillMaxSize()
         ) {
             items(AVAILABLE_SPEEDS) { speed ->
                 val isSelected = (speed == currentSpeed)
                 val label = if (speed == 1.0f) "1.0x (Normal)" else "${speed}x"
-                Box(
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(if (isSelected) Color(0xFF2E2E2E) else Color(0xFF1B1B1B))
                         .clickable { onSelectSpeed(speed) }
-                        .padding(horizontal = 16.dp, vertical = 12.dp)
+                        .padding(horizontal = 20.dp, vertical = 14.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = label,
-                            color = if (isSelected) YouTubeRed else TextPrimary,
-                            fontSize = 14.sp,
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                    Text(
+                        text = label,
+                        color = if (isSelected) YouTubeRed else TextPrimary,
+                        fontSize = 15.sp,
+                        fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
+                    )
+                    if (isSelected) {
+                        Icon(
+                            imageVector = Icons.Default.Check,
+                            contentDescription = "Terpilih",
+                            tint = YouTubeRed,
+                            modifier = Modifier.size(20.dp)
                         )
-                        if (isSelected) {
-                            Icon(
-                                imageVector = Icons.Default.Check,
-                                contentDescription = "Terpilih",
-                                tint = YouTubeRed,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
                     }
                 }
             }
@@ -658,17 +663,20 @@ private fun SleepTimerSettingsContent(
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            PhantomIconButton(
-                icon = Icons.Default.ArrowBack,
-                contentDescription = "Kembali",
-                size = 36.dp,
-                iconSize = 18.dp,
-                onClick = onBack
-            )
-            Spacer(modifier = Modifier.width(12.dp))
+            IconButton(onClick = onBack, modifier = Modifier.size(36.dp)) {
+                Icon(
+                    imageVector = Icons.Default.ArrowBack,
+                    contentDescription = "Kembali",
+                    tint = TextPrimary,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+            Spacer(modifier = Modifier.width(8.dp))
             Text(
                 text = "Timer tidur",
                 color = TextPrimary,
@@ -677,13 +685,19 @@ private fun SleepTimerSettingsContent(
             )
         }
 
+        Divider(
+            color = Color(0xFF2E2E2E),
+            thickness = 1.dp,
+            modifier = Modifier.padding(bottom = 6.dp)
+        )
+
         if (remainingSec != null && remainingSec > 0) {
-            Spacer(modifier = Modifier.height(10.dp))
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(Color(0xFF272727))
+                    .padding(horizontal = 16.dp, vertical = 6.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(Color(0xFF2C2C2C))
                     .padding(horizontal = 14.dp, vertical = 10.dp)
             ) {
                 Row(
@@ -693,7 +707,7 @@ private fun SleepTimerSettingsContent(
                 ) {
                     Column {
                         Text(
-                            text = "Timer aktif",
+                            text = "Timer tidur aktif",
                             color = YouTubeRed,
                             fontSize = 11.sp,
                             fontWeight = FontWeight.SemiBold
@@ -705,53 +719,47 @@ private fun SleepTimerSettingsContent(
                             fontWeight = FontWeight.Bold
                         )
                     }
-                    PhantomIconButton(
-                        icon = Icons.Default.Close,
-                        contentDescription = "Batalkan Timer",
-                        size = 32.dp,
-                        iconSize = 16.dp,
-                        tint = YouTubeRed,
-                        onClick = { onSelectOption(SleepTimerOption.OFF) }
-                    )
+                    IconButton(
+                        onClick = { onSelectOption(SleepTimerOption.OFF) },
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Batalkan Timer",
+                            tint = YouTubeRed,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
                 }
             }
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
-
         LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
+            modifier = Modifier.fillMaxSize()
         ) {
             items(SleepTimerOption.values()) { option ->
                 val isSelected = option == currentOption
-                Box(
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(if (isSelected) Color(0xFF2E2E2E) else Color(0xFF1B1B1B))
                         .clickable { onSelectOption(option) }
-                        .padding(horizontal = 16.dp, vertical = 12.dp)
+                        .padding(horizontal = 20.dp, vertical = 14.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = option.label,
-                            color = if (isSelected) YouTubeRed else TextPrimary,
-                            fontSize = 14.sp,
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                    Text(
+                        text = option.label,
+                        color = if (isSelected) YouTubeRed else TextPrimary,
+                        fontSize = 15.sp,
+                        fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
+                    )
+                    if (isSelected) {
+                        Icon(
+                            imageVector = Icons.Default.Check,
+                            contentDescription = "Terpilih",
+                            tint = YouTubeRed,
+                            modifier = Modifier.size(20.dp)
                         )
-                        if (isSelected) {
-                            Icon(
-                                imageVector = Icons.Default.Check,
-                                contentDescription = "Terpilih",
-                                tint = YouTubeRed,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
                     }
                 }
             }
@@ -766,52 +774,42 @@ private fun SettingsNavigationRow(
     subtitle: String,
     onClick: () -> Unit
 ) {
-    Box(
+    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(10.dp))
-            .background(Color(0xFF1E1E1E))
-            .clickable { onClick() }
-            .padding(horizontal = 14.dp, vertical = 12.dp)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 18.dp, vertical = 13.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(36.dp)
-                    .background(Color.White.copy(alpha = 0.08f), CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-            Spacer(modifier = Modifier.width(12.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = title,
-                    color = TextPrimary,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Medium
-                )
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = Color.White,
+            modifier = Modifier.size(22.dp)
+        )
+        Spacer(modifier = Modifier.width(18.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                color = TextPrimary,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Normal
+            )
+            if (subtitle.isNotBlank()) {
+                Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = subtitle,
-                    color = TextSecondary,
+                    color = TextMuted,
                     fontSize = 12.sp
                 )
             }
-            Icon(
-                imageVector = Icons.Default.ChevronRight,
-                contentDescription = null,
-                tint = TextMuted,
-                modifier = Modifier.size(20.dp)
-            )
         }
+        Icon(
+            imageVector = Icons.Default.ChevronRight,
+            contentDescription = null,
+            tint = TextMuted,
+            modifier = Modifier.size(20.dp)
+        )
     }
 }
 
@@ -823,57 +821,48 @@ private fun SettingsSwitchRow(
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit
 ) {
-    Box(
+    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(10.dp))
-            .background(Color(0xFF1E1E1E))
-            .padding(horizontal = 14.dp, vertical = 10.dp)
+            .clickable { onCheckedChange(!checked) }
+            .padding(horizontal = 18.dp, vertical = 11.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(36.dp)
-                    .background(Color.White.copy(alpha = 0.08f), CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = if (checked) YouTubeRed else TextMuted,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-            Spacer(modifier = Modifier.width(12.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = title,
-                    color = TextPrimary,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Medium
-                )
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = Color.White,
+            modifier = Modifier.size(22.dp)
+        )
+        Spacer(modifier = Modifier.width(18.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                color = TextPrimary,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Normal
+            )
+            if (subtitle.isNotBlank()) {
+                Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = subtitle,
                     color = TextMuted,
-                    fontSize = 11.sp,
-                    lineHeight = 15.sp
+                    fontSize = 12.sp,
+                    lineHeight = 16.sp
                 )
             }
-            Switch(
-                checked = checked,
-                onCheckedChange = onCheckedChange,
-                colors = SwitchDefaults.colors(
-                    checkedThumbColor = Color.White,
-                    checkedTrackColor = YouTubeRed,
-                    uncheckedThumbColor = TextMuted,
-                    uncheckedTrackColor = ObsidianSurfaceLight,
-                    uncheckedBorderColor = Color.White.copy(alpha = 0.15f)
-                )
-            )
         }
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            colors = SwitchDefaults.colors(
+                checkedThumbColor = Color.White,
+                checkedTrackColor = YouTubeRed,
+                uncheckedThumbColor = Color(0xFF9E9E9E),
+                uncheckedTrackColor = Color(0xFF383838),
+                uncheckedBorderColor = Color.Transparent
+            )
+        )
     }
 }
 
@@ -903,17 +892,20 @@ private fun QualitySettingsContent(
 
     Column(modifier = Modifier.fillMaxSize()) {
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            PhantomIconButton(
-                icon = Icons.Default.ArrowBack,
-                contentDescription = "Kembali",
-                size = 36.dp,
-                iconSize = 18.dp,
-                onClick = onBack
-            )
-            Spacer(modifier = Modifier.width(12.dp))
+            IconButton(onClick = onBack, modifier = Modifier.size(36.dp)) {
+                Icon(
+                    imageVector = Icons.Default.ArrowBack,
+                    contentDescription = "Kembali",
+                    tint = TextPrimary,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+            Spacer(modifier = Modifier.width(8.dp))
             Text(
                 text = "Kualitas Video",
                 color = TextPrimary,
@@ -922,41 +914,38 @@ private fun QualitySettingsContent(
             )
         }
 
-        Spacer(modifier = Modifier.height(14.dp))
+        Divider(
+            color = Color(0xFF2E2E2E),
+            thickness = 1.dp,
+            modifier = Modifier.padding(bottom = 6.dp)
+        )
 
         LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
+            modifier = Modifier.fillMaxSize()
         ) {
             items(options) { opt ->
                 val isSelected = (opt.code == currentQuality)
-                Box(
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(if (isSelected) YouTubeSurface else Color.Transparent)
                         .clickable { onSelectQuality(opt.code) }
-                        .padding(horizontal = 14.dp, vertical = 12.dp)
+                        .padding(horizontal = 20.dp, vertical = 14.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = opt.label,
-                            color = if (isSelected) YouTubeRed else TextPrimary,
-                            fontSize = 14.sp,
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                    Text(
+                        text = opt.label,
+                        color = if (isSelected) YouTubeRed else TextPrimary,
+                        fontSize = 15.sp,
+                        fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
+                    )
+                    if (isSelected) {
+                        Icon(
+                            imageVector = Icons.Default.Check,
+                            contentDescription = "Terpilih",
+                            tint = YouTubeRed,
+                            modifier = Modifier.size(20.dp)
                         )
-                        if (isSelected) {
-                            Icon(
-                                imageVector = Icons.Default.Check,
-                                contentDescription = "Terpilih",
-                                tint = YouTubeRed,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
                     }
                 }
             }
