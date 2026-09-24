@@ -131,9 +131,23 @@ import com.phantom.tube.ui.components.PhantomVideoCard
 import com.phantom.tube.ui.components.PlayerSettingsSheet
 import com.phantom.tube.ui.components.SleepTimerOption
 import com.phantom.tube.ui.components.SponsorSkipPill
+import androidx.compose.material.icons.filled.Reply
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.ThumbDown
+import androidx.compose.material.icons.filled.ThumbUp
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
+import com.phantom.tube.core.database.SubscriptionEntity
+import com.phantom.tube.data.model.VideoComment
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PlayerScreen(
     video: VideoItem,
@@ -172,11 +186,25 @@ fun PlayerScreen(
     var isLoadingMoreRecs by remember { mutableStateOf(false) }
     var canLoadMoreRecs by remember { mutableStateOf(true) }
     var activeAvatarUrl by remember { mutableStateOf(video.channelAvatarUrl) }
+    var nextQueueData by remember { mutableStateOf<NextQueue?>(null) }
+    var commentsList by remember { mutableStateOf<List<VideoComment>>(emptyList()) }
+    var commentsTotalCountText by remember { mutableStateOf("") }
+    var commentsContinuationToken by remember { mutableStateOf<String?>(null) }
+    var isLoadingComments by remember { mutableStateOf(false) }
+    var showDescriptionSheet by remember { mutableStateOf(false) }
+    var showCommentsSheet by remember { mutableStateOf(false) }
 
     LaunchedEffect(video.id) {
         activeAvatarUrl = video.channelAvatarUrl
         recContinuationToken = null
         canLoadMoreRecs = true
+        nextQueueData = null
+        commentsList = emptyList()
+        commentsTotalCountText = ""
+        commentsContinuationToken = null
+        isLoadingComments = false
+        showDescriptionSheet = false
+        showCommentsSheet = false
     }
     var mixTitle by remember { mutableStateOf("") }
     var showMixSheet by remember { mutableStateOf(false) }
@@ -526,6 +554,23 @@ fun PlayerScreen(
                     recContinuationToken = nextData.recommendationsContinuationToken
                     canLoadMoreRecs = true
                     mixTitle = nextData.playlistTitle.ifBlank { "Mix" }
+                    nextQueueData = nextData
+
+                    if (!nextData.commentsContinuationToken.isNullOrBlank()) {
+                        launch {
+                            isLoadingComments = true
+                            try {
+                                val cResult = repository.getComments(nextData.commentsContinuationToken)
+                                commentsList = cResult.comments
+                                commentsTotalCountText = cResult.totalCountText.ifBlank { nextData.commentsCountText }
+                                commentsContinuationToken = cResult.continuationToken
+                            } catch (e: Exception) {
+                                e.printStackTrace()
+                            } finally {
+                                isLoadingComments = false
+                            }
+                        }
+                    }
                 }
                 isLoadingQueue = false
             } else {
@@ -551,7 +596,11 @@ fun PlayerScreen(
     }
 
     BackHandler(enabled = !isMinimized) {
-        if (showSettingsSheet) {
+        if (showDescriptionSheet) {
+            showDescriptionSheet = false
+        } else if (showCommentsSheet) {
+            showCommentsSheet = false
+        } else if (showSettingsSheet) {
             showSettingsSheet = false
         } else if (isFullscreen) {
             val activity = context as? Activity
@@ -1105,8 +1154,11 @@ fun PlayerScreen(
                                 .size(width = 38.dp, height = 4.dp)
                                 .background(TextMuted.copy(alpha = 0.35f), RoundedCornerShape(2.dp))
                         )
+
+                        // 1. Video Title
+                        val activeTitle = nextQueueData?.currentVideo?.title?.ifBlank { video.title } ?: video.title
                         Text(
-                            text = video.title,
+                            text = activeTitle,
                             color = TextPrimary,
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
@@ -1114,6 +1166,52 @@ fun PlayerScreen(
                         )
 
                         Spacer(modifier = Modifier.height(6.dp))
+
+                        // 2. Sub-info row (Handle • Likes • Views • Date • ...selengkapnya)
+                        val activeHandle = nextQueueData?.channelHandle?.let { if (it.startsWith("@")) it else "@$it" }
+                            ?: ""
+                        val activeViews = nextQueueData?.fullViewCountText?.ifBlank { video.viewCountText } ?: video.viewCountText
+                        val activeDate = nextQueueData?.dateText?.ifBlank { video.publishedTimeText } ?: video.publishedTimeText
+                        val activeLikeCount = nextQueueData?.likeCountText ?: ""
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { showDescriptionSheet = true },
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                buildAnnotatedString {
+                                    if (activeHandle.isNotBlank()) {
+                                        append(activeHandle)
+                                        append(" • ")
+                                    }
+                                    if (activeLikeCount.isNotBlank()) {
+                                        append("$activeLikeCount suka • ")
+                                    }
+                                    if (activeViews.isNotBlank()) {
+                                        append("$activeViews • ")
+                                    }
+                                    if (activeDate.isNotBlank()) {
+                                        append("$activeDate • ")
+                                    }
+                                    withStyle(SpanStyle(color = TextPrimary, fontWeight = FontWeight.Bold)) {
+                                        append("...selengkapnya")
+                                    }
+                                },
+                                color = TextMuted,
+                                fontSize = 12.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        // 3. Channel Row (Avatar, Name, Subscriber count, Subscribe button)
+                        val targetChannelId = nextQueueData?.currentVideo?.channelId?.ifBlank { video.channelId } ?: video.channelId
+                        val targetChannelTitle = nextQueueData?.currentVideo?.channelTitle?.ifBlank { video.channelTitle } ?: video.channelTitle
+                        val isSubscribed by repository.isSubscribed(targetChannelId).collectAsState(initial = false)
 
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -1128,10 +1226,10 @@ fun PlayerScreen(
                                         interactionSource = remember { MutableInteractionSource() },
                                         indication = null,
                                         onClick = {
-                                            val targetId = video.channelId.ifBlank { video.channelTitle }
-                                            if (targetId.isNotBlank()) {
+                                            val tId = targetChannelId.ifBlank { targetChannelTitle }
+                                            if (tId.isNotBlank()) {
                                                 onMinimize()
-                                                onChannelClick?.invoke(targetId, video.channelTitle)
+                                                onChannelClick?.invoke(tId, targetChannelTitle)
                                             }
                                         }
                                     )
@@ -1139,7 +1237,7 @@ fun PlayerScreen(
                                 // Channel Avatar
                                 Box(
                                     modifier = Modifier
-                                        .size(40.dp)
+                                        .size(36.dp)
                                         .clip(CircleShape)
                                         .background(
                                             Brush.linearGradient(
@@ -1151,7 +1249,7 @@ fun PlayerScreen(
                                     if (activeAvatarUrl.isNotBlank()) {
                                         AsyncImage(
                                             model = activeAvatarUrl,
-                                            contentDescription = video.channelTitle,
+                                            contentDescription = targetChannelTitle,
                                             modifier = Modifier.matchParentSize().clip(CircleShape),
                                             contentScale = ContentScale.Crop
                                         )
@@ -1160,43 +1258,250 @@ fun PlayerScreen(
                                             imageVector = Icons.Default.PlayArrow,
                                             contentDescription = null,
                                             tint = YouTubeRed,
-                                            modifier = Modifier.size(20.dp)
+                                            modifier = Modifier.size(18.dp)
                                         )
                                     }
                                 }
 
-                                Spacer(modifier = Modifier.width(12.dp))
+                                Spacer(modifier = Modifier.width(10.dp))
 
-                                Column {
+                                Column(modifier = Modifier.weight(1f, fill = false)) {
                                     Text(
-                                        text = video.channelTitle.ifBlank { "Channel" },
+                                        text = targetChannelTitle.ifBlank { "Channel" },
                                         color = TextPrimary,
                                         fontSize = 14.sp,
-                                        fontWeight = FontWeight.SemiBold
+                                        fontWeight = FontWeight.SemiBold,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
                                     )
-                                    if (video.viewCountText.isNotBlank()) {
+                                    val subsText = nextQueueData?.channelSubscriberCountText ?: ""
+                                    if (subsText.isNotBlank()) {
                                         Text(
-                                            text = video.viewCountText,
+                                            text = subsText,
                                             color = TextMuted,
-                                            fontSize = 11.sp
+                                            fontSize = 11.sp,
+                                            maxLines = 1
                                         )
                                     }
                                 }
                             }
 
-                            // Favorite Action Button
-                            PhantomIconButton(
-                                icon = if (isFavorite) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
-                                contentDescription = "Simpan",
-                                size = 42.dp,
-                                iconSize = 22.dp,
-                                tint = if (isFavorite) YouTubeRed else TextPrimary,
-                                onClick = {
-                                    scope.launch {
-                                        repository.toggleFavorite(video, isFavorite)
+                            Spacer(modifier = Modifier.width(8.dp))
+
+                            // Subscribe Button
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(20.dp))
+                                    .background(if (isSubscribed) Color(0xFF272727) else Color.White)
+                                    .clickable {
+                                        scope.launch {
+                                            if (isSubscribed) {
+                                                repository.unsubscribe(targetChannelId)
+                                            } else {
+                                                repository.subscribe(
+                                                    SubscriptionEntity(
+                                                        channelId = targetChannelId,
+                                                        channelTitle = targetChannelTitle,
+                                                        avatarUrl = activeAvatarUrl,
+                                                        subscriberCountText = nextQueueData?.channelSubscriberCountText ?: ""
+                                                    )
+                                                )
+                                            }
+                                        }
+                                    }
+                                    .padding(horizontal = 14.dp, vertical = 7.dp)
+                            ) {
+                                Text(
+                                    text = if (isSubscribed) "Disubscribe" else "Subscribe",
+                                    color = if (isSubscribed) Color.White else Color.Black,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(14.dp))
+
+                        // 4. Action Buttons Row (Like/Dislike total display pill, Bagikan intent pill, Simpan pill)
+                        // User instruction:
+                        // - Like/Dislike: tampilkan total aja gak usah tambah fitur like asli
+                        // - Bagikan: harus punya fungsi
+                        // - Gemini titik tiga: gak usah
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // Like & Dislike Pill
+                            Row(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(20.dp))
+                                    .background(Color(0xFF272727))
+                                    .padding(horizontal = 12.dp, vertical = 7.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.ThumbUp,
+                                    contentDescription = "Suka",
+                                    tint = TextPrimary,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = activeLikeCount.ifBlank { "Suka" },
+                                    color = TextPrimary,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Box(
+                                    modifier = Modifier
+                                        .width(1.dp)
+                                        .height(16.dp)
+                                        .background(Color(0x33FFFFFF))
+                                )
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Icon(
+                                    imageVector = Icons.Default.ThumbDown,
+                                    contentDescription = "Tidak suka",
+                                    tint = TextPrimary,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+
+                            // Bagikan (Share) Pill
+                            Row(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(20.dp))
+                                    .background(Color(0xFF272727))
+                                    .clickable {
+                                        val sendIntent = Intent(Intent.ACTION_SEND).apply {
+                                            type = "text/plain"
+                                            putExtra(Intent.EXTRA_SUBJECT, activeTitle)
+                                            putExtra(Intent.EXTRA_TEXT, "$activeTitle\nhttps://youtu.be/${video.id}")
+                                        }
+                                        val shareIntent = Intent.createChooser(sendIntent, "Bagikan")
+                                        context.startActivity(shareIntent)
+                                    }
+                                    .padding(horizontal = 14.dp, vertical = 7.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Share,
+                                    contentDescription = "Bagikan",
+                                    tint = TextPrimary,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "Bagikan",
+                                    color = TextPrimary,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+
+                            // Simpan (Favorite) Pill
+                            Row(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(20.dp))
+                                    .background(Color(0xFF272727))
+                                    .clickable {
+                                        scope.launch {
+                                            repository.toggleFavorite(video, isFavorite)
+                                        }
+                                    }
+                                    .padding(horizontal = 14.dp, vertical = 7.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = if (isFavorite) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
+                                    contentDescription = "Simpan",
+                                    tint = if (isFavorite) YouTubeRed else TextPrimary,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = if (isFavorite) "Tersimpan" else "Simpan",
+                                    color = if (isFavorite) YouTubeRed else TextPrimary,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(14.dp))
+
+                        // 5. Comments Preview Card (Screenshot 5)
+                        val totalCommentsDisplay = commentsTotalCountText.ifBlank {
+                            nextQueueData?.commentsCountText ?: ""
+                        }
+                        val topCommentSnippet = commentsList.firstOrNull()?.contentText
+                            ?: nextQueueData?.topComment?.contentText
+                            ?: "Ketuk untuk melihat komentar..."
+                        val topCommentAvatar = commentsList.firstOrNull()?.authorAvatarUrl
+                            ?: nextQueueData?.topComment?.authorAvatarUrl
+                            ?: ""
+
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(Color(0xFF212121))
+                                .clickable {
+                                    showCommentsSheet = true
+                                }
+                                .padding(12.dp)
+                        ) {
+                            Column {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "Komentar",
+                                        color = TextPrimary,
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    if (totalCommentsDisplay.isNotBlank()) {
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(
+                                            text = totalCommentsDisplay,
+                                            color = TextMuted,
+                                            fontSize = 12.sp
+                                        )
                                     }
                                 }
-                            )
+
+                                Spacer(modifier = Modifier.height(8.dp))
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    if (topCommentAvatar.isNotBlank()) {
+                                        AsyncImage(
+                                            model = topCommentAvatar,
+                                            contentDescription = null,
+                                            modifier = Modifier
+                                                .size(24.dp)
+                                                .clip(CircleShape),
+                                            contentScale = ContentScale.Crop
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                    }
+                                    Text(
+                                        text = topCommentSnippet,
+                                        color = TextSecondary,
+                                        fontSize = 12.sp,
+                                        maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis,
+                                        lineHeight = 16.sp,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -1614,6 +1919,531 @@ fun PlayerScreen(
                 onAutoplayToggle = { isAutoplayNext = it },
                 onAudioOnlyToggle = { isAudioOnly = it }
             )
+        }
+
+        // 5. Deskripsi Modal Bottom Sheet (Screenshot 2 & 4)
+        if (showDescriptionSheet && !isMinimized) {
+            ModalBottomSheet(
+                onDismissRequest = { showDescriptionSheet = false },
+                containerColor = Color(0xFF1E1E1E),
+                contentColor = TextPrimary,
+                sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                        .navigationBarsPadding()
+                ) {
+                    // Header
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Deskripsi",
+                            color = TextPrimary,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        IconButton(onClick = { showDescriptionSheet = false }) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Tutup",
+                                tint = TextSecondary
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f, fill = false),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        // Title
+                        item {
+                            Text(
+                                text = nextQueueData?.currentVideo?.title?.ifBlank { video.title } ?: video.title,
+                                color = TextPrimary,
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+
+                        // 3 Stat Pill Cards (Likes, Views, Date) - Matches Screenshot 2!
+                        item {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                // 1. Suka
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(Color(0xFF263238).copy(alpha = 0.6f))
+                                        .padding(vertical = 12.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Text(
+                                            text = nextQueueData?.likeCountText?.ifBlank { "-" } ?: "-",
+                                            color = TextPrimary,
+                                            fontSize = 15.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                        Spacer(modifier = Modifier.height(2.dp))
+                                        Text(
+                                            text = "Suka",
+                                            color = TextMuted,
+                                            fontSize = 11.sp
+                                        )
+                                    }
+                                }
+
+                                // 2. Penayangan
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1.3f)
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(Color(0xFF263238).copy(alpha = 0.6f))
+                                        .padding(vertical = 12.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Text(
+                                            text = nextQueueData?.fullViewCountText?.ifBlank { video.viewCountText } ?: "-",
+                                            color = TextPrimary,
+                                            fontSize = 14.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                        Spacer(modifier = Modifier.height(2.dp))
+                                        Text(
+                                            text = "Penayangan",
+                                            color = TextMuted,
+                                            fontSize = 11.sp
+                                        )
+                                    }
+                                }
+
+                                // 3. Tanggal
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(Color(0xFF263238).copy(alpha = 0.6f))
+                                        .padding(vertical = 12.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Text(
+                                            text = nextQueueData?.dateText?.ifBlank { video.publishedTimeText } ?: "-",
+                                            color = TextPrimary,
+                                            fontSize = 13.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                        Spacer(modifier = Modifier.height(2.dp))
+                                        Text(
+                                            text = "Tanggal",
+                                            color = TextMuted,
+                                            fontSize = 11.sp
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        // Channel info card (Screenshot 4)
+                        item {
+                            val targetChannelId = nextQueueData?.currentVideo?.channelId?.ifBlank { video.channelId } ?: video.channelId
+                            val targetChannelTitle = nextQueueData?.currentVideo?.channelTitle?.ifBlank { video.channelTitle } ?: video.channelTitle
+                            val isSubscribed by repository.isSubscribed(targetChannelId).collectAsState(initial = false)
+
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(Color(0xFF2A2A2A).copy(alpha = 0.5f))
+                                    .padding(10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    if (activeAvatarUrl.isNotBlank()) {
+                                        AsyncImage(
+                                            model = activeAvatarUrl,
+                                            contentDescription = targetChannelTitle,
+                                            modifier = Modifier
+                                                .size(36.dp)
+                                                .clip(CircleShape),
+                                            contentScale = ContentScale.Crop
+                                        )
+                                        Spacer(modifier = Modifier.width(10.dp))
+                                    }
+                                    Column {
+                                        Text(
+                                            text = targetChannelTitle,
+                                            color = TextPrimary,
+                                            fontSize = 13.sp,
+                                            fontWeight = FontWeight.SemiBold
+                                        )
+                                        if (nextQueueData?.channelSubscriberCountText?.isNotBlank() == true) {
+                                            Text(
+                                                text = nextQueueData?.channelSubscriberCountText ?: "",
+                                                color = TextMuted,
+                                                fontSize = 11.sp
+                                            )
+                                        }
+                                    }
+                                }
+
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(18.dp))
+                                        .background(if (isSubscribed) Color(0xFF383838) else Color.White)
+                                        .clickable {
+                                            scope.launch {
+                                                if (isSubscribed) {
+                                                    repository.unsubscribe(targetChannelId)
+                                                } else {
+                                                    repository.subscribe(
+                                                        SubscriptionEntity(
+                                                            channelId = targetChannelId,
+                                                            channelTitle = targetChannelTitle,
+                                                            avatarUrl = activeAvatarUrl,
+                                                            subscriberCountText = nextQueueData?.channelSubscriberCountText ?: ""
+                                                        )
+                                                    )
+                                                }
+                                            }
+                                        }
+                                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                                ) {
+                                    Text(
+                                        text = if (isSubscribed) "Disubscribe" else "Subscribe",
+                                        color = if (isSubscribed) Color.White else Color.Black,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+                        }
+
+                        // Full Description Box
+                        item {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(Color(0xFF171D22))
+                                    .padding(14.dp)
+                            ) {
+                                val desc = nextQueueData?.description?.ifBlank { "Tidak ada deskripsi." }
+                                    ?: "Tidak ada deskripsi."
+                                Text(
+                                    text = desc,
+                                    color = TextSecondary,
+                                    fontSize = 13.sp,
+                                    lineHeight = 19.sp
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 6. Komentar Modal Bottom Sheet (Screenshot 3)
+        if (showCommentsSheet && !isMinimized) {
+            val commentsLazyState = rememberLazyListState()
+
+            // Infinite scroll for comments
+            LaunchedEffect(commentsLazyState, commentsContinuationToken, isLoadingComments) {
+                snapshotFlow {
+                    val info = commentsLazyState.layoutInfo
+                    val total = info.totalItemsCount
+                    val last = info.visibleItemsInfo.lastOrNull()?.index ?: 0
+                    total to last
+                }.collect { (total, last) ->
+                    if (total > 0 && last >= total - 3 && !isLoadingComments && !commentsContinuationToken.isNullOrBlank()) {
+                        val token = commentsContinuationToken ?: return@collect
+                        isLoadingComments = true
+                        try {
+                            val res = repository.getComments(token)
+                            if (res.comments.isNotEmpty()) {
+                                val existingIds = commentsList.map { it.id }.toSet()
+                                val fresh = res.comments.filterNot { it.id in existingIds }
+                                commentsList = commentsList + fresh
+                            }
+                            commentsContinuationToken = res.continuationToken
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                        } finally {
+                            isLoadingComments = false
+                        }
+                    }
+                }
+            }
+
+            ModalBottomSheet(
+                onDismissRequest = { showCommentsSheet = false },
+                containerColor = Color(0xFF1E1E1E),
+                contentColor = TextPrimary,
+                sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                        .navigationBarsPadding()
+                ) {
+                    // Header: Komentar + Count + Close button
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = "Komentar",
+                                color = TextPrimary,
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            if (commentsTotalCountText.isNotBlank()) {
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = commentsTotalCountText,
+                                    color = TextMuted,
+                                    fontSize = 14.sp
+                                )
+                            }
+                        }
+                        IconButton(onClick = { showCommentsSheet = false }) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Tutup",
+                                tint = TextSecondary
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    // Filter chips: "Teratas", "Terbaru"
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(Color.White)
+                                .padding(horizontal = 12.dp, vertical = 6.dp)
+                        ) {
+                            Text(
+                                text = "Teratas",
+                                color = Color.Black,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(Color(0xFF2C2C2C))
+                                .padding(horizontal = 12.dp, vertical = 6.dp)
+                        ) {
+                            Text(
+                                text = "Terbaru",
+                                color = TextPrimary,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    // Comments List (No write input, display only as requested)
+                    if (commentsList.isEmpty() && isLoadingComments) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(200.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator(
+                                color = YouTubeRed,
+                                strokeWidth = 2.dp,
+                                modifier = Modifier.size(28.dp)
+                            )
+                        }
+                    } else if (commentsList.isEmpty()) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(160.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "Tidak ada komentar untuk video ini",
+                                color = TextMuted,
+                                fontSize = 13.sp
+                            )
+                        }
+                    } else {
+                        LazyColumn(
+                            state = commentsLazyState,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f, fill = false),
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            items(commentsList, key = { it.id.ifBlank { "${it.authorName}_${it.contentText.hashCode()}" } }) { comment ->
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.Top
+                                ) {
+                                    // Author Avatar
+                                    if (comment.authorAvatarUrl.isNotBlank()) {
+                                        AsyncImage(
+                                            model = comment.authorAvatarUrl,
+                                            contentDescription = comment.authorName,
+                                            modifier = Modifier
+                                                .size(32.dp)
+                                                .clip(CircleShape),
+                                            contentScale = ContentScale.Crop
+                                        )
+                                    } else {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(32.dp)
+                                                .clip(CircleShape)
+                                                .background(Color(0xFF333333)),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(
+                                                text = comment.authorName.take(1).uppercase(),
+                                                color = Color.White,
+                                                fontSize = 13.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        }
+                                    }
+
+                                    Spacer(modifier = Modifier.width(10.dp))
+
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        // Author handle + Published time
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Text(
+                                                text = comment.authorHandle.ifBlank { comment.authorName },
+                                                color = TextMuted,
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.Medium
+                                            )
+                                            if (comment.publishedTimeText.isNotBlank()) {
+                                                Text(
+                                                    text = " • ${comment.publishedTimeText}",
+                                                    color = TextMuted,
+                                                    fontSize = 11.sp
+                                                )
+                                            }
+                                        }
+
+                                        Spacer(modifier = Modifier.height(4.dp))
+
+                                        // Comment content
+                                        Text(
+                                            text = comment.contentText,
+                                            color = TextPrimary,
+                                            fontSize = 13.sp,
+                                            lineHeight = 18.sp
+                                        )
+
+                                        Spacer(modifier = Modifier.height(6.dp))
+
+                                        // Actions: Like count, Dislike, Reply
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(16.dp)
+                                        ) {
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Icon(
+                                                    imageVector = Icons.Default.ThumbUp,
+                                                    contentDescription = "Suka",
+                                                    tint = TextMuted,
+                                                    modifier = Modifier.size(14.dp)
+                                                )
+                                                if (comment.likeCountText.isNotBlank()) {
+                                                    Spacer(modifier = Modifier.width(4.dp))
+                                                    Text(
+                                                        text = comment.likeCountText,
+                                                        color = TextMuted,
+                                                        fontSize = 11.sp
+                                                    )
+                                                }
+                                            }
+                                            Icon(
+                                                imageVector = Icons.Default.ThumbDown,
+                                                contentDescription = "Tidak suka",
+                                                tint = TextMuted,
+                                                modifier = Modifier.size(14.dp)
+                                            )
+                                            Icon(
+                                                imageVector = Icons.Default.Reply,
+                                                contentDescription = "Balas",
+                                                tint = TextMuted,
+                                                modifier = Modifier.size(14.dp)
+                                            )
+                                        }
+
+                                        // Reply Count Link
+                                        if (comment.replyCountText.isNotBlank()) {
+                                            Spacer(modifier = Modifier.height(6.dp))
+                                            Text(
+                                                text = "${comment.replyCountText} balasan",
+                                                color = Color(0xFF3EA6FF),
+                                                fontSize = 12.sp,
+                                                fontWeight = FontWeight.SemiBold
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+
+                            if (isLoadingComments) {
+                                item {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(vertical = 12.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        CircularProgressIndicator(
+                                            color = YouTubeRed,
+                                            strokeWidth = 2.dp,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }

@@ -1,6 +1,7 @@
 package com.phantom.tube.data.innertube
 
 import com.phantom.tube.data.model.ChannelProfile
+import com.phantom.tube.data.model.CommentsResult
 import com.phantom.tube.data.model.FeedResult
 import com.phantom.tube.data.model.NextQueue
 import com.phantom.tube.data.model.VideoItem
@@ -124,6 +125,28 @@ class InnerTubeClient(
         } catch (e: Exception) {
             e.printStackTrace()
             return@withContext FeedResult()
+        }
+    }
+
+    suspend fun fetchComments(continuationToken: String): CommentsResult = withContext(Dispatchers.IO) {
+        try {
+            val bodyJson = JSONObject().apply {
+                put("context", createClientContext())
+                put("continuation", continuationToken)
+            }
+            val request = Request.Builder()
+                .url("https://www.youtube.com/youtubei/v1/next?prettyPrint=false")
+                .header("Content-Type", "application/json")
+                .header("User-Agent", userAgent)
+                .post(bodyJson.toString().toRequestBody(jsonMediaType))
+                .build()
+
+            val response = httpClient.newCall(request).execute()
+            val responseBody = response.body?.string() ?: return@withContext CommentsResult()
+            return@withContext InnerTubeParser.parseComments(responseBody)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            return@withContext CommentsResult()
         }
     }
 

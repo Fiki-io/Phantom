@@ -17,13 +17,41 @@ data class VideoItem(
 )
 
 @Immutable
+data class VideoComment(
+    val id: String = "",
+    val authorName: String = "",
+    val authorHandle: String = "",
+    val authorAvatarUrl: String = "",
+    val publishedTimeText: String = "",
+    val contentText: String = "",
+    val likeCountText: String = "",
+    val replyCountText: String = ""
+)
+
+@Immutable
+data class CommentsResult(
+    val comments: List<VideoComment> = emptyList(),
+    val totalCountText: String = "",
+    val continuationToken: String? = null
+)
+
+@Immutable
 data class NextQueue(
     val currentVideo: VideoItem,
     val mixPlaylist: List<VideoItem> = emptyList(),
     val recommendations: List<VideoItem> = emptyList(),
     val recommendationsContinuationToken: String? = null,
     val playlistTitle: String = "",
-    val currentIndex: Int = 0
+    val currentIndex: Int = 0,
+    val likeCountText: String = "",
+    val fullViewCountText: String = "",
+    val dateText: String = "",
+    val description: String = "",
+    val channelSubscriberCountText: String = "",
+    val channelHandle: String = "",
+    val commentsCountText: String = "",
+    val commentsContinuationToken: String? = null,
+    val topComment: VideoComment? = null
 ) {
     val upNext: List<VideoItem> get() = if (currentIndex < mixPlaylist.lastIndex) mixPlaylist.subList(currentIndex + 1, mixPlaylist.size) else emptyList()
     val mixQueue: List<VideoItem> get() = upNext

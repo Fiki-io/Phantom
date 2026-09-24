@@ -10,6 +10,7 @@ import com.phantom.tube.core.database.WatchHistoryDao
 import com.phantom.tube.core.database.WatchHistoryEntity
 import com.phantom.tube.data.innertube.InnerTubeClient
 import com.phantom.tube.data.model.ChannelProfile
+import com.phantom.tube.data.model.CommentsResult
 import com.phantom.tube.data.model.FeedResult
 import com.phantom.tube.data.model.NextQueue
 import com.phantom.tube.data.model.SponsorSegment
@@ -79,6 +80,10 @@ class PhantomRepository(
 
     suspend fun getWatchNext(videoId: String, playlistId: String? = null): NextQueue? {
         return innerTubeClient.fetchWatchNext(videoId, playlistId)
+    }
+
+    suspend fun getComments(continuationToken: String): CommentsResult {
+        return innerTubeClient.fetchComments(continuationToken)
     }
 
     suspend fun getMoreRecommendations(
