@@ -10,6 +10,9 @@ import android.os.Build
 import android.os.IBinder
 import android.view.WindowManager
 import androidx.activity.compose.BackHandler
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.phantom.tube.player.service.PhantomMediaService
 import com.phantom.tube.data.innertube.parser.InnerTubeHelpers
 import com.phantom.tube.ui.screens.player.components.FloatingMixBar
@@ -200,6 +203,7 @@ fun PlayerScreen(
     var lastSkippedSeconds by remember { mutableIntStateOf(0) }
     var lastSkippedFromSec by remember { mutableFloatStateOf(0f) }
     var lastSkippedCategory by remember { mutableStateOf("sponsor") }
+    var lastTargetSkipEndSec by remember { mutableFloatStateOf(0f) }
     val skippedSegmentUuids = remember(video.id) { mutableSetOf<String>() }
     val undoneSegmentUuids = remember(video.id) { mutableSetOf<String>() }
     var appliedDefaultsVideoId by remember { mutableStateOf<String?>(null) }
@@ -459,6 +463,7 @@ fun PlayerScreen(
                                 if (isOutroValid && current >= seg.startSecond && current < (seg.endSecond - 0.5f)) {
                                     skippedSegmentUuids.add(uuid)
                                     lastSkippedFromSec = current
+                                    lastTargetSkipEndSec = seg.endSecond
                                     lastSkippedSeconds = (seg.endSecond - seg.startSecond).toInt().coerceAtLeast(1)
                                     lastSkippedCategory = seg.category
                                     if (autoSkip) {
@@ -553,6 +558,27 @@ fun PlayerScreen(
             } catch (e: Exception) {
                 e.printStackTrace()
             }
+        }
+    }
+
+    // Enforce Background Playback preference when screen turns off or app leaves foreground
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_STOP) {
+                val isBgAllowed = repository.preferences?.backgroundPlaybackEnabled?.value ?: true
+                val activity = context as? Activity
+                val inPip = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                    activity?.isInPictureInPictureMode == true
+                } else false
+                if (!isBgAllowed && !inPip) {
+                    controller.pause()
+                }
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
         }
     }
 
@@ -1023,10 +1049,16 @@ fun PlayerScreen(
             }
 
             // Layer 3: Floating Sponsor Skip Pill
+            val isManualSkipMode = !(repository.preferences?.sponsorBlockAutoSkip?.value ?: true)
             SponsorSkipPill(
                 visible = showSponsorPill,
                 skippedSeconds = lastSkippedSeconds,
                 category = lastSkippedCategory,
+                isManualMode = isManualSkipMode,
+                onSkip = {
+                    controller.seekTo(lastTargetSkipEndSec)
+                    showSponsorPill = false
+                },
                 modifier = Modifier
                     .align(Alignment.TopCenter)
                     .padding(top = 16.dp),

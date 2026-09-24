@@ -38,8 +38,10 @@ fun SponsorSkipPill(
     visible: Boolean,
     skippedSeconds: Int,
     category: String = "sponsor",
-    modifier: Modifier = Modifier,
-    onUndo: () -> Unit
+    isManualMode: Boolean = false,
+    onSkip: () -> Unit = {},
+    onUndo: () -> Unit = {},
+    modifier: Modifier = Modifier
 ) {
     val categoryLabel = when (category) {
         "intro" -> "Intro"
@@ -76,7 +78,7 @@ fun SponsorSkipPill(
                 Spacer(modifier = Modifier.width(8.dp))
 
                 Text(
-                    text = "$categoryLabel dilewati (${skippedSeconds}d)",
+                    text = if (isManualMode) "$categoryLabel terdeteksi (${skippedSeconds}d)" else "$categoryLabel dilewati (${skippedSeconds}d)",
                     color = TextPrimary,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Medium
@@ -84,28 +86,47 @@ fun SponsorSkipPill(
 
                 Spacer(modifier = Modifier.width(12.dp))
 
-                // Undo Button
-                Row(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(Color(0xFF2E2E2E))
-                        .clickable(onClick = onUndo)
-                        .padding(horizontal = 8.dp, vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Undo,
-                        contentDescription = "Batalkan",
-                        tint = Color.White,
-                        modifier = Modifier.size(13.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = "Batal",
-                        color = Color.White,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold
-                    )
+                if (isManualMode) {
+                    // Manual Skip Button
+                    Row(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(YouTubeRed)
+                            .clickable(onClick = onSkip)
+                            .padding(horizontal = 10.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Lewati",
+                            color = Color.White,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                } else {
+                    // Undo Button
+                    Row(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(Color(0xFF2E2E2E))
+                            .clickable(onClick = onUndo)
+                            .padding(horizontal = 8.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Undo,
+                            contentDescription = "Batalkan",
+                            tint = Color.White,
+                            modifier = Modifier.size(13.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "Batal",
+                            color = Color.White,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
             }
         }
