@@ -117,9 +117,19 @@ fun ChannelScreen(
     fun loadChannelData(sortToken: String? = null) {
         scope.launch {
             if (sortToken != null) {
+                isLoadingMoreVideos = true
                 val contResult = repository.getChannelVideosContinuation(sortToken)
-                videoTabVideos = contResult.videos
+                val chTitle = profile?.title ?: initialChannelTitle
+                val chAvatar = profile?.avatarUrl ?: ""
+                videoTabVideos = contResult.videos.map {
+                    it.copy(
+                        channelTitle = if (it.channelTitle.isNotBlank()) it.channelTitle else chTitle,
+                        channelAvatarUrl = if (it.channelAvatarUrl.isNotBlank()) it.channelAvatarUrl else chAvatar,
+                        channelId = if (it.channelId.isNotBlank()) it.channelId else channelId
+                    )
+                }
                 videoContinuationToken = contResult.continuationToken
+                isLoadingMoreVideos = false
             } else {
                 isLoading = true
                 val res = repository.getChannel(channelId)
@@ -143,7 +153,15 @@ fun ChannelScreen(
                         // Load video tab specifically
                         val vTabRes = repository.getChannel(channelId, params = res.videoTabParams)
                         if (vTabRes != null && vTabRes.videos.isNotEmpty()) {
-                            videoTabVideos = vTabRes.videos
+                            val chTitle = res.title.ifBlank { initialChannelTitle }
+                            val chAvatar = res.avatarUrl
+                            videoTabVideos = vTabRes.videos.map {
+                                it.copy(
+                                    channelTitle = if (it.channelTitle.isNotBlank()) it.channelTitle else chTitle,
+                                    channelAvatarUrl = if (it.channelAvatarUrl.isNotBlank()) it.channelAvatarUrl else chAvatar,
+                                    channelId = if (it.channelId.isNotBlank()) it.channelId else channelId
+                                )
+                            }
                             videoContinuationToken = vTabRes.continuationToken
                             if (vTabRes.sortChips.isNotEmpty()) {
                                 sortChips = vTabRes.sortChips
@@ -156,38 +174,55 @@ fun ChannelScreen(
         }
     }
 
+    fun loadMoreVideos() {
+        val token = videoContinuationToken
+        if (token.isNullOrBlank() || isLoadingMoreVideos) return
+        isLoadingMoreVideos = true
+        scope.launch {
+            try {
+                val nextResult = repository.getChannelVideosContinuation(token)
+                if (nextResult.videos.isNotEmpty()) {
+                    val currentIds = videoTabVideos.map { it.id }.toSet()
+                    val chTitle = profile?.title ?: initialChannelTitle
+                    val chAvatar = profile?.avatarUrl ?: ""
+                    val uniqueNew = nextResult.videos
+                        .filter { it.id !in currentIds }
+                        .map {
+                            it.copy(
+                                channelTitle = if (it.channelTitle.isNotBlank()) it.channelTitle else chTitle,
+                                channelAvatarUrl = if (it.channelAvatarUrl.isNotBlank()) it.channelAvatarUrl else chAvatar,
+                                channelId = if (it.channelId.isNotBlank()) it.channelId else channelId
+                            )
+                        }
+                    videoTabVideos = videoTabVideos + uniqueNew
+                    videoContinuationToken = nextResult.continuationToken
+                } else {
+                    videoContinuationToken = null
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            } finally {
+                isLoadingMoreVideos = false
+            }
+        }
+    }
+
     LaunchedEffect(channelId) {
         loadChannelData()
     }
 
     val listState = rememberLazyListState()
 
-    // Pagination for videos
-    LaunchedEffect(listState, videoContinuationToken, isLoadingMoreVideos) {
+    // Pagination for channel videos on scroll
+    LaunchedEffect(listState) {
         snapshotFlow {
             val layoutInfo = listState.layoutInfo
-            val totalItems = layoutInfo.totalItemsCount
-            val lastVisible = layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
-            totalItems > 0 && lastVisible >= totalItems - 4
-        }.collect { shouldLoadMore ->
-            val token = videoContinuationToken
-            if (shouldLoadMore && !token.isNullOrBlank() && !isLoadingMoreVideos) {
-                isLoadingMoreVideos = true
-                try {
-                    val nextResult = repository.getChannelVideosContinuation(token)
-                    if (nextResult.videos.isNotEmpty()) {
-                        val currentIds = videoTabVideos.map { it.id }.toSet()
-                        val uniqueNew = nextResult.videos.filter { it.id !in currentIds }
-                        videoTabVideos = videoTabVideos + uniqueNew
-                        videoContinuationToken = nextResult.continuationToken
-                    } else {
-                        videoContinuationToken = null
-                    }
-                } catch (e: Exception) {
-                    e.printStackTrace()
-                } finally {
-                    isLoadingMoreVideos = false
-                }
+            val total = layoutInfo.totalItemsCount
+            val last = layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
+            total to last
+        }.collect { (total, last) ->
+            if (selectedTabIndex == 1 && total > 0 && last >= total - 4 && !videoContinuationToken.isNullOrBlank() && !isLoadingMoreVideos) {
+                loadMoreVideos()
             }
         }
     }
@@ -556,6 +591,9 @@ fun ChannelScreen(
                                                 selectedSortChip = chip.title
                                                 if (chip.continuationToken.isNotBlank()) {
                                                     loadChannelData(sortToken = chip.continuationToken)
+                                                    scope.launch {
+                                                        listState.animateScrollToItem(3)
+                                                    }
                                                 }
                                             }
                                             .padding(horizontal = 14.dp, vertical = 6.dp)
@@ -597,7 +635,8 @@ fun ChannelScreen(
                         }
                     } else {
                         // TAB "BERANDA" (Photo 1 & Photo 3)
-                        if (videoTabVideos.isNotEmpty()) {
+                        val featured = chan?.featuredVideo ?: chan?.homeVideos?.firstOrNull() ?: videoTabVideos.firstOrNull()
+                        if (featured != null) {
                             // "Untuk Anda" Section
                             item(key = "for_you_header") {
                                 Text(
@@ -609,17 +648,25 @@ fun ChannelScreen(
                                 )
                             }
 
-                            // Featured video (Full width card)
-                            item(key = "featured_first_video") {
+                            // Featured video (Full width card matching official YouTube UI)
+                            item(key = "featured_for_you_video_${featured.id}") {
                                 Box(modifier = Modifier.padding(horizontal = 16.dp)) {
                                     PhantomVideoCard(
-                                        video = videoTabVideos.first(),
-                                        onClick = { onVideoClick(videoTabVideos.first()) }
+                                        video = featured,
+                                        onClick = { onVideoClick(featured) }
                                     )
                                 }
                             }
+                        }
 
-                            // "Rilis Terbaru" section header
+                        // "Video Terbaru" / Channel Shelves
+                        val homeList = if (chan?.homeVideos?.isNotEmpty() == true) {
+                            chan.homeVideos.filter { it.id != featured?.id }
+                        } else {
+                            videoTabVideos.filter { it.id != featured?.id }
+                        }
+
+                        if (homeList.isNotEmpty()) {
                             item(key = "recent_releases_header") {
                                 Text(
                                     text = "Video Terbaru",
@@ -630,8 +677,7 @@ fun ChannelScreen(
                                 )
                             }
 
-                            // Remaining videos in horizontal card style
-                            items(videoTabVideos.drop(1), key = { it.id }) { video ->
+                            items(homeList, key = { "home_vid_${it.id}" }) { video ->
                                 ChannelVideoHorizontalItem(
                                     video = video,
                                     onClick = { onVideoClick(video) }

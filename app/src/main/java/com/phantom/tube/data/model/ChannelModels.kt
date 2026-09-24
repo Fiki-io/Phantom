@@ -22,6 +22,7 @@ data class ChannelProfile(
     val externalLinksText: String = "",
     val isVerified: Boolean = false,
     val featuredVideo: VideoItem? = null,
+    val homeVideos: List<VideoItem> = emptyList(),
     val videos: List<VideoItem> = emptyList(),
     val continuationToken: String? = null,
     val videoTabParams: String? = null,
