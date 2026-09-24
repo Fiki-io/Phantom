@@ -1302,7 +1302,8 @@ fun PlayerScreen(
                                                     SubscriptionEntity(
                                                         channelId = targetChannelId,
                                                         channelTitle = targetChannelTitle,
-                                                        avatarUrl = activeAvatarUrl,
+                                                        channelHandle = nextQueueData?.channelHandle ?: "",
+                                                        channelAvatarUrl = activeAvatarUrl,
                                                         subscriberCountText = nextQueueData?.channelSubscriberCountText ?: ""
                                                     )
                                                 )
@@ -2121,7 +2122,8 @@ fun PlayerScreen(
                                                         SubscriptionEntity(
                                                             channelId = targetChannelId,
                                                             channelTitle = targetChannelTitle,
-                                                            avatarUrl = activeAvatarUrl,
+                                                            channelHandle = nextQueueData?.channelHandle ?: "",
+                                                            channelAvatarUrl = activeAvatarUrl,
                                                             subscriberCountText = nextQueueData?.channelSubscriberCountText ?: ""
                                                         )
                                                     )
