@@ -1,5 +1,6 @@
 package com.phantom.tube.ui.components
 
+import androidx.compose.foundation.border
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -44,10 +45,15 @@ fun PhantomIconButton(
     val isPressed by interactionSource.collectIsPressedAsState()
     val scale by animateFloatAsState(if (isPressed) 0.92f else 1.0f, label = "button_scale")
 
+    val borderModifier = if (accentGlow != null && accentGlow != Color.Transparent) {
+        Modifier.border(1.dp, accentGlow.copy(alpha = if (isPressed) 0.6f else 0.35f), shape)
+    } else Modifier
+
     Box(
         modifier = modifier
             .size(size)
             .scale(scale)
+            .then(borderModifier)
             .clip(shape)
             .background(
                 if (isPressed) Color(0x33FFFFFF) else Color(0x0FFFFFFF)

@@ -11,6 +11,10 @@ import android.os.IBinder
 import android.view.WindowManager
 import androidx.activity.compose.BackHandler
 import com.phantom.tube.player.service.PhantomMediaService
+import com.phantom.tube.ui.screens.player.components.FloatingMixBar
+import com.phantom.tube.ui.screens.player.components.PlayerCommentsSheet
+import com.phantom.tube.ui.screens.player.components.PlayerDescriptionSheet
+import com.phantom.tube.ui.screens.player.components.PlayerMixSheet
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -298,8 +302,11 @@ fun PlayerScreen(
             currentOnPlayNextVideo(prevVid)
             true
         } else {
-            controller.seekTo(0f)
-            false
+            val handled = currentOnPlayPreviousVideo()
+            if (!handled) {
+                controller.seekTo(0f)
+            }
+            handled
         }
     }
 
@@ -326,6 +333,18 @@ fun PlayerScreen(
                     2 -> {
                         playerState = playerState.copy(isPlaying = false, isBuffering = false)
                         mediaService?.updatePlaybackState(false, (playerState.currentTimeSec * 1000).toLong())
+                        val activeVid = currentVideo
+                        val pos = playerState.currentTimeSec
+                        val dur = playerState.durationSec
+                        if (pos > 1f) {
+                            scope.launch {
+                                repository.recordWatch(
+                                    video = activeVid,
+                                    positionMs = (pos * 1000).toLong(),
+                                    durationMs = (dur * 1000).toLong()
+                                )
+                            }
+                        }
                     }
                     3 -> playerState = playerState.copy(isBuffering = true)
                     0 -> {
@@ -343,21 +362,6 @@ fun PlayerScreen(
                             sleepTimerRemainingSec = null
                         } else if (isAutoplayNext) {
                             playNext()
-                        }
-                    }
-                    2 -> {
-                        // PAUSED: record exact position once
-                        val activeVid = currentVideo
-                        val pos = playerState.currentTimeSec
-                        val dur = playerState.durationSec
-                        if (pos > 1f) {
-                            scope.launch {
-                                repository.recordWatch(
-                                    video = activeVid,
-                                    positionMs = (pos * 1000).toLong(),
-                                    durationMs = (dur * 1000).toLong()
-                                )
-                            }
                         }
                     }
                 }
@@ -619,7 +623,7 @@ fun PlayerScreen(
         } else if (showMixSheet) {
             showMixSheet = false
         } else {
-            onMinimize()
+            onBackClick()
         }
     }
 
@@ -663,46 +667,8 @@ fun PlayerScreen(
         }
     } else Modifier
 
-    var descSheetOffsetY by remember { mutableFloatStateOf(0f) }
-    val animatedDescSheetOffsetY by animateFloatAsState(
-        targetValue = descSheetOffsetY,
-        animationSpec = spring(stiffness = Spring.StiffnessHigh),
-        label = "desc_sheet_offset"
-    )
-    LaunchedEffect(showDescriptionSheet) {
-        if (showDescriptionSheet) {
-            descSheetOffsetY = 0f
-        }
-    }
-
-    val descHandleDragModifier = Modifier.pointerInput(Unit) {
-        detectVerticalDragGestures(
-            onVerticalDrag = { change, dragAmount ->
-                change.consume()
-                descSheetOffsetY = (descSheetOffsetY + dragAmount).coerceAtLeast(0f)
-            },
-            onDragEnd = {
-                if (descSheetOffsetY > 140f) {
-                    showDescriptionSheet = false
-                } else {
-                    descSheetOffsetY = 0f
-                }
-            },
-            onDragCancel = {
-                descSheetOffsetY = 0f
-            }
-        )
-    }
-
-    var commentsSheetOffsetY by remember { mutableFloatStateOf(0f) }
-    val animatedCommentsSheetOffsetY by animateFloatAsState(
-        targetValue = commentsSheetOffsetY,
-        animationSpec = spring(stiffness = Spring.StiffnessHigh),
-        label = "comments_sheet_offset"
-    )
     LaunchedEffect(showCommentsSheet) {
         if (showCommentsSheet) {
-            commentsSheetOffsetY = 0f
             if (commentsList.isEmpty() && !isLoadingComments) {
                 val token = commentsContinuationToken ?: nextQueueData?.commentsContinuationToken
                 if (!token.isNullOrBlank()) {
@@ -726,25 +692,6 @@ fun PlayerScreen(
                 }
             }
         }
-    }
-
-    val commentsHandleDragModifier = Modifier.pointerInput(Unit) {
-        detectVerticalDragGestures(
-            onVerticalDrag = { change, dragAmount ->
-                change.consume()
-                commentsSheetOffsetY = (commentsSheetOffsetY + dragAmount).coerceAtLeast(0f)
-            },
-            onDragEnd = {
-                if (commentsSheetOffsetY > 140f) {
-                    showCommentsSheet = false
-                } else {
-                    commentsSheetOffsetY = 0f
-                }
-            },
-            onDragCancel = {
-                commentsSheetOffsetY = 0f
-            }
-        )
     }
 
     val loadMoreRecommendations: () -> Unit = {
@@ -1661,236 +1608,37 @@ fun PlayerScreen(
         // 3. Floating YouTube Mix Bar (Official YouTube mobile bottom dock)
         if (!isMinimized && !isFullscreen && mixPlaylist.isNotEmpty() && !showMixSheet && !showCommentsSheet && !showDescriptionSheet && !showSettingsSheet) {
             val nextVid = if (currentMixIndex < mixPlaylist.lastIndex) mixPlaylist[currentMixIndex + 1] else mixPlaylist.first()
-            Box(
+            FloatingMixBar(
+                nextVideo = nextVid,
+                mixTitle = mixTitle,
+                onClick = {
+                    showCommentsSheet = false
+                    showDescriptionSheet = false
+                    showSettingsSheet = false
+                    showMixSheet = true
+                },
                 modifier = Modifier
-                    .fillMaxWidth()
                     .align(Alignment.BottomCenter)
                     .zIndex(4f)
                     .navigationBarsPadding()
                     .padding(start = 12.dp, end = 12.dp, bottom = 10.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(Color(0xFF212121))
-                    .clickable {
-                        showCommentsSheet = false
-                        showDescriptionSheet = false
-                        showSettingsSheet = false
-                        showMixSheet = true
-                    }
-                    .padding(horizontal = 14.dp, vertical = 8.dp)
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(34.dp)
-                            .background(YouTubeRed.copy(alpha = 0.15f), CircleShape),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.QueueMusic,
-                            contentDescription = null,
-                            tint = YouTubeRed,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.width(10.dp))
-
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "Berikutnya: ${nextVid.title}",
-                            color = TextPrimary,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(
-                            text = mixTitle.ifBlank { "Mix" },
-                            color = TextSecondary,
-                            fontSize = 11.sp,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.width(8.dp))
-
-                    Icon(
-                        imageVector = Icons.Default.ExpandLess,
-                        contentDescription = "Buka Antrean",
-                        tint = TextSecondary,
-                        modifier = Modifier.size(22.dp)
-                    )
-                }
-            }
+            )
         }
 
         // 4. FLOATING MIX QUEUE SHEET (Only in full player mode)
         if (!isMinimized) {
-            var mixSheetOffsetY by remember { mutableFloatStateOf(0f) }
-            val animatedMixSheetOffsetY by animateFloatAsState(
-                targetValue = mixSheetOffsetY,
-                animationSpec = spring(stiffness = Spring.StiffnessHigh),
-                label = "mix_sheet_offset"
-            )
-
-            LaunchedEffect(showMixSheet) {
-                if (showMixSheet) {
-                    mixSheetOffsetY = 0f
-                }
-            }
-
-            val mixHandleDragModifier = Modifier.pointerInput(Unit) {
-                detectVerticalDragGestures(
-                    onVerticalDrag = { change, dragAmount ->
-                        change.consume()
-                        mixSheetOffsetY = (mixSheetOffsetY + dragAmount).coerceAtLeast(0f)
-                    },
-                    onDragEnd = {
-                        if (mixSheetOffsetY > 140f) {
-                            showMixSheet = false
-                        } else {
-                            mixSheetOffsetY = 0f
-                        }
-                    },
-                    onDragCancel = {
-                        mixSheetOffsetY = 0f
-                    }
-                )
-            }
-
-            AnimatedVisibility(
-                visible = showMixSheet && !isFullscreen,
-                enter = fadeIn(animationSpec = tween(180)) + slideInVertically(animationSpec = tween(220, easing = FastOutSlowInEasing)) { it },
-                exit = fadeOut(animationSpec = tween(100)) + slideOutVertically(animationSpec = tween(150, easing = FastOutLinearInEasing)) { it },
+            PlayerMixSheet(
+                visible = showMixSheet,
+                isFullscreen = isFullscreen,
+                mixTitle = mixTitle,
+                mixPlaylist = mixPlaylist,
+                currentMixIndex = currentMixIndex,
+                onVideoSelect = { index -> playFromMix(index) },
+                onDismiss = { showMixSheet = false },
                 modifier = Modifier
                     .fillMaxSize()
                     .zIndex(5f)
-            ) {
-                // Scrim background (tap empty area to dismiss). Transparent so video on top continues playing clearly
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null
-                        ) { showMixSheet = false }
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .fillMaxHeight(0.72f)
-                            .align(Alignment.BottomCenter)
-                            .offset { IntOffset(0, animatedMixSheetOffsetY.roundToInt()) }
-                            .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
-                            .background(Color(0xFF212121))
-                            .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = null
-                            ) {}
-                            .navigationBarsPadding()
-                            .padding(horizontal = 16.dp, vertical = 8.dp)
-                    ) {
-                        Column(modifier = Modifier.fillMaxSize()) {
-                            // Drag Handle with touch target and vertical drag
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .then(mixHandleDragModifier)
-                                    .padding(vertical = 4.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(width = 38.dp, height = 4.dp)
-                                        .background(Color.White.copy(alpha = 0.35f), RoundedCornerShape(2.dp))
-                                )
-                            }
-
-                            Spacer(modifier = Modifier.height(4.dp))
-
-                            // Header Bar (also supports dragging down to close)
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .then(mixHandleDragModifier),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = mixTitle.ifBlank { "Mix" },
-                                        color = TextPrimary,
-                                        fontSize = 17.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        maxLines = 1
-                                    )
-                                    Text(
-                                        text = if (mixPlaylist.isNotEmpty()) "${currentMixIndex + 1} / ${mixPlaylist.size}" else "${currentMixIndex + 1}",
-                                        color = TextSecondary,
-                                        fontSize = 12.sp
-                                    )
-                                }
-
-                                IconButton(
-                                    onClick = { showMixSheet = false },
-                                    modifier = Modifier.size(32.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Close,
-                                        contentDescription = "Tutup",
-                                        tint = TextSecondary,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                }
-                            }
-
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 6.dp)
-                                    .height(1.dp)
-                                    .background(Color(0xFF2E2E2E))
-                            )
-
-                            // Mix Playlist List (Semua lagu lengkap, tidak ada yang di-hide)
-                            val listState = rememberLazyListState()
-                            LaunchedEffect(showMixSheet) {
-                                if (showMixSheet && currentMixIndex in mixPlaylist.indices) {
-                                    listState.animateScrollToItem(currentMixIndex)
-                                }
-                            }
-
-                            LazyColumn(
-                                state = listState,
-                                modifier = Modifier.fillMaxSize(),
-                                verticalArrangement = Arrangement.spacedBy(8.dp),
-                                contentPadding = PaddingValues(start = 0.dp, top = 0.dp, end = 0.dp, bottom = 24.dp)
-                            ) {
-                                itemsIndexed(
-                                    items = mixPlaylist,
-                                    key = { index, item -> "mix_${item.id}_$index" },
-                                    contentType = { _, _ -> "mix_item" }
-                                ) { index, item ->
-                                    val isCurrent = index == currentMixIndex
-                                    MixPlaylistItemCard(
-                                        index = index + 1,
-                                        video = item,
-                                        isCurrent = isCurrent,
-                                        onClick = {
-                                            playFromMix(index)
-                                        }
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+            )
         }
 
         // 5. PERSISTENT LIQUID GLASS MINIPLAYER (Animated enter & exit)
@@ -1925,7 +1673,7 @@ fun PlayerScreen(
             )
         }
 
-        // 4. Liquid Glass Player Settings Sheet (Speed, Double Tap Seek, Sleep Timer, Repeat, Autoplay, Audio-Only)
+        // 6. Liquid Glass Player Settings Sheet (Speed, Double Tap Seek, Sleep Timer, Repeat, Autoplay, Audio-Only)
         if (!isMinimized) {
             Box(
                 modifier = Modifier
@@ -1970,664 +1718,77 @@ fun PlayerScreen(
             }
         }
 
-        // 5. Deskripsi Bottom Sheet (YouTube standard, non-screen-covering)
-        AnimatedVisibility(
-            visible = showDescriptionSheet && !isMinimized && !isFullscreen,
-            enter = fadeIn(animationSpec = tween(180)) + slideInVertically(animationSpec = tween(220, easing = FastOutSlowInEasing)) { it },
-            exit = fadeOut(animationSpec = tween(100)) + slideOutVertically(animationSpec = tween(150, easing = FastOutLinearInEasing)) { it },
+        // 7. Deskripsi Bottom Sheet (YouTube standard, non-screen-covering)
+        val descTargetChannelId = nextQueueData?.currentVideo?.channelId?.ifBlank { video.channelId } ?: video.channelId
+        val descTargetChannelTitle = nextQueueData?.currentVideo?.channelTitle?.ifBlank { video.channelTitle } ?: video.channelTitle
+        val descCurrentAvatar = nextQueueData?.currentVideo?.channelAvatarUrl?.ifBlank { activeAvatarUrl } ?: activeAvatarUrl
+        val isDescSubscribed by repository.isSubscribed(descTargetChannelId).collectAsState(initial = false)
+
+        PlayerDescriptionSheet(
+            visible = showDescriptionSheet && !isMinimized,
+            isFullscreen = isFullscreen,
+            video = video,
+            nextQueueData = nextQueueData,
+            activeAvatarUrl = descCurrentAvatar,
+            isSubscribed = isDescSubscribed,
+            onSubscribeClick = {
+                scope.launch {
+                    if (isDescSubscribed) {
+                        repository.unsubscribe(descTargetChannelId)
+                    } else {
+                        repository.subscribe(
+                            SubscriptionEntity(
+                                channelId = descTargetChannelId,
+                                channelTitle = descTargetChannelTitle,
+                                channelHandle = nextQueueData?.channelHandle ?: "",
+                                channelAvatarUrl = descCurrentAvatar,
+                                subscriberCountText = nextQueueData?.channelSubscriberCountText ?: ""
+                            )
+                        )
+                    }
+                }
+            },
+            onChannelClick = { chId, chTitle ->
+                onMinimize()
+                onChannelClick?.invoke(chId, chTitle)
+            },
+            onDismiss = { showDescriptionSheet = false },
             modifier = Modifier
                 .fillMaxSize()
                 .zIndex(5f)
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null
-                    ) { showDescriptionSheet = false }
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .fillMaxHeight(0.72f)
-                        .align(Alignment.BottomCenter)
-                        .offset { IntOffset(0, animatedDescSheetOffsetY.roundToInt()) }
-                        .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
-                        .background(Color(0xFF212121))
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null
-                        ) {}
-                        .padding(horizontal = 16.dp, vertical = 8.dp)
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .navigationBarsPadding()
-                    ) {
-                        // Drag handle
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .then(descHandleDragModifier)
-                                .padding(vertical = 4.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(width = 38.dp, height = 4.dp)
-                                    .background(Color.White.copy(alpha = 0.35f), RoundedCornerShape(2.dp))
-                            )
+        )
+
+        // 8. Komentar Bottom Sheet (YouTube standard, non-screen-covering)
+        PlayerCommentsSheet(
+            visible = showCommentsSheet && !isMinimized,
+            isFullscreen = isFullscreen,
+            commentsList = commentsList,
+            commentsTotalCountText = commentsTotalCountText,
+            isLoadingComments = isLoadingComments,
+            hasMoreComments = !commentsContinuationToken.isNullOrBlank(),
+            onLoadMore = {
+                val token = commentsContinuationToken ?: return@PlayerCommentsSheet
+                isLoadingComments = true
+                scope.launch {
+                    try {
+                        val res = repository.getComments(token)
+                        if (res.comments.isNotEmpty()) {
+                            val existingIds = commentsList.map { it.id }.toSet()
+                            val fresh = res.comments.filterNot { it.id in existingIds }
+                            commentsList = commentsList + fresh
                         }
-
-                        // Header: Deskripsi + Close button
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .then(descHandleDragModifier),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "Deskripsi",
-                                color = TextPrimary,
-                                fontSize = 17.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                            IconButton(onClick = { showDescriptionSheet = false }) {
-                                Icon(
-                                    imageVector = Icons.Default.Close,
-                                    contentDescription = "Tutup",
-                                    tint = TextSecondary,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
-                        }
-
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 6.dp)
-                                .height(1.dp)
-                                .background(Color(0xFF2E2E2E))
-                        )
-
-                        LazyColumn(
-                            modifier = Modifier.fillMaxSize(),
-                            verticalArrangement = Arrangement.spacedBy(14.dp)
-                        ) {
-                            // 1. Video Title
-                            item {
-                                Text(
-                                    text = nextQueueData?.currentVideo?.title?.ifBlank { video.title } ?: video.title,
-                                    color = TextPrimary,
-                                    fontSize = 15.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    lineHeight = 22.sp
-                                )
-                            }
-
-                            // 2. Channel info (Standard YouTube row - clean, no bulky colored box)
-                            item {
-                                val targetChannelId = nextQueueData?.currentVideo?.channelId?.ifBlank { video.channelId } ?: video.channelId
-                                val targetChannelTitle = nextQueueData?.currentVideo?.channelTitle?.ifBlank { video.channelTitle } ?: video.channelTitle
-                                val currentAvatar = nextQueueData?.currentVideo?.channelAvatarUrl?.ifBlank { activeAvatarUrl } ?: activeAvatarUrl
-                                val isSubscribed by repository.isSubscribed(targetChannelId).collectAsState(initial = false)
-
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        modifier = Modifier.weight(1f)
-                                    ) {
-                                        if (currentAvatar.isNotBlank()) {
-                                            AsyncImage(
-                                                model = currentAvatar,
-                                                contentDescription = targetChannelTitle,
-                                                modifier = Modifier
-                                                    .size(36.dp)
-                                                    .clip(CircleShape),
-                                                contentScale = ContentScale.Crop
-                                            )
-                                            Spacer(modifier = Modifier.width(10.dp))
-                                        }
-                                        Column {
-                                            Text(
-                                                text = targetChannelTitle,
-                                                color = TextPrimary,
-                                                fontSize = 14.sp,
-                                                fontWeight = FontWeight.SemiBold
-                                            )
-                                            val subs = nextQueueData?.channelSubscriberCountText ?: ""
-                                            if (subs.isNotBlank()) {
-                                                Text(
-                                                    text = subs,
-                                                    color = TextMuted,
-                                                    fontSize = 11.sp
-                                                )
-                                            }
-                                        }
-                                    }
-
-                                    Box(
-                                        modifier = Modifier
-                                            .clip(RoundedCornerShape(18.dp))
-                                            .background(if (isSubscribed) Color(0xFF272727) else Color.White)
-                                            .clickable {
-                                                scope.launch {
-                                                    if (isSubscribed) {
-                                                        repository.unsubscribe(targetChannelId)
-                                                    } else {
-                                                        repository.subscribe(
-                                                            SubscriptionEntity(
-                                                                channelId = targetChannelId,
-                                                                channelTitle = targetChannelTitle,
-                                                                channelHandle = nextQueueData?.channelHandle ?: "",
-                                                                channelAvatarUrl = currentAvatar,
-                                                                subscriberCountText = nextQueueData?.channelSubscriberCountText ?: ""
-                                                            )
-                                                        )
-                                                    }
-                                                }
-                                            }
-                                            .padding(horizontal = 14.dp, vertical = 7.dp)
-                                    ) {
-                                        Text(
-                                            text = if (isSubscribed) "Disubscribe" else "Subscribe",
-                                            color = if (isSubscribed) Color.White else Color.Black,
-                                            fontSize = 12.sp,
-                                            fontWeight = FontWeight.SemiBold
-                                        )
-                                    }
-                                }
-                            }
-
-                            // 3. Stats Row (Clean YouTube style - NO colored card boxes!)
-                            item {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(vertical = 4.dp),
-                                    horizontalArrangement = Arrangement.SpaceEvenly,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                        Text(
-                                            text = nextQueueData?.likeCountText?.ifBlank { "-" } ?: "-",
-                                            color = TextPrimary,
-                                            fontSize = 15.sp,
-                                            fontWeight = FontWeight.Bold
-                                        )
-                                        Text(text = "Suka", color = TextMuted, fontSize = 11.sp)
-                                    }
-
-                                    Box(modifier = Modifier.height(28.dp).width(1.dp).background(Color(0xFF333333)))
-
-                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                        Text(
-                                            text = nextQueueData?.fullViewCountText?.ifBlank { video.viewCountText } ?: "-",
-                                            color = TextPrimary,
-                                            fontSize = 15.sp,
-                                            fontWeight = FontWeight.Bold
-                                        )
-                                        Text(text = "Penayangan", color = TextMuted, fontSize = 11.sp)
-                                    }
-
-                                    Box(modifier = Modifier.height(28.dp).width(1.dp).background(Color(0xFF333333)))
-
-                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                        Text(
-                                            text = nextQueueData?.dateText?.ifBlank { video.publishedTimeText } ?: "-",
-                                            color = TextPrimary,
-                                            fontSize = 15.sp,
-                                            fontWeight = FontWeight.Bold
-                                        )
-                                        Text(text = "Tanggal", color = TextMuted, fontSize = 11.sp)
-                                    }
-                                }
-                            }
-
-                            item {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(1.dp)
-                                        .background(Color(0xFF272727))
-                                )
-                            }
-
-                            // 4. Description Content (Directly on dark background - NO nested gray card!)
-                            item {
-                                val desc = nextQueueData?.description?.ifBlank { "Tidak ada deskripsi." }
-                                    ?: "Tidak ada deskripsi."
-                                Text(
-                                    text = desc,
-                                    color = TextSecondary,
-                                    fontSize = 13.sp,
-                                    lineHeight = 20.sp,
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(bottom = 24.dp)
-                                )
-                            }
-                        }
+                        commentsContinuationToken = res.continuationToken
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    } finally {
+                        isLoadingComments = false
                     }
                 }
-            }
-        }
-
-        // 6. Komentar Bottom Sheet (YouTube standard, non-screen-covering)
-        AnimatedVisibility(
-            visible = showCommentsSheet && !isMinimized && !isFullscreen,
-            enter = fadeIn(animationSpec = tween(180)) + slideInVertically(animationSpec = tween(220, easing = FastOutSlowInEasing)) { it },
-            exit = fadeOut(animationSpec = tween(100)) + slideOutVertically(animationSpec = tween(150, easing = FastOutLinearInEasing)) { it },
+            },
+            onDismiss = { showCommentsSheet = false },
             modifier = Modifier
                 .fillMaxSize()
                 .zIndex(5f)
-        ) {
-            val commentsLazyState = rememberLazyListState()
-
-            // Infinite scroll for comments
-            LaunchedEffect(commentsLazyState, commentsContinuationToken, isLoadingComments) {
-                snapshotFlow {
-                    val info = commentsLazyState.layoutInfo
-                    val total = info.totalItemsCount
-                    val last = info.visibleItemsInfo.lastOrNull()?.index ?: 0
-                    total > 0 && last >= total - 3
-                }
-                    .distinctUntilChanged()
-                    .filter { it }
-                    .collect {
-                        if (!isLoadingComments && !commentsContinuationToken.isNullOrBlank()) {
-                            val token = commentsContinuationToken ?: return@collect
-                            isLoadingComments = true
-                            try {
-                                val res = repository.getComments(token)
-                                if (res.comments.isNotEmpty()) {
-                                    val existingIds = commentsList.map { it.id }.toSet()
-                                    val fresh = res.comments.filterNot { it.id in existingIds }
-                                    commentsList = commentsList + fresh
-                                }
-                                commentsContinuationToken = res.continuationToken
-                            } catch (e: Exception) {
-                                e.printStackTrace()
-                            } finally {
-                                isLoadingComments = false
-                            }
-                        }
-                    }
-            }
-
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null
-                    ) { showCommentsSheet = false }
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .fillMaxHeight(0.72f)
-                        .align(Alignment.BottomCenter)
-                        .offset { IntOffset(0, animatedCommentsSheetOffsetY.roundToInt()) }
-                        .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
-                        .background(Color(0xFF212121))
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null
-                        ) {}
-                        .padding(horizontal = 16.dp, vertical = 8.dp)
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .navigationBarsPadding()
-                    ) {
-                        // Drag handle
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .then(commentsHandleDragModifier)
-                                .padding(vertical = 4.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(width = 38.dp, height = 4.dp)
-                                    .background(Color.White.copy(alpha = 0.35f), RoundedCornerShape(2.dp))
-                            )
-                        }
-
-                        // Header: Komentar + Count + Close button
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .then(commentsHandleDragModifier),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(
-                                    text = "Komentar",
-                                    color = TextPrimary,
-                                    fontSize = 17.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                if (commentsTotalCountText.isNotBlank()) {
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text(
-                                        text = commentsTotalCountText,
-                                        color = TextMuted,
-                                        fontSize = 13.sp
-                                    )
-                                }
-                            }
-                            IconButton(onClick = { showCommentsSheet = false }) {
-                                Icon(
-                                    imageVector = Icons.Default.Close,
-                                    contentDescription = "Tutup",
-                                    tint = TextSecondary,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
-                        }
-
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 6.dp)
-                                .height(1.dp)
-                                .background(Color(0xFF2E2E2E))
-                        )
-
-                        // Comments List (No write input, display only as requested)
-                        if (commentsList.isEmpty() && isLoadingComments) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(200.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                CircularProgressIndicator(
-                                    color = YouTubeRed,
-                                    strokeWidth = 2.dp,
-                                    modifier = Modifier.size(28.dp)
-                                )
-                            }
-                        } else if (commentsList.isEmpty()) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(160.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = "Tidak ada komentar untuk video ini",
-                                    color = TextMuted,
-                                    fontSize = 13.sp
-                                )
-                            }
-                        } else {
-                            LazyColumn(
-                                state = commentsLazyState,
-                                modifier = Modifier.fillMaxSize(),
-                                verticalArrangement = Arrangement.spacedBy(16.dp),
-                                contentPadding = PaddingValues(top = 4.dp, bottom = 24.dp)
-                            ) {
-                                items(
-                                    items = commentsList,
-                                    key = { it.id.ifBlank { "${it.authorName}_${it.contentText.hashCode()}" } },
-                                    contentType = { "comment" }
-                                ) { comment ->
-                                    CommentItemRow(comment = comment)
-                                }
-
-                                if (isLoadingComments) {
-                                    item(key = "loading_more_comments", contentType = "loader") {
-                                        Box(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(vertical = 12.dp),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            CircularProgressIndicator(
-                                                color = YouTubeRed,
-                                                strokeWidth = 2.dp,
-                                                modifier = Modifier.size(24.dp)
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun MixPlaylistItemCard(
-    index: Int,
-    video: VideoItem,
-    isCurrent: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(8.dp))
-            .background(if (isCurrent) Color(0xFF272727) else Color.Transparent)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 8.dp, vertical = 6.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Index number or Playing Indicator
-            Box(
-                modifier = Modifier.width(26.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                if (isCurrent) {
-                    Text(
-                        text = "▶",
-                        color = YouTubeRed,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                } else {
-                    Text(
-                        text = "$index",
-                        color = TextMuted,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Medium
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.width(4.dp))
-
-            // Thumbnail with duration
-            Box(
-                modifier = Modifier
-                    .width(100.dp)
-                    .aspectRatio(16f / 9f)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(Color(0xFF101018))
-            ) {
-                AsyncImage(
-                    model = video.thumbnailUrl,
-                    contentDescription = video.title,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.matchParentSize()
-                )
-                if (video.durationText.isNotBlank()) {
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.BottomEnd)
-                            .padding(4.dp)
-                            .background(Color.Black.copy(alpha = 0.8f), RoundedCornerShape(4.dp))
-                            .padding(horizontal = 4.dp, vertical = 2.dp)
-                    ) {
-                        Text(
-                            text = video.durationText,
-                            color = Color.White,
-                            fontSize = 9.sp,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.width(10.dp))
-
-            // Title and Channel Info
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = video.title,
-                    color = if (isCurrent) YouTubeRed else TextPrimary,
-                    fontSize = 13.sp,
-                    fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Medium,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                    lineHeight = 16.sp
-                )
-                Spacer(modifier = Modifier.height(3.dp))
-                Text(
-                    text = video.channelTitle,
-                    color = if (isCurrent) YouTubeRed.copy(alpha = 0.85f) else TextSecondary,
-                    fontSize = 11.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun CommentItemRow(
-    comment: VideoComment,
-    modifier: Modifier = Modifier
-) {
-    Row(
-        modifier = modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.Top
-    ) {
-        // Author Avatar
-        if (comment.authorAvatarUrl.isNotBlank()) {
-            AsyncImage(
-                model = comment.authorAvatarUrl,
-                contentDescription = comment.authorName,
-                modifier = Modifier
-                    .size(32.dp)
-                    .clip(CircleShape),
-                contentScale = ContentScale.Crop
-            )
-        } else {
-            Box(
-                modifier = Modifier
-                    .size(32.dp)
-                    .clip(CircleShape)
-                    .background(Color(0xFF333333)),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = comment.authorName.take(1).uppercase(),
-                    color = Color.White,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.width(10.dp))
-
-        Column(modifier = Modifier.weight(1f)) {
-            // Author handle + Published time
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = comment.authorHandle.ifBlank { comment.authorName },
-                    color = TextMuted,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Medium
-                )
-                if (comment.publishedTimeText.isNotBlank()) {
-                    Text(
-                        text = " • ${comment.publishedTimeText}",
-                        color = TextMuted,
-                        fontSize = 11.sp
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(4.dp))
-
-            // Comment content
-            Text(
-                text = comment.contentText,
-                color = TextPrimary,
-                fontSize = 13.sp,
-                lineHeight = 18.sp
-            )
-
-            Spacer(modifier = Modifier.height(6.dp))
-
-            // Actions: Like count, Dislike, Reply
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.ThumbUp,
-                        contentDescription = "Suka",
-                        tint = TextMuted,
-                        modifier = Modifier.size(14.dp)
-                    )
-                    if (comment.likeCountText.isNotBlank()) {
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = comment.likeCountText,
-                            color = TextMuted,
-                            fontSize = 11.sp
-                        )
-                    }
-                }
-                Icon(
-                    imageVector = Icons.Default.ThumbDown,
-                    contentDescription = "Tidak suka",
-                    tint = TextMuted,
-                    modifier = Modifier.size(14.dp)
-                )
-                Icon(
-                    imageVector = Icons.Default.Reply,
-                    contentDescription = "Balas",
-                    tint = TextMuted,
-                    modifier = Modifier.size(14.dp)
-                )
-            }
-
-            // Reply Count Link
-            if (comment.replyCountText.isNotBlank()) {
-                Spacer(modifier = Modifier.height(6.dp))
-                Text(
-                    text = "${comment.replyCountText} balasan",
-                    color = Color(0xFF3EA6FF),
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.SemiBold
-                )
-            }
-        }
+        )
     }
 }

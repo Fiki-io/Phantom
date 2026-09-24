@@ -15,7 +15,7 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
-import androidx.compose.animation.with
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
@@ -38,7 +38,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Bedtime
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ChevronRight
@@ -49,7 +49,7 @@ import androidx.compose.material.icons.filled.HighQuality
 import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.Speed
-import androidx.compose.material3.Divider
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Switch
@@ -249,11 +249,13 @@ fun PlayerSettingsSheet(
                         targetState = currentPage,
                         transitionSpec = {
                             if (targetState != SettingsSheetPage.MAIN) {
-                                slideInHorizontally { it } + fadeIn() with
-                                        slideOutHorizontally { -it } + fadeOut()
+                                (slideInHorizontally { it } + fadeIn()).togetherWith(
+                                    slideOutHorizontally { -it } + fadeOut()
+                                )
                             } else {
-                                slideInHorizontally { -it } + fadeIn() with
-                                        slideOutHorizontally { it } + fadeOut()
+                                (slideInHorizontally { -it } + fadeIn()).togetherWith(
+                                    slideOutHorizontally { it } + fadeOut()
+                                )
                             }
                         },
                         label = "settings_page_transition"
@@ -369,7 +371,7 @@ private fun MainSettingsContent(
             }
         }
 
-        Divider(
+        HorizontalDivider(
             color = Color(0xFF2E2E2E),
             thickness = 1.dp,
             modifier = Modifier.padding(bottom = 2.dp)
@@ -434,7 +436,7 @@ private fun MainSettingsContent(
             }
 
             item {
-                Divider(
+                HorizontalDivider(
                     color = Color(0xFF2E2E2E),
                     thickness = 1.dp,
                     modifier = Modifier.padding(vertical = 4.dp)
@@ -489,7 +491,7 @@ private fun DoubleTapSeekSettingsContent(
         ) {
             IconButton(onClick = onBack, modifier = Modifier.size(36.dp)) {
                 Icon(
-                    imageVector = Icons.Default.ArrowBack,
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                     contentDescription = "Kembali",
                     tint = TextPrimary,
                     modifier = Modifier.size(20.dp)
@@ -504,7 +506,7 @@ private fun DoubleTapSeekSettingsContent(
             )
         }
 
-        Divider(
+        HorizontalDivider(
             color = Color(0xFF2E2E2E),
             thickness = 1.dp,
             modifier = Modifier.padding(bottom = 6.dp)
@@ -559,7 +561,7 @@ private fun SpeedSettingsContent(
         ) {
             IconButton(onClick = onBack, modifier = Modifier.size(36.dp)) {
                 Icon(
-                    imageVector = Icons.Default.ArrowBack,
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                     contentDescription = "Kembali",
                     tint = TextPrimary,
                     modifier = Modifier.size(20.dp)
@@ -574,7 +576,7 @@ private fun SpeedSettingsContent(
             )
         }
 
-        Divider(
+        HorizontalDivider(
             color = Color(0xFF2E2E2E),
             thickness = 1.dp,
             modifier = Modifier.padding(bottom = 6.dp)
@@ -630,7 +632,7 @@ private fun SleepTimerSettingsContent(
         ) {
             IconButton(onClick = onBack, modifier = Modifier.size(36.dp)) {
                 Icon(
-                    imageVector = Icons.Default.ArrowBack,
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                     contentDescription = "Kembali",
                     tint = TextPrimary,
                     modifier = Modifier.size(20.dp)
@@ -645,7 +647,7 @@ private fun SleepTimerSettingsContent(
             )
         }
 
-        Divider(
+        HorizontalDivider(
             color = Color(0xFF2E2E2E),
             thickness = 1.dp,
             modifier = Modifier.padding(bottom = 6.dp)
@@ -859,7 +861,7 @@ private fun QualitySettingsContent(
         ) {
             IconButton(onClick = onBack, modifier = Modifier.size(36.dp)) {
                 Icon(
-                    imageVector = Icons.Default.ArrowBack,
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                     contentDescription = "Kembali",
                     tint = TextPrimary,
                     modifier = Modifier.size(20.dp)
@@ -874,7 +876,7 @@ private fun QualitySettingsContent(
             )
         }
 
-        Divider(
+        HorizontalDivider(
             color = Color(0xFF2E2E2E),
             thickness = 1.dp,
             modifier = Modifier.padding(bottom = 6.dp)

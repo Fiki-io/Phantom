@@ -38,7 +38,6 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -72,7 +71,6 @@ fun SubscriptionScreen(
     val subscriptions by repository.getSubscriptions().collectAsState(initial = emptyList())
     var feedVideos by remember { mutableStateOf<List<VideoItem>>(emptyList()) }
     var isLoadingFeed by remember { mutableStateOf(false) }
-    val scope = rememberCoroutineScope()
 
     // Fetch latest videos from subscribed channels
     LaunchedEffect(subscriptions) {
