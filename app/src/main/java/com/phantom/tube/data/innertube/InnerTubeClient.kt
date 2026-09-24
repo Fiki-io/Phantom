@@ -1,5 +1,6 @@
 package com.phantom.tube.data.innertube
 
+import com.phantom.tube.data.model.ChannelProfile
 import com.phantom.tube.data.model.FeedResult
 import com.phantom.tube.data.model.NextQueue
 import com.phantom.tube.data.model.VideoItem
@@ -120,6 +121,75 @@ class InnerTubeClient(
             val response = httpClient.newCall(request).execute()
             val responseBody = response.body?.string() ?: return@withContext FeedResult()
             return@withContext InnerTubeParser.parseWatchNextContinuation(responseBody, currentVideoId)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            return@withContext FeedResult()
+        }
+    }
+
+    suspend fun fetchChannel(
+        channelId: String,
+        params: String? = null,
+        continuation: String? = null
+    ): ChannelProfile? = withContext(Dispatchers.IO) {
+        try {
+            var targetChannelId = channelId.trim()
+            // If channelId is not a standard UC id and not a continuation, resolve by search
+            if (continuation.isNullOrBlank() && !targetChannelId.startsWith("UC") && targetChannelId.isNotBlank()) {
+                val searchRes = fetchFeedPage(query = targetChannelId)
+                val foundId = searchRes.videos.firstOrNull { it.channelId.startsWith("UC") }?.channelId
+                if (!foundId.isNullOrBlank()) {
+                    targetChannelId = foundId
+                }
+            }
+
+            val bodyJson = JSONObject().apply {
+                put("context", createClientContext())
+                if (!continuation.isNullOrBlank()) {
+                    put("continuation", continuation)
+                } else {
+                    put("browseId", targetChannelId)
+                    if (!params.isNullOrBlank()) {
+                        put("params", params)
+                    }
+                }
+            }
+
+            val request = Request.Builder()
+                .url("https://www.youtube.com/youtubei/v1/browse?prettyPrint=false")
+                .header("Content-Type", "application/json")
+                .header("User-Agent", userAgent)
+                .post(bodyJson.toString().toRequestBody(jsonMediaType))
+                .build()
+
+            val response = httpClient.newCall(request).execute()
+            val responseBody = response.body?.string() ?: return@withContext null
+            return@withContext InnerTubeParser.parseChannelPage(responseBody, targetChannelId)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            return@withContext null
+        }
+    }
+
+    suspend fun fetchChannelVideosContinuation(
+        continuation: String
+    ): FeedResult = withContext(Dispatchers.IO) {
+        try {
+            val bodyJson = JSONObject().apply {
+                put("context", createClientContext())
+                put("continuation", continuation)
+            }
+
+            val request = Request.Builder()
+                .url("https://www.youtube.com/youtubei/v1/browse?prettyPrint=false")
+                .header("Content-Type", "application/json")
+                .header("User-Agent", userAgent)
+                .post(bodyJson.toString().toRequestBody(jsonMediaType))
+                .build()
+
+            val response = httpClient.newCall(request).execute()
+            val responseBody = response.body?.string() ?: return@withContext FeedResult()
+            return@withContext InnerTubeParser.parseChannelContinuation(responseBody)
         } catch (e: Exception) {
             e.printStackTrace()
             return@withContext FeedResult()

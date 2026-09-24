@@ -6,14 +6,15 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 
 @Database(
-    entities = [WatchHistoryEntity::class, FavoriteEntity::class, SearchHistoryEntity::class],
-    version = 2,
+    entities = [WatchHistoryEntity::class, FavoriteEntity::class, SearchHistoryEntity::class, SubscriptionEntity::class],
+    version = 3,
     exportSchema = false
 )
 abstract class PhantomDatabase : RoomDatabase() {
     abstract fun watchHistoryDao(): WatchHistoryDao
     abstract fun favoriteDao(): FavoriteDao
     abstract fun searchHistoryDao(): SearchHistoryDao
+    abstract fun subscriptionDao(): SubscriptionDao
 
     companion object {
         @Volatile

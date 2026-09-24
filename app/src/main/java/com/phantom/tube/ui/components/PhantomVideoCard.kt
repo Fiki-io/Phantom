@@ -49,6 +49,7 @@ import com.phantom.tube.data.model.VideoItem
 fun PhantomVideoCard(
     video: VideoItem,
     modifier: Modifier = Modifier,
+    onChannelClick: ((String) -> Unit)? = null,
     onMoreClick: (() -> Unit)? = null,
     onClick: () -> Unit
 ) {
@@ -111,11 +112,17 @@ fun PhantomVideoCard(
                 .padding(horizontal = 4.dp),
             verticalAlignment = Alignment.Top
         ) {
+            val targetChannelId = video.channelId.ifBlank { video.channelTitle }
             Box(
                 modifier = Modifier
                     .size(36.dp)
                     .clip(CircleShape)
-                    .background(Color(0xFF272727)),
+                    .background(Color(0xFF272727))
+                    .then(
+                        if (onChannelClick != null && targetChannelId.isNotBlank()) {
+                            Modifier.clickable { onChannelClick(targetChannelId) }
+                        } else Modifier
+                    ),
                 contentAlignment = Alignment.Center
             ) {
                 if (video.channelAvatarUrl.isNotBlank()) {

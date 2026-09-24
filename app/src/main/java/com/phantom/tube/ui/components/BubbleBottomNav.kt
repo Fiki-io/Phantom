@@ -15,11 +15,10 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Subscriptions
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -44,7 +43,7 @@ enum class NavTab(val title: String, val icon: ImageVector) {
     HOME("Beranda", Icons.Default.Home),
     SEARCH("Cari", Icons.Default.Search),
     HISTORY("Riwayat", Icons.Default.History),
-    LIBRARY("Koleksi", Icons.Default.Bookmark)
+    SUBSCRIPTION("Subscription", Icons.Default.Subscriptions)
 }
 
 /**

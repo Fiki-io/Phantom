@@ -9,7 +9,8 @@ Aplikasi YouTube client untuk Android berbasis Jetpack Compose, tanpa iklan, men
 - **Picture-in-Picture (PiP)**: Masuk otomatis ke mode PiP saat keluar dari video.
 - **SponsorBlock**: Melewati segmen sponsor, self-promo, intro, dan outro secara otomatis dengan opsi pembatalan (undo).
 - **YouTube Dark Theme & Bubble Dock**: Antarmuka gelap yang nyaman untuk layar AMOLED dengan floating bubble navigation dock di bagian bawah.
-- **Riwayat & Koleksi Lokal**: Riwayat tontonan, riwayat pencarian, dan bookmark video disimpan secara lokal di perangkat menggunakan Room Database.
+- **Channel Page & Subscription Lokal**: Halaman profil channel lengkap (Banner, Avatar, Tab Beranda & Video, Filter chip Terbaru/Populer/Terlama), serta fitur langganan (Subscribe) lokal privat tanpa login Google.
+- **Riwayat & Database Lokal**: Riwayat tontonan dan riwayat pencarian tersimpan aman di perangkat menggunakan Room Database.
 - **Pengaturan Pemutar Lengkap**:
   - Sleep Timer (pengatur waktu tidur)
   - Pengatur kecepatan pemutaran (0.25x - 2.0x)

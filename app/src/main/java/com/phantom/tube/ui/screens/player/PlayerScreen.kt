@@ -145,6 +145,7 @@ fun PlayerScreen(
     onBackClick: () -> Unit = onMinimize,
     onPlayNextVideo: (VideoItem) -> Unit,
     onPlayPreviousVideo: () -> Boolean = { false },
+    onChannelClick: ((channelId: String, channelTitle: String) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -1121,7 +1122,19 @@ fun PlayerScreen(
                         ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.weight(1f)
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clickable(
+                                        interactionSource = remember { MutableInteractionSource() },
+                                        indication = null,
+                                        onClick = {
+                                            val targetId = video.channelId.ifBlank { video.channelTitle }
+                                            if (targetId.isNotBlank()) {
+                                                onMinimize()
+                                                onChannelClick?.invoke(targetId, video.channelTitle)
+                                            }
+                                        }
+                                    )
                             ) {
                                 // Channel Avatar
                                 Box(
@@ -1222,6 +1235,10 @@ fun PlayerScreen(
                     ) { _, item ->
                         PhantomVideoCard(
                             video = item,
+                            onChannelClick = { chId ->
+                                onMinimize()
+                                onChannelClick?.invoke(chId, item.channelTitle)
+                            },
                             onClick = {
                                 isInternalNavigation = false
                                 currentOnPlayNextVideo(item)

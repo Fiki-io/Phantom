@@ -82,6 +82,7 @@ data class SearchSuggestionItem(
 fun SearchScreen(
     repository: PhantomRepository,
     onVideoClick: (VideoItem) -> Unit,
+    onChannelClick: (channelId: String, channelTitle: String) -> Unit = { _, _ -> },
     onBackClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -477,6 +478,9 @@ fun SearchScreen(
                         ) { _, video ->
                             PhantomVideoCard(
                                 video = video,
+                                onChannelClick = { chId ->
+                                    onChannelClick(chId.ifBlank { video.channelTitle }, video.channelTitle)
+                                },
                                 onClick = { onVideoClick(video) }
                             )
                         }

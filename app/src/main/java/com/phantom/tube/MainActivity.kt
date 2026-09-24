@@ -40,9 +40,10 @@ import com.phantom.tube.ui.components.BubbleBottomNav
 import com.phantom.tube.ui.components.NavTab
 import com.phantom.tube.ui.screens.history.HistoryScreen
 import com.phantom.tube.ui.screens.home.HomeScreen
-import com.phantom.tube.ui.screens.library.LibraryScreen
-import com.phantom.tube.ui.screens.player.PlayerScreen
-import com.phantom.tube.ui.screens.search.SearchScreen
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
+import com.phantom.tube.ui.screens.channel.ChannelScreen
+import com.phantom.tube.ui.screens.subscription.SubscriptionScreen
 
 class MainActivity : ComponentActivity() {
 
@@ -67,6 +68,15 @@ class MainActivity : ComponentActivity() {
         setContent {
             PhantomTheme {
                 var currentTab by remember { mutableStateOf(NavTab.HOME) }
+                var activeChannelId by remember { mutableStateOf<String?>(null) }
+                var activeChannelTitle by remember { mutableStateOf("") }
+
+                // Intercept system back press when ChannelScreen is active
+                if (activeChannelId != null) {
+                    BackHandler {
+                        activeChannelId = null
+                    }
+                }
 
                 Box(
                     modifier = Modifier
@@ -85,7 +95,7 @@ class MainActivity : ComponentActivity() {
                                 (slideInHorizontally(
                                     animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing),
                                     initialOffsetX = { fullWidth -> (fullWidth * 0.22f * slideDirection).toInt() }
-                                ) + fadeIn(
+                               ) + fadeIn(
                                     animationSpec = tween(durationMillis = 220)
                                 )) togetherWith (slideOutHorizontally(
                                     animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing),
@@ -103,6 +113,10 @@ class MainActivity : ComponentActivity() {
                                         activeVideo = video
                                         isPlayerMinimized = false
                                     },
+                                    onChannelClick = { chId, chTitle ->
+                                        activeChannelId = chId
+                                        activeChannelTitle = chTitle
+                                    },
                                     onSearchClick = { currentTab = NavTab.SEARCH }
                                 )
                                 NavTab.SEARCH -> SearchScreen(
@@ -110,6 +124,10 @@ class MainActivity : ComponentActivity() {
                                     onVideoClick = { video ->
                                         activeVideo = video
                                         isPlayerMinimized = false
+                                    },
+                                    onChannelClick = { chId, chTitle ->
+                                        activeChannelId = chId
+                                        activeChannelTitle = chTitle
                                     },
                                     onBackClick = { currentTab = NavTab.HOME }
                                 )
@@ -120,19 +138,24 @@ class MainActivity : ComponentActivity() {
                                         isPlayerMinimized = false
                                     }
                                 )
-                                NavTab.LIBRARY -> LibraryScreen(
+                                NavTab.SUBSCRIPTION -> SubscriptionScreen(
                                     repository = repository,
                                     onVideoClick = { video ->
                                         activeVideo = video
                                         isPlayerMinimized = false
-                                    }
+                                    },
+                                    onChannelClick = { chId, chTitle ->
+                                        activeChannelId = chId
+                                        activeChannelTitle = chTitle
+                                    },
+                                    onExploreClick = { currentTab = NavTab.HOME }
                                 )
                             }
                         }
                     }
 
                     // 2. BUBBLE BOTTOM NAVIGATION DOCK
-                    if (!isInPipMode && (activeVideo == null || isPlayerMinimized)) {
+                    if (!isInPipMode && (activeVideo == null || isPlayerMinimized) && activeChannelId == null) {
                         BubbleBottomNav(
                             currentTab = currentTab,
                             onTabSelected = { currentTab = it },
@@ -140,7 +163,38 @@ class MainActivity : ComponentActivity() {
                         )
                     }
 
-                    // 3. PERSISTENT PLAYER (Full screen OR Miniplayer)
+                    // 3. CHANNEL SCREEN OVERLAY
+                    AnimatedVisibility(
+                        visible = activeChannelId != null,
+                        enter = slideInHorizontally(
+                            initialOffsetX = { fullWidth -> fullWidth },
+                            animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing)
+                        ) + fadeIn(animationSpec = tween(200)),
+                        exit = slideOutHorizontally(
+                            targetOffsetX = { fullWidth -> fullWidth },
+                            animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing)
+                        ) + fadeOut(animationSpec = tween(200))
+                    ) {
+                        if (activeChannelId != null) {
+                            ChannelScreen(
+                                channelId = activeChannelId!!,
+                                initialChannelTitle = activeChannelTitle,
+                                repository = repository,
+                                onVideoClick = { video ->
+                                    activeVideo = video
+                                    isPlayerMinimized = false
+                                },
+                                onBackClick = { activeChannelId = null },
+                                onSearchClick = {
+                                    activeChannelId = null
+                                    currentTab = NavTab.SEARCH
+                                },
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        }
+                    }
+
+                    // 4. PERSISTENT PLAYER (Full screen OR Miniplayer)
                     if (activeVideo != null) {
                         PlayerScreen(
                             video = activeVideo!!,
@@ -158,6 +212,10 @@ class MainActivity : ComponentActivity() {
                             },
                             onPlayNextVideo = { nextVideo ->
                                 activeVideo = nextVideo
+                            },
+                            onChannelClick = { chId, chTitle ->
+                                activeChannelId = chId
+                                activeChannelTitle = chTitle
                             },
                             modifier = Modifier.fillMaxSize()
                         )

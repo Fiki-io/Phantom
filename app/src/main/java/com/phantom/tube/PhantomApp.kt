@@ -41,7 +41,8 @@ class PhantomApp : Application(), ImageLoaderFactory {
             sponsorBlockClient = SponsorBlockClient(httpClient = sharedHttpClient),
             watchHistoryDao = database.watchHistoryDao(),
             favoriteDao = database.favoriteDao(),
-            searchHistoryDao = database.searchHistoryDao()
+            searchHistoryDao = database.searchHistoryDao(),
+            subscriptionDao = database.subscriptionDao()
         )
     }
 

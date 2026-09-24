@@ -1,5 +1,7 @@
 package com.phantom.tube.data.innertube
 
+import com.phantom.tube.data.model.ChannelProfile
+import com.phantom.tube.data.model.ChannelSortChip
 import com.phantom.tube.data.model.FeedResult
 import com.phantom.tube.data.model.NextQueue
 import com.phantom.tube.data.model.VideoItem
@@ -343,7 +345,7 @@ object InnerTubeParser {
         return suggestions
     }
 
-    private fun parseVideoItem(json: JSONObject): VideoItem? {
+    fun parseVideoItem(json: JSONObject): VideoItem? {
         // Option 1: Classic videoRenderer
         if (json.has("videoRenderer")) {
             val vr = json.getJSONObject("videoRenderer")
@@ -356,11 +358,16 @@ object InnerTubeParser {
             val published = vr.optJSONObject("publishedTimeText")?.optString("simpleText") ?: ""
             val thumb = extractThumbnail(vr.optJSONObject("thumbnail"), videoId)
             val avatar = extractAvatar(vr)
+            val channelId = vr.optJSONObject("ownerText")?.optJSONArray("runs")?.optJSONObject(0)
+                ?.optJSONObject("navigationEndpoint")?.optJSONObject("browseEndpoint")?.optString("browseId")
+                ?: vr.optJSONObject("navigationEndpoint")?.optJSONObject("browseEndpoint")?.optString("browseId")
+                ?: ""
 
             return VideoItem(
                 id = videoId,
                 title = title,
                 channelTitle = channel,
+                channelId = channelId,
                 thumbnailUrl = thumb,
                 channelAvatarUrl = avatar,
                 durationText = duration,
@@ -381,11 +388,17 @@ object InnerTubeParser {
             val published = cvr.optJSONObject("publishedTimeText")?.optString("simpleText") ?: ""
             val thumb = extractThumbnail(cvr.optJSONObject("thumbnail"), videoId)
             val avatar = extractAvatar(cvr)
+            val channelId = cvr.optJSONObject("shortBylineText")?.optJSONArray("runs")?.optJSONObject(0)
+                ?.optJSONObject("navigationEndpoint")?.optJSONObject("browseEndpoint")?.optString("browseId")
+                ?: cvr.optJSONObject("longBylineText")?.optJSONArray("runs")?.optJSONObject(0)
+                ?.optJSONObject("navigationEndpoint")?.optJSONObject("browseEndpoint")?.optString("browseId")
+                ?: ""
 
             return VideoItem(
                 id = videoId,
                 title = title,
                 channelTitle = channel,
+                channelId = channelId,
                 thumbnailUrl = thumb,
                 channelAvatarUrl = avatar,
                 durationText = duration,
@@ -439,16 +452,53 @@ object InnerTubeParser {
                 }
             }
 
+            // Extract duration from thumbnail overlays
+            var duration = ""
+            val overlays = lvm.optJSONObject("contentImage")
+                ?.optJSONObject("thumbnailViewModel")
+                ?.optJSONArray("overlays") ?: JSONArray()
+            for (oi in 0 until overlays.length()) {
+                val ov = overlays.optJSONObject(oi) ?: continue
+                val bottomOv = ov.optJSONObject("thumbnailBottomOverlayViewModel")
+                if (bottomOv != null) {
+                    val badges = bottomOv.optJSONArray("badges") ?: JSONArray()
+                    for (bi in 0 until badges.length()) {
+                        val badge = badges.optJSONObject(bi)?.optJSONObject("thumbnailBadgeViewModel")
+                        val text = badge?.optString("text") ?: ""
+                        if (text.isNotBlank()) {
+                            duration = text
+                            break
+                        }
+                    }
+                }
+                if (duration.isBlank()) {
+                    val timeStatus = ov.optJSONObject("thumbnailOverlayTimeStatusRenderer")
+                    val text = timeStatus?.optJSONObject("text")?.optString("simpleText") ?: ""
+                    if (text.isNotBlank()) {
+                        duration = text
+                    }
+                }
+                if (duration.isNotBlank()) break
+            }
+
+            // Extract channelId from lvm
+            var channelId = ""
+            val bIdMatch = Regex("""\"browseId\":\s*\"(UC[a-zA-Z0-9_-]{22})\"""").find(lvm.toString())
+            if (bIdMatch != null) {
+                channelId = bIdMatch.groupValues[1]
+            }
+
             val avatar = extractAvatar(lvm)
 
             return VideoItem(
                 id = videoId,
                 title = title,
                 channelTitle = channel,
+                channelId = channelId,
                 thumbnailUrl = thumb,
                 channelAvatarUrl = avatar,
-                durationText = "",
-                viewCountText = if (views.isNotBlank()) "$views views" else "",
+                durationText = duration,
+                viewCountText = if (views.isNotBlank()) views else "",
                 publishedTimeText = published
             )
         }
@@ -517,16 +567,257 @@ object InnerTubeParser {
         return sb.toString()
     }
 
-    private fun extractThumbnail(obj: JSONObject?, videoId: String): String {
-        if (obj == null) return if (videoId.isNotBlank()) "https://i.ytimg.com/vi/$videoId/hqdefault.jpg" else ""
-        val thumbnails = obj.optJSONArray("thumbnails")
-        if (thumbnails != null && thumbnails.length() > 0) {
-            val last = thumbnails.optJSONObject(thumbnails.length() - 1)
-            val url = last?.optString("url") ?: ""
-            if (url.isNotBlank()) {
-                return if (url.startsWith("//")) "https:$url" else url
+    fun parseChannelPage(jsonString: String, fallbackChannelId: String): ChannelProfile? {
+        try {
+            val root = JSONObject(jsonString)
+            var channelId = fallbackChannelId
+            var title = ""
+            var handle = ""
+            var avatarUrl = ""
+            var bannerUrl = ""
+            var subscriberCountText = ""
+            var videoCountText = ""
+            var description = ""
+            var externalLinksText = ""
+            val isVerified = false
+
+            // 1. Parse Header
+            val header = root.optJSONObject("header")
+            val pHeader = header?.optJSONObject("pageHeaderRenderer")
+            if (pHeader != null) {
+                val content = pHeader.optJSONObject("content")?.optJSONObject("pageHeaderViewModel")
+                if (content != null) {
+                    title = content.optJSONObject("title")?.optJSONObject("dynamicTextViewModel")
+                        ?.optJSONObject("text")?.optString("content") ?: ""
+                    if (title.isBlank()) {
+                        title = pHeader.optString("pageTitle", "")
+                    }
+
+                    // Avatar
+                    val avatarSources = content.optJSONObject("image")
+                        ?.optJSONObject("decoratedAvatarViewModel")
+                        ?.optJSONObject("avatar")
+                        ?.optJSONObject("avatarViewModel")
+                        ?.optJSONObject("image")
+                        ?.optJSONArray("sources")
+                    if (avatarSources != null && avatarSources.length() > 0) {
+                        avatarUrl = avatarSources.optJSONObject(avatarSources.length() - 1)?.optString("url") ?: ""
+                    }
+
+                    // Banner
+                    val bannerSources = content.optJSONObject("banner")
+                        ?.optJSONObject("imageBannerViewModel")
+                        ?.optJSONObject("image")
+                        ?.optJSONArray("sources")
+                    if (bannerSources != null && bannerSources.length() > 0) {
+                        bannerUrl = bannerSources.optJSONObject(bannerSources.length() - 1)?.optString("url") ?: ""
+                    }
+
+                    // Metadata (handle, subscribers, videos)
+                    val metadataRows = content.optJSONObject("metadata")
+                        ?.optJSONObject("contentMetadataViewModel")
+                        ?.optJSONArray("metadataRows") ?: JSONArray()
+                    if (metadataRows.length() > 0) {
+                        val row0 = metadataRows.optJSONObject(0)?.optJSONArray("metadataParts")
+                        if (row0 != null && row0.length() > 0) {
+                            handle = row0.optJSONObject(0)?.optJSONObject("text")?.optString("content") ?: ""
+                        }
+                    }
+                    if (metadataRows.length() > 1) {
+                        val row1 = metadataRows.optJSONObject(1)?.optJSONArray("metadataParts")
+                        if (row1 != null) {
+                            if (row1.length() > 0) {
+                                subscriberCountText = row1.optJSONObject(0)?.optJSONObject("text")?.optString("content") ?: ""
+                            }
+                            if (row1.length() > 1) {
+                                videoCountText = row1.optJSONObject(1)?.optJSONObject("text")?.optString("content") ?: ""
+                            }
+                        }
+                    }
+
+                    // Description
+                    description = content.optJSONObject("description")
+                        ?.optJSONObject("descriptionPreviewViewModel")
+                        ?.optJSONObject("description")
+                        ?.optString("content") ?: ""
+
+                    // External links / attribution
+                    externalLinksText = content.optJSONObject("attribution")
+                        ?.optJSONObject("attributionViewModel")
+                        ?.optJSONObject("text")
+                        ?.optString("content") ?: ""
+                }
             }
+
+            // Fallback c4TabbedHeaderRenderer
+            val c4Header = header?.optJSONObject("c4TabbedHeaderRenderer")
+            if (c4Header != null) {
+                if (title.isBlank()) title = c4Header.optString("title", "")
+                if (avatarUrl.isBlank()) avatarUrl = extractThumbnail(c4Header.optJSONObject("avatar"), "")
+                if (bannerUrl.isBlank()) bannerUrl = extractThumbnail(c4Header.optJSONObject("banner") ?: c4Header.optJSONObject("tvBanner"), "")
+                if (subscriberCountText.isBlank()) subscriberCountText = c4Header.optJSONObject("subscriberCountText")?.optString("simpleText") ?: ""
+                val cId = c4Header.optString("channelId")
+                if (cId.isNotBlank()) channelId = cId
+            }
+
+            if (title.isBlank() && fallbackChannelId.isNotBlank()) {
+                title = fallbackChannelId
+            }
+
+            // 2. Parse Tabs (find video tab params and parse active tab contents)
+            val tabs = root.optJSONObject("contents")
+                ?.optJSONObject("twoColumnBrowseResultsRenderer")
+                ?.optJSONArray("tabs") ?: JSONArray()
+
+            var videoTabParams: String? = null
+            var activeTabContent: JSONObject? = null
+            var firstTabContent: JSONObject? = null
+
+            for (i in 0 until tabs.length()) {
+                val tab = tabs.optJSONObject(i)?.optJSONObject("tabRenderer") ?: continue
+                val tabTitle = tab.optString("title", "")
+                val endpoint = tab.optJSONObject("endpoint")?.optJSONObject("browseEndpoint")
+                val params = endpoint?.optString("params")
+
+                if (tabTitle.equals("Video", ignoreCase = true) || tabTitle.equals("Videos", ignoreCase = true)) {
+                    if (!params.isNullOrBlank()) {
+                        videoTabParams = params
+                    }
+                }
+
+                if (tab.optBoolean("selected", false)) {
+                    activeTabContent = tab.optJSONObject("content")
+                }
+                if (firstTabContent == null) {
+                    firstTabContent = tab.optJSONObject("content")
+                }
+            }
+
+            val targetContent = activeTabContent ?: firstTabContent
+            val videos = mutableListOf<VideoItem>()
+            val sortChips = mutableListOf<ChannelSortChip>()
+            var continuationToken: String? = null
+
+            if (targetContent != null) {
+                val richGrid = targetContent.optJSONObject("richGridRenderer")
+                if (richGrid != null) {
+                    // Extract chips from chipBarViewModel
+                    val chipBar = richGrid.optJSONObject("header")?.optJSONObject("chipBarViewModel")
+                    val chipsArray = chipBar?.optJSONArray("chips") ?: JSONArray()
+                    for (c in 0 until chipsArray.length()) {
+                        val chipObj = chipsArray.optJSONObject(c)?.optJSONObject("chipViewModel") ?: continue
+                        val cText = chipObj.optString("text")
+                        val cSelected = chipObj.optBoolean("selected", false)
+                        val cToken = chipObj.optJSONObject("tapCommand")
+                            ?.optJSONObject("innertubeCommand")
+                            ?.optJSONObject("continuationCommand")
+                            ?.optString("token") ?: ""
+                        if (cText.isNotBlank()) {
+                            sortChips.add(ChannelSortChip(title = cText, continuationToken = cToken, isSelected = cSelected))
+                        }
+                    }
+
+                    // Extract videos and continuation from contents
+                    val contents = richGrid.optJSONArray("contents") ?: JSONArray()
+                    for (j in 0 until contents.length()) {
+                        val itm = contents.optJSONObject(j) ?: continue
+                        val cItem = itm.optJSONObject("continuationItemRenderer")
+                        if (cItem != null) {
+                            val token = cItem.optJSONObject("continuationEndpoint")
+                                ?.optJSONObject("continuationCommand")
+                                ?.optString("token")
+                            if (!token.isNullOrBlank()) {
+                                continuationToken = token
+                            }
+                        }
+                        val richContent = itm.optJSONObject("richItemRenderer")?.optJSONObject("content")
+                        if (richContent != null) {
+                            parseVideoItem(richContent)?.let { videos.add(it) }
+                        }
+                    }
+                }
+
+                // Fallback: sectionListRenderer
+                val sectionList = targetContent.optJSONObject("sectionListRenderer")
+                if (sectionList != null) {
+                    val sContents = sectionList.optJSONArray("contents") ?: JSONArray()
+                    for (s in 0 until sContents.length()) {
+                        val sec = sContents.optJSONObject(s) ?: continue
+                        val itemSec = sec.optJSONObject("itemSectionRenderer")
+                        val isContents = itemSec?.optJSONArray("contents") ?: JSONArray()
+                        for (k in 0 until isContents.length()) {
+                            val raw = isContents.optJSONObject(k) ?: continue
+                            // check continuation
+                            val cItem = raw.optJSONObject("continuationItemRenderer")
+                            if (cItem != null) {
+                                val token = cItem.optJSONObject("continuationEndpoint")
+                                    ?.optJSONObject("continuationCommand")
+                                    ?.optString("token")
+                                if (!token.isNullOrBlank()) continuationToken = token
+                            }
+                            parseVideoItem(raw)?.let { videos.add(it) }
+                        }
+                    }
+                }
+            }
+
+            return ChannelProfile(
+                id = channelId,
+                title = title,
+                handle = handle,
+                avatarUrl = avatarUrl,
+                bannerUrl = bannerUrl,
+                subscriberCountText = subscriberCountText,
+                videoCountText = videoCountText,
+                description = description,
+                externalLinksText = externalLinksText,
+                isVerified = isVerified,
+                videos = videos,
+                continuationToken = continuationToken,
+                videoTabParams = videoTabParams,
+                sortChips = sortChips
+            )
+        } catch (e: Exception) {
+            e.printStackTrace()
+            return null
         }
-        return if (videoId.isNotBlank()) "https://i.ytimg.com/vi/$videoId/hqdefault.jpg" else ""
+    }
+
+    fun parseChannelContinuation(jsonString: String): FeedResult {
+        val items = mutableListOf<VideoItem>()
+        var nextContinuationToken: String? = null
+        try {
+            val root = JSONObject(jsonString)
+            val actions = root.optJSONArray("onResponseReceivedActions")
+                ?: root.optJSONArray("onResponseReceivedCommands") ?: JSONArray()
+            for (i in 0 until actions.length()) {
+                val act = actions.optJSONObject(i) ?: continue
+                val appendAction = act.optJSONObject("appendContinuationItemsAction")
+                    ?: act.optJSONObject("reloadContinuationItemsCommand") ?: continue
+                val continuationItems = appendAction.optJSONArray("continuationItems") ?: JSONArray()
+                for (j in 0 until continuationItems.length()) {
+                    val item = continuationItems.optJSONObject(j) ?: continue
+                    val cItem = item.optJSONObject("continuationItemRenderer")
+                    if (cItem != null) {
+                        val token = cItem.optJSONObject("continuationEndpoint")
+                            ?.optJSONObject("continuationCommand")
+                            ?.optString("token")
+                        if (!token.isNullOrBlank()) {
+                            nextContinuationToken = token
+                        }
+                    }
+                    val richContent = item.optJSONObject("richItemRenderer")?.optJSONObject("content")
+                    if (richContent != null) {
+                        parseVideoItem(richContent)?.let { items.add(it) }
+                    } else {
+                        parseVideoItem(item)?.let { items.add(it) }
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        return FeedResult(videos = items, continuationToken = nextContinuationToken)
     }
 }
+

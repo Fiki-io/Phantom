@@ -4,9 +4,12 @@ import com.phantom.tube.core.database.FavoriteDao
 import com.phantom.tube.core.database.FavoriteEntity
 import com.phantom.tube.core.database.SearchHistoryDao
 import com.phantom.tube.core.database.SearchHistoryEntity
+import com.phantom.tube.core.database.SubscriptionDao
+import com.phantom.tube.core.database.SubscriptionEntity
 import com.phantom.tube.core.database.WatchHistoryDao
 import com.phantom.tube.core.database.WatchHistoryEntity
 import com.phantom.tube.data.innertube.InnerTubeClient
+import com.phantom.tube.data.model.ChannelProfile
 import com.phantom.tube.data.model.FeedResult
 import com.phantom.tube.data.model.NextQueue
 import com.phantom.tube.data.model.SponsorSegment
@@ -19,7 +22,8 @@ class PhantomRepository(
     private val sponsorBlockClient: SponsorBlockClient = SponsorBlockClient(),
     private val watchHistoryDao: WatchHistoryDao,
     private val favoriteDao: FavoriteDao,
-    private val searchHistoryDao: SearchHistoryDao
+    private val searchHistoryDao: SearchHistoryDao,
+    private val subscriptionDao: SubscriptionDao
 ) {
     suspend fun getHomeRecommendations(
         historyIndex: Int = 0,
@@ -202,5 +206,35 @@ class PhantomRepository(
                 )
             )
         }
+    }
+
+    // Subscriptions
+    fun getSubscriptions(): Flow<List<SubscriptionEntity>> {
+        return subscriptionDao.getAllSubscriptions()
+    }
+
+    fun isSubscribed(channelId: String): Flow<Boolean> {
+        return subscriptionDao.isSubscribed(channelId)
+    }
+
+    suspend fun subscribe(subscription: SubscriptionEntity) {
+        subscriptionDao.insert(subscription)
+    }
+
+    suspend fun unsubscribe(channelId: String) {
+        subscriptionDao.delete(channelId)
+    }
+
+    // Channel profile & videos
+    suspend fun getChannel(
+        channelId: String,
+        params: String? = null,
+        continuation: String? = null
+    ): ChannelProfile? {
+        return innerTubeClient.fetchChannel(channelId = channelId, params = params, continuation = continuation)
+    }
+
+    suspend fun getChannelVideosContinuation(continuation: String): FeedResult {
+        return innerTubeClient.fetchChannelVideosContinuation(continuation)
     }
 }

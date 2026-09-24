@@ -54,6 +54,7 @@ import kotlinx.coroutines.launch
 fun HomeScreen(
     repository: PhantomRepository,
     onVideoClick: (VideoItem) -> Unit,
+    onChannelClick: (channelId: String, channelTitle: String) -> Unit = { _, _ -> },
     onSearchClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -254,6 +255,9 @@ fun HomeScreen(
                         ) { _, video ->
                             PhantomVideoCard(
                                 video = video,
+                                onChannelClick = { chId ->
+                                    onChannelClick(chId.ifBlank { video.channelTitle }, video.channelTitle)
+                                },
                                 onClick = { onVideoClick(video) }
                             )
                         }
