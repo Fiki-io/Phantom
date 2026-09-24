@@ -12,7 +12,7 @@ import android.view.WindowManager
 import androidx.activity.compose.BackHandler
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import com.phantom.tube.player.service.PhantomMediaService
 import com.phantom.tube.data.innertube.parser.InnerTubeHelpers
 import com.phantom.tube.ui.screens.player.components.FloatingMixBar
