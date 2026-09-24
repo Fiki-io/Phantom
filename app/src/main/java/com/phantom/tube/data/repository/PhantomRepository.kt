@@ -212,6 +212,10 @@ class PhantomRepository(
         watchHistoryDao.clearAll()
     }
 
+    suspend fun clearWatchHistory() {
+        clearHistory()
+    }
+
     // Favorites
     fun getFavorites(): Flow<List<FavoriteEntity>> {
         return favoriteDao.getAllFavorites()
