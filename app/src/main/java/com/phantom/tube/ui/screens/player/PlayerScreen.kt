@@ -11,6 +11,7 @@ import android.os.IBinder
 import android.view.WindowManager
 import androidx.activity.compose.BackHandler
 import com.phantom.tube.player.service.PhantomMediaService
+import com.phantom.tube.data.innertube.parser.InnerTubeHelpers
 import com.phantom.tube.ui.screens.player.components.FloatingMixBar
 import com.phantom.tube.ui.screens.player.components.PlayerCommentsSheet
 import com.phantom.tube.ui.screens.player.components.PlayerDescriptionSheet
@@ -1281,8 +1282,8 @@ fun PlayerScreen(
                         // 2. Sub-info row (Handle • Likes • Views • Date • ...selengkapnya)
                         val activeHandle = nextQueueData?.channelHandle?.let { if (it.startsWith("@")) it else "@$it" }
                             ?: ""
-                        val activeViews = nextQueueData?.fullViewCountText?.ifBlank { video.viewCountText } ?: video.viewCountText
-                        val activeDate = nextQueueData?.dateText?.ifBlank { video.publishedTimeText } ?: video.publishedTimeText
+                        val activeViews = InnerTubeHelpers.normalizeViewCount(nextQueueData?.fullViewCountText?.ifBlank { video.viewCountText } ?: video.viewCountText)
+                        val activeDate = InnerTubeHelpers.normalizePublishedTime(nextQueueData?.dateText?.ifBlank { video.publishedTimeText } ?: video.publishedTimeText)
                         val activeLikeCount = nextQueueData?.likeCountText ?: ""
 
                         Row(

@@ -123,8 +123,8 @@ object FeedParser {
                 thumbnailUrl = thumb,
                 channelAvatarUrl = avatar,
                 durationText = duration,
-                viewCountText = views,
-                publishedTimeText = published
+                viewCountText = InnerTubeHelpers.normalizeViewCount(views),
+                publishedTimeText = InnerTubeHelpers.normalizePublishedTime(published)
             )
         }
 
@@ -154,8 +154,8 @@ object FeedParser {
                 thumbnailUrl = thumb,
                 channelAvatarUrl = avatar,
                 durationText = duration,
-                viewCountText = views,
-                publishedTimeText = published
+                viewCountText = InnerTubeHelpers.normalizeViewCount(views),
+                publishedTimeText = InnerTubeHelpers.normalizePublishedTime(published)
             )
         }
 
@@ -269,8 +269,8 @@ object FeedParser {
                 thumbnailUrl = thumb,
                 channelAvatarUrl = avatar,
                 durationText = duration,
-                viewCountText = if (views.isNotBlank()) views else "",
-                publishedTimeText = published
+                viewCountText = InnerTubeHelpers.normalizeViewCount(views),
+                publishedTimeText = InnerTubeHelpers.normalizePublishedTime(published)
             )
         }
 

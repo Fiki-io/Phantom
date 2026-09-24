@@ -37,6 +37,7 @@ import coil.compose.AsyncImage
 import com.phantom.tube.core.theme.TextPrimary
 import com.phantom.tube.core.theme.TextSecondary
 import com.phantom.tube.core.theme.YouTubeRed
+import com.phantom.tube.data.innertube.parser.InnerTubeHelpers
 import com.phantom.tube.data.model.VideoItem
 
 /**
@@ -175,17 +176,11 @@ fun PhantomVideoCard(
 
                 Spacer(modifier = Modifier.height(3.dp))
 
-                val metaString = buildString {
-                    append(video.channelTitle)
-                    if (video.viewCountText.isNotBlank()) {
-                        append(" • ")
-                        append(video.viewCountText)
-                    }
-                    if (video.publishedTimeText.isNotBlank()) {
-                        append(" • ")
-                        append(video.publishedTimeText)
-                    }
-                }
+                val metaString = InnerTubeHelpers.formatVideoMeta(
+                    channelTitle = video.channelTitle,
+                    viewCountText = video.viewCountText,
+                    publishedTimeText = video.publishedTimeText
+                )
 
                 Text(
                     text = metaString,

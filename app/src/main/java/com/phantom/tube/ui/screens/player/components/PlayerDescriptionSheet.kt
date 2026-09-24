@@ -55,8 +55,10 @@ import coil.compose.AsyncImage
 import com.phantom.tube.core.theme.TextMuted
 import com.phantom.tube.core.theme.TextPrimary
 import com.phantom.tube.core.theme.TextSecondary
+import com.phantom.tube.data.innertube.parser.InnerTubeHelpers
 import com.phantom.tube.data.model.NextQueue
 import com.phantom.tube.data.model.VideoItem
+import androidx.compose.foundation.text.selection.SelectionContainer
 import kotlin.math.roundToInt
 
 @Composable
@@ -284,8 +286,14 @@ fun PlayerDescriptionSheet(
                                 Box(modifier = Modifier.height(28.dp).width(1.dp).background(Color(0xFF333333)))
 
                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    val rawViews = nextQueueData?.fullViewCountText?.ifBlank { video.viewCountText } ?: "-"
+                                    val displayViews = if (rawViews.contains("ditonton", ignoreCase = true)) {
+                                        rawViews.replace("ditonton", "").replace("x", "").trim()
+                                    } else if (rawViews.contains("views", ignoreCase = true)) {
+                                        rawViews.replace("views", "", ignoreCase = true).trim()
+                                    } else rawViews
                                     Text(
-                                        text = nextQueueData?.fullViewCountText?.ifBlank { video.viewCountText } ?: "-",
+                                        text = displayViews.ifBlank { "-" },
                                         color = TextPrimary,
                                         fontSize = 15.sp,
                                         fontWeight = FontWeight.Bold
@@ -296,8 +304,10 @@ fun PlayerDescriptionSheet(
                                 Box(modifier = Modifier.height(28.dp).width(1.dp).background(Color(0xFF333333)))
 
                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    val rawDate = nextQueueData?.dateText?.ifBlank { video.publishedTimeText } ?: "-"
+                                    val displayDate = InnerTubeHelpers.normalizePublishedTime(rawDate)
                                     Text(
-                                        text = nextQueueData?.dateText?.ifBlank { video.publishedTimeText } ?: "-",
+                                        text = displayDate.ifBlank { "-" },
                                         color = TextPrimary,
                                         fontSize = 15.sp,
                                         fontWeight = FontWeight.Bold
@@ -320,15 +330,24 @@ fun PlayerDescriptionSheet(
                         item {
                             val desc = nextQueueData?.description?.ifBlank { "Tidak ada deskripsi." }
                                 ?: "Tidak ada deskripsi."
-                            Text(
-                                text = desc,
-                                color = TextSecondary,
-                                fontSize = 13.sp,
-                                lineHeight = 20.sp,
+                            Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(bottom = 24.dp)
-                            )
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(Color(0xFF1B1B1B))
+                                    .padding(14.dp)
+                            ) {
+                                SelectionContainer {
+                                    Text(
+                                        text = desc,
+                                        color = TextPrimary,
+                                        fontSize = 13.sp,
+                                        lineHeight = 21.sp,
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(24.dp))
                         }
                     }
                 }

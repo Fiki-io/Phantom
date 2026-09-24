@@ -94,7 +94,7 @@ object WatchNextParser {
                     }
                     val desc = InnerTubeHelpers.parseRunsText(videoSecondaryInfo.optJSONObject("description"))
                     videoDescription = if (desc.isNotBlank()) desc else {
-                        videoSecondaryInfo.optJSONObject("attributedDescription")?.optString("content") ?: ""
+                        InnerTubeHelpers.parseRunsText(videoSecondaryInfo.optJSONObject("attributedDescription"))
                     }
                 }
 
@@ -136,6 +136,40 @@ object WatchNextParser {
                 val m = likeRegex.find(jsonString)
                 if (m != null) {
                     likeCount = m.groupValues[1]
+                }
+            }
+
+            // 1.5 Robust Description Extraction (engagementPanels & regex fallback)
+            if (videoDescription.isBlank()) {
+                val panels = root.optJSONArray("engagementPanels") ?: JSONArray()
+                for (p in 0 until panels.length()) {
+                    val panel = panels.optJSONObject(p)?.optJSONObject("engagementPanelSectionListRenderer") ?: continue
+                    val pId = panel.optString("panelIdentifier").ifBlank { panel.optString("targetId") }
+                    if (pId.contains("description", ignoreCase = true)) {
+                        val items = panel.optJSONObject("content")
+                            ?.optJSONObject("structuredDescriptionContentRenderer")
+                            ?.optJSONArray("items") ?: JSONArray()
+                        for (itIdx in 0 until items.length()) {
+                            val itm = items.optJSONObject(itIdx) ?: continue
+                            val body = itm.optJSONObject("expandableVideoDescriptionBodyRenderer")
+                            if (body != null) {
+                                val bodyText = InnerTubeHelpers.parseRunsText(body.optJSONObject("attributedDescriptionBodyText"))
+                                    .ifBlank { InnerTubeHelpers.parseRunsText(body.optJSONObject("descriptionBodyText")) }
+                                if (bodyText.isNotBlank()) {
+                                    videoDescription = bodyText
+                                    break
+                                }
+                            }
+                        }
+                    }
+                    if (videoDescription.isNotBlank()) break
+                }
+            }
+            if (videoDescription.isBlank()) {
+                val descMatch = Regex(""""attributedDescriptionBodyText"\s*:\s*\{[^}]*?"content"\s*:\s*"((?:\\.|[^"\\])*)"""").find(jsonString)
+                if (descMatch != null) {
+                    val raw = descMatch.groupValues[1]
+                    videoDescription = raw.replace("\\n", "\n").replace("\\\"", "\"").replace("\\\\", "\\")
                 }
             }
 
@@ -258,8 +292,8 @@ object WatchNextParser {
                 channelTitle = currentChannel,
                 channelId = currentChannelId,
                 channelAvatarUrl = currentAvatar,
-                viewCountText = fullViews,
-                publishedTimeText = dateUploaded,
+                viewCountText = InnerTubeHelpers.normalizeViewCount(fullViews),
+                publishedTimeText = InnerTubeHelpers.normalizePublishedTime(dateUploaded),
                 thumbnailUrl = "https://i.ytimg.com/vi/$currentVideoId/hqdefault.jpg"
             )
 
@@ -271,8 +305,8 @@ object WatchNextParser {
                 playlistTitle = playlistTitle,
                 currentIndex = detectedCurrentIndex,
                 likeCountText = likeCount,
-                fullViewCountText = fullViews,
-                dateText = dateUploaded,
+                fullViewCountText = InnerTubeHelpers.normalizeViewCount(fullViews),
+                dateText = InnerTubeHelpers.normalizePublishedTime(dateUploaded),
                 description = videoDescription,
                 channelSubscriberCountText = currentSubs,
                 channelHandle = currentHandle,

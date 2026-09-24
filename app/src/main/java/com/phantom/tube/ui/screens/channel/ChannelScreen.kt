@@ -58,6 +58,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import com.phantom.tube.data.innertube.parser.InnerTubeHelpers
 import androidx.compose.runtime.snapshotFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
@@ -843,15 +844,11 @@ fun ChannelVideoHorizontalItem(
 
             Spacer(modifier = Modifier.height(4.dp))
 
-            val metaText = buildString {
-                if (video.viewCountText.isNotBlank()) {
-                    append(video.viewCountText)
-                }
-                if (video.publishedTimeText.isNotBlank()) {
-                    if (isNotEmpty()) append(" • ")
-                    append(video.publishedTimeText)
-                }
-            }
+            val metaText = InnerTubeHelpers.formatVideoMeta(
+                channelTitle = "",
+                viewCountText = video.viewCountText,
+                publishedTimeText = video.publishedTimeText
+            )
 
             if (metaText.isNotBlank()) {
                 Text(

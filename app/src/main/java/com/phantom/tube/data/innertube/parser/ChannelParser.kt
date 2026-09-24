@@ -165,8 +165,8 @@ object ChannelParser {
                                         channelId = channelId,
                                         thumbnailUrl = "https://i.ytimg.com/vi/$vid/hqdefault.jpg",
                                         channelAvatarUrl = avatarUrl,
-                                        viewCountText = vViews,
-                                        publishedTimeText = vPub
+                                        viewCountText = InnerTubeHelpers.normalizeViewCount(vViews),
+                                        publishedTimeText = InnerTubeHelpers.normalizePublishedTime(vPub)
                                     )
                                 }
                             }
