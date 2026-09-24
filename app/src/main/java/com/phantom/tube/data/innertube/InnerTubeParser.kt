@@ -174,7 +174,9 @@ object InnerTubeParser {
                     val owner = videoSecondaryInfo.optJSONObject("owner")?.optJSONObject("videoOwnerRenderer")
                     if (owner != null) {
                         currentChannel = parseRunsText(owner.optJSONObject("title"))
-                        val ownerThumb = extractThumbnail(owner.optJSONObject("thumbnail"), "")
+                        val ownerThumb = extractThumbnail(owner.optJSONObject("thumbnail"), "").ifBlank {
+                            extractAvatar(owner)
+                        }
                         if (ownerThumb.isNotBlank()) {
                             currentAvatar = ownerThumb
                         }
@@ -248,7 +250,14 @@ object InnerTubeParser {
                     if (videoId.isBlank()) continue
 
                     val title = parseRunsText(ppvr.optJSONObject("title"))
-                    val channel = parseRunsText(ppvr.optJSONObject("longBylineText") ?: ppvr.optJSONObject("shortBylineText"))
+                    val bylineObj = ppvr.optJSONObject("longBylineText") ?: ppvr.optJSONObject("shortBylineText")
+                    val channel = parseRunsText(bylineObj)
+                    val runs = bylineObj?.optJSONArray("runs")
+                    var itemChannelId = ""
+                    if (runs != null && runs.length() > 0) {
+                        itemChannelId = runs.optJSONObject(0)?.optJSONObject("navigationEndpoint")
+                            ?.optJSONObject("browseEndpoint")?.optString("browseId") ?: ""
+                    }
                     val thumb = extractThumbnail(ppvr.optJSONObject("thumbnail"), videoId)
                     val duration = ppvr.optJSONObject("lengthText")?.optString("simpleText") ?: ""
 
@@ -256,6 +265,7 @@ object InnerTubeParser {
                         id = videoId,
                         title = title,
                         channelTitle = channel,
+                        channelId = itemChannelId,
                         thumbnailUrl = thumb,
                         durationText = duration
                     )

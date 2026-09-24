@@ -195,7 +195,9 @@ fun PlayerScreen(
     var showCommentsSheet by remember { mutableStateOf(false) }
 
     LaunchedEffect(video.id) {
-        activeAvatarUrl = video.channelAvatarUrl
+        if (video.channelAvatarUrl.isNotBlank()) {
+            activeAvatarUrl = video.channelAvatarUrl
+        }
         recContinuationToken = null
         canLoadMoreRecs = true
         nextQueueData = null
@@ -528,62 +530,41 @@ fun PlayerScreen(
         }
 
         launch {
-            if (!fromInternal) {
-                isLoadingQueue = true
-                showMixSheet = false
-                val nextData = repository.getWatchNext(video.id, "RD${video.id}")
-                if (nextData != null) {
-                    if (activeAvatarUrl.isBlank() && nextData.currentVideo.channelAvatarUrl.isNotBlank()) {
-                        activeAvatarUrl = nextData.currentVideo.channelAvatarUrl
-                    }
-                    if (video.title.isBlank() || video.title == "Video" || video.channelTitle.isBlank()) {
-                        mediaService?.updateMediaInfo(
-                            title = nextData.currentVideo.title,
-                            channel = nextData.currentVideo.channelTitle,
-                            durationMs = 0L,
-                            playing = true,
-                            thumbnailUrl = nextData.currentVideo.thumbnailUrl
-                        )
-                    }
+            isLoadingQueue = true
+            val nextData = repository.getWatchNext(video.id, "RD${video.id}")
+            if (nextData != null) {
+                nextQueueData = nextData
+                if (nextData.currentVideo.channelAvatarUrl.isNotBlank()) {
+                    activeAvatarUrl = nextData.currentVideo.channelAvatarUrl
+                }
+                mediaService?.updateMediaInfo(
+                    title = nextData.currentVideo.title.ifBlank { video.title },
+                    channel = nextData.currentVideo.channelTitle.ifBlank { video.channelTitle },
+                    durationMs = 0L,
+                    playing = true,
+                    thumbnailUrl = nextData.currentVideo.thumbnailUrl.ifBlank { video.thumbnailUrl }
+                )
+                recommendedVideos = nextData.recommendations
+                recContinuationToken = nextData.recommendationsContinuationToken
+                canLoadMoreRecs = true
+
+                if (!fromInternal) {
+                    showMixSheet = false
                     mixPlaylist = nextData.mixPlaylist
                     currentMixIndex = if (nextData.mixPlaylist.isNotEmpty()) {
                         val match = nextData.mixPlaylist.indexOfFirst { it.id == video.id }
                         if (match != -1) match else nextData.currentIndex
                     } else 0
-                    recommendedVideos = nextData.recommendations
-                    recContinuationToken = nextData.recommendationsContinuationToken
-                    canLoadMoreRecs = true
                     mixTitle = nextData.playlistTitle.ifBlank { "Mix" }
-                    nextQueueData = nextData
-
-                    if (!nextData.commentsContinuationToken.isNullOrBlank()) {
-                        launch {
-                            isLoadingComments = true
-                            try {
-                                val cResult = repository.getComments(nextData.commentsContinuationToken)
-                                commentsList = cResult.comments
-                                commentsTotalCountText = cResult.totalCountText.ifBlank { nextData.commentsCountText }
-                                commentsContinuationToken = cResult.continuationToken
-                            } catch (e: Exception) {
-                                e.printStackTrace()
-                            } finally {
-                                isLoadingComments = false
-                            }
+                } else {
+                    // Internal navigation: preserve currentMixIndex and prevent duplicate ID jumps
+                    if (currentMixIndex !in mixPlaylist.indices || mixPlaylist[currentMixIndex].id != video.id) {
+                        val idx = mixPlaylist.indexOfFirst { it.id == video.id }
+                        if (idx != -1) {
+                            currentMixIndex = idx
                         }
                     }
-                }
-                isLoadingQueue = false
-            } else {
-                // Internal navigation: preserve currentMixIndex and prevent duplicate ID jumps
-                if (currentMixIndex !in mixPlaylist.indices || mixPlaylist[currentMixIndex].id != video.id) {
-                    val idx = mixPlaylist.indexOfFirst { it.id == video.id }
-                    if (idx != -1) {
-                        currentMixIndex = idx
-                    }
-                }
-                if (mixPlaylist.isNotEmpty() && currentMixIndex >= mixPlaylist.size - 5) {
-                    val nextData = repository.getWatchNext(video.id, "RD${video.id}")
-                    if (nextData != null && nextData.mixPlaylist.isNotEmpty()) {
+                    if (mixPlaylist.isNotEmpty() && currentMixIndex >= mixPlaylist.size - 5) {
                         val existingIds = mixPlaylist.map { it.id }.toSet()
                         val freshItems = nextData.mixPlaylist.filter { it.id !in existingIds }
                         if (freshItems.isNotEmpty()) {
@@ -591,7 +572,33 @@ fun PlayerScreen(
                         }
                     }
                 }
+
+                if (!nextData.commentsContinuationToken.isNullOrBlank()) {
+                    launch {
+                        isLoadingComments = true
+                        try {
+                            val cResult = repository.getComments(nextData.commentsContinuationToken)
+                            commentsList = cResult.comments
+                            commentsTotalCountText = cResult.totalCountText.ifBlank { nextData.commentsCountText }
+                            commentsContinuationToken = cResult.continuationToken
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                        } finally {
+                            isLoadingComments = false
+                        }
+                    }
+                }
+            } else {
+                if (fromInternal) {
+                    if (currentMixIndex !in mixPlaylist.indices || mixPlaylist[currentMixIndex].id != video.id) {
+                        val idx = mixPlaylist.indexOfFirst { it.id == video.id }
+                        if (idx != -1) {
+                            currentMixIndex = idx
+                        }
+                    }
+                }
             }
+            isLoadingQueue = false
         }
     }
 
@@ -1235,6 +1242,7 @@ fun PlayerScreen(
                                     )
                             ) {
                                 // Channel Avatar
+                                val currentAvatar = nextQueueData?.currentVideo?.channelAvatarUrl?.ifBlank { activeAvatarUrl } ?: activeAvatarUrl
                                 Box(
                                     modifier = Modifier
                                         .size(36.dp)
@@ -1246,9 +1254,9 @@ fun PlayerScreen(
                                         ),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    if (activeAvatarUrl.isNotBlank()) {
+                                    if (currentAvatar.isNotBlank()) {
                                         AsyncImage(
-                                            model = activeAvatarUrl,
+                                            model = currentAvatar,
                                             contentDescription = targetChannelTitle,
                                             modifier = Modifier.matchParentSize().clip(CircleShape),
                                             contentScale = ContentScale.Crop
@@ -1294,6 +1302,7 @@ fun PlayerScreen(
                                     .clip(RoundedCornerShape(20.dp))
                                     .background(if (isSubscribed) Color(0xFF272727) else Color.White)
                                     .clickable {
+                                        val currentAvatar = nextQueueData?.currentVideo?.channelAvatarUrl?.ifBlank { activeAvatarUrl } ?: activeAvatarUrl
                                         scope.launch {
                                             if (isSubscribed) {
                                                 repository.unsubscribe(targetChannelId)
@@ -1303,7 +1312,7 @@ fun PlayerScreen(
                                                         channelId = targetChannelId,
                                                         channelTitle = targetChannelTitle,
                                                         channelHandle = nextQueueData?.channelHandle ?: "",
-                                                        channelAvatarUrl = activeAvatarUrl,
+                                                        channelAvatarUrl = currentAvatar,
                                                         subscriberCountText = nextQueueData?.channelSubscriberCountText ?: ""
                                                     )
                                                 )
@@ -2077,13 +2086,14 @@ fun PlayerScreen(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
+                                val currentAvatar = nextQueueData?.currentVideo?.channelAvatarUrl?.ifBlank { activeAvatarUrl } ?: activeAvatarUrl
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
                                     modifier = Modifier.weight(1f)
                                 ) {
-                                    if (activeAvatarUrl.isNotBlank()) {
+                                    if (currentAvatar.isNotBlank()) {
                                         AsyncImage(
-                                            model = activeAvatarUrl,
+                                            model = currentAvatar,
                                             contentDescription = targetChannelTitle,
                                             modifier = Modifier
                                                 .size(36.dp)
@@ -2123,7 +2133,7 @@ fun PlayerScreen(
                                                             channelId = targetChannelId,
                                                             channelTitle = targetChannelTitle,
                                                             channelHandle = nextQueueData?.channelHandle ?: "",
-                                                            channelAvatarUrl = activeAvatarUrl,
+                                                            channelAvatarUrl = currentAvatar,
                                                             subscriberCountText = nextQueueData?.channelSubscriberCountText ?: ""
                                                         )
                                                     )
