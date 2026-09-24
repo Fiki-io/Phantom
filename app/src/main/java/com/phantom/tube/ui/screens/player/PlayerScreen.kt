@@ -999,7 +999,12 @@ fun PlayerScreen(
                                 contentDescription = "Pengaturan",
                                 size = 36.dp,
                                 iconSize = 20.dp,
-                                onClick = { showSettingsSheet = true }
+                                onClick = {
+                                    showCommentsSheet = false
+                                    showDescriptionSheet = false
+                                    showMixSheet = false
+                                    showSettingsSheet = true
+                                }
                             )
                         }
                     }
@@ -1202,7 +1207,12 @@ fun PlayerScreen(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clickable { showDescriptionSheet = true },
+                                .clickable {
+                                    showCommentsSheet = false
+                                    showMixSheet = false
+                                    showSettingsSheet = false
+                                    showDescriptionSheet = true
+                                },
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
@@ -1477,6 +1487,9 @@ fun PlayerScreen(
                                 .clip(RoundedCornerShape(12.dp))
                                 .background(Color(0xFF212121))
                                 .clickable {
+                                    showDescriptionSheet = false
+                                    showMixSheet = false
+                                    showSettingsSheet = false
                                     showCommentsSheet = true
                                 }
                                 .padding(12.dp)
@@ -1625,10 +1638,14 @@ fun PlayerScreen(
                     .zIndex(4f)
                     .navigationBarsPadding()
                     .padding(start = 12.dp, end = 12.dp, bottom = 10.dp)
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(Color(0xF51F1F1F))
-                    .border(1.dp, Color(0x2EFFFFFF), RoundedCornerShape(14.dp))
-                    .clickable { showMixSheet = true }
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Color(0xFF212121))
+                    .clickable {
+                        showCommentsSheet = false
+                        showDescriptionSheet = false
+                        showSettingsSheet = false
+                        showMixSheet = true
+                    }
                     .padding(horizontal = 14.dp, vertical = 8.dp)
             ) {
                 Row(
@@ -1697,9 +1714,6 @@ fun PlayerScreen(
                 }
             }
 
-            val density = LocalDensity.current
-            val mixDismissThresholdPx = remember(density) { with(density) { 90.dp.toPx() } }
-
             val mixHandleDragModifier = Modifier.pointerInput(Unit) {
                 detectVerticalDragGestures(
                     onVerticalDrag = { change, dragAmount ->
@@ -1707,7 +1721,7 @@ fun PlayerScreen(
                         mixSheetOffsetY = (mixSheetOffsetY + dragAmount).coerceAtLeast(0f)
                     },
                     onDragEnd = {
-                        if (mixSheetOffsetY > mixDismissThresholdPx) {
+                        if (mixSheetOffsetY > 180f) {
                             showMixSheet = false
                         } else {
                             mixSheetOffsetY = 0f
@@ -1717,45 +1731,6 @@ fun PlayerScreen(
                         mixSheetOffsetY = 0f
                     }
                 )
-            }
-
-            val mixNestedScrollConnection = remember(mixDismissThresholdPx) {
-                object : NestedScrollConnection {
-                    override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
-                        if (mixSheetOffsetY > 0f && available.y < 0f) {
-                            val consumed = available.y.coerceAtLeast(-mixSheetOffsetY)
-                            mixSheetOffsetY += consumed
-                            return Offset(0f, consumed)
-                        }
-                        return Offset.Zero
-                    }
-
-                    override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
-                        if (available.y > 0f) {
-                            mixSheetOffsetY = (mixSheetOffsetY + available.y).coerceAtLeast(0f)
-                            return Offset(0f, available.y)
-                        }
-                        return Offset.Zero
-                    }
-
-                    override suspend fun onPreFling(available: Velocity): Velocity {
-                        if (mixSheetOffsetY > mixDismissThresholdPx || available.y > 800f) {
-                            showMixSheet = false
-                        } else {
-                            mixSheetOffsetY = 0f
-                        }
-                        return Velocity.Zero
-                    }
-
-                    override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
-                        if (mixSheetOffsetY > mixDismissThresholdPx || available.y > 800f) {
-                            showMixSheet = false
-                        } else {
-                            mixSheetOffsetY = 0f
-                        }
-                        return Velocity.Zero
-                    }
-                }
             }
 
             AnimatedVisibility(
@@ -1782,13 +1757,11 @@ fun PlayerScreen(
                             .align(Alignment.BottomCenter)
                             .offset { IntOffset(0, animatedMixSheetOffsetY.roundToInt()) }
                             .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
-                            .background(Color(0xFF181818))
-                            .border(1.dp, Color(0x22FFFFFF), RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
+                            .background(Color(0xFF212121))
                             .clickable(
                                 interactionSource = remember { MutableInteractionSource() },
                                 indication = null
                             ) {}
-                            .nestedScroll(mixNestedScrollConnection)
                             .navigationBarsPadding()
                             .padding(horizontal = 16.dp, vertical = 8.dp)
                     ) {
@@ -1803,12 +1776,12 @@ fun PlayerScreen(
                             ) {
                                 Box(
                                     modifier = Modifier
-                                        .size(width = 44.dp, height = 4.dp)
+                                        .size(width = 38.dp, height = 4.dp)
                                         .background(Color.White.copy(alpha = 0.35f), RoundedCornerShape(2.dp))
                                 )
                             }
 
-                            Spacer(modifier = Modifier.height(8.dp))
+                            Spacer(modifier = Modifier.height(4.dp))
 
                             // Header Bar (also supports dragging down to close)
                             Row(
@@ -1822,7 +1795,7 @@ fun PlayerScreen(
                                     Text(
                                         text = mixTitle.ifBlank { "Mix" },
                                         color = TextPrimary,
-                                        fontSize = 15.sp,
+                                        fontSize = 17.sp,
                                         fontWeight = FontWeight.Bold,
                                         maxLines = 1
                                     )
@@ -1833,16 +1806,24 @@ fun PlayerScreen(
                                     )
                                 }
 
-                                PhantomIconButton(
-                                    icon = Icons.Default.Close,
-                                    contentDescription = "Tutup",
-                                    size = 36.dp,
-                                    iconSize = 18.dp,
-                                    onClick = { showMixSheet = false }
-                                )
+                                IconButton(
+                                    onClick = { showMixSheet = false },
+                                    modifier = Modifier.size(32.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Close,
+                                        contentDescription = "Tutup",
+                                        tint = TextSecondary,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
                             }
 
-                            Spacer(modifier = Modifier.height(12.dp))
+                            Divider(
+                                color = Color(0xFF2E2E2E),
+                                thickness = 1.dp,
+                                modifier = Modifier.padding(vertical = 6.dp)
+                            )
 
                             // Mix Playlist List (Semua lagu lengkap, tidak ada yang di-hide)
                             val listState = rememberLazyListState()
@@ -1917,7 +1898,7 @@ fun PlayerScreen(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .zIndex(5f)
+                    .zIndex(7f)
             ) {
                 PlayerSettingsSheet(
                     visible = showSettingsSheet,
@@ -1981,8 +1962,7 @@ fun PlayerScreen(
                         .align(Alignment.BottomCenter)
                         .offset { IntOffset(0, animatedDescSheetOffsetY.roundToInt()) }
                         .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
-                        .background(Color(0xFF181818))
-                        .border(1.dp, Color(0x22FFFFFF), RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
+                        .background(Color(0xFF212121))
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null
@@ -2004,7 +1984,7 @@ fun PlayerScreen(
                         ) {
                             Box(
                                 modifier = Modifier
-                                    .size(width = 40.dp, height = 4.dp)
+                                    .size(width = 38.dp, height = 4.dp)
                                     .background(Color.White.copy(alpha = 0.35f), RoundedCornerShape(2.dp))
                             )
                         }
@@ -2028,17 +2008,15 @@ fun PlayerScreen(
                                     imageVector = Icons.Default.Close,
                                     contentDescription = "Tutup",
                                     tint = TextSecondary,
-                                    modifier = Modifier.size(22.dp)
+                                    modifier = Modifier.size(20.dp)
                                 )
                             }
                         }
 
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 8.dp)
-                                .height(1.dp)
-                                .background(Color(0xFF272727))
+                        Divider(
+                            color = Color(0xFF2E2E2E),
+                            thickness = 1.dp,
+                            modifier = Modifier.padding(vertical = 6.dp)
                         )
 
                         LazyColumn(
@@ -2262,8 +2240,7 @@ fun PlayerScreen(
                         .align(Alignment.BottomCenter)
                         .offset { IntOffset(0, animatedCommentsSheetOffsetY.roundToInt()) }
                         .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
-                        .background(Color(0xFF181818))
-                        .border(1.dp, Color(0x22FFFFFF), RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
+                        .background(Color(0xFF212121))
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null
@@ -2285,7 +2262,7 @@ fun PlayerScreen(
                         ) {
                             Box(
                                 modifier = Modifier
-                                    .size(width = 40.dp, height = 4.dp)
+                                    .size(width = 38.dp, height = 4.dp)
                                     .background(Color.White.copy(alpha = 0.35f), RoundedCornerShape(2.dp))
                             )
                         }
@@ -2319,17 +2296,15 @@ fun PlayerScreen(
                                     imageVector = Icons.Default.Close,
                                     contentDescription = "Tutup",
                                     tint = TextSecondary,
-                                    modifier = Modifier.size(22.dp)
+                                    modifier = Modifier.size(20.dp)
                                 )
                             }
                         }
 
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 6.dp)
-                                .height(1.dp)
-                                .background(Color(0xFF272727))
+                        Divider(
+                            color = Color(0xFF2E2E2E),
+                            thickness = 1.dp,
+                            modifier = Modifier.padding(vertical = 6.dp)
                         )
 
                         // Comments List (No write input, display only as requested)
