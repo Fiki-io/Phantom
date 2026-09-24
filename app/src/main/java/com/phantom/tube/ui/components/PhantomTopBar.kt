@@ -19,6 +19,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -35,7 +36,7 @@ import com.phantom.tube.core.theme.YouTubeRed
 /**
  * Top App Bar beranda:
  * - Logo Phantom & nama aplikasi
- * - Tombol Segarkan & Cari
+ * - Tombol Segarkan, Pengaturan & Cari
  * - Filter chip kategori
  */
 @Composable
@@ -45,6 +46,7 @@ fun PhantomTopBar(
     onCategorySelected: (String) -> Unit,
     onSearchClick: () -> Unit,
     onRefreshClick: (() -> Unit)? = null,
+    onSettingsClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -91,7 +93,7 @@ fun PhantomTopBar(
                 )
             }
 
-            // Aksi: Refresh + Cari
+            // Aksi: Refresh + Settings + Cari
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
@@ -103,6 +105,16 @@ fun PhantomTopBar(
                         size = 38.dp,
                         iconSize = 20.dp,
                         onClick = onRefreshClick
+                    )
+                }
+
+                if (onSettingsClick != null) {
+                    PhantomIconButton(
+                        icon = Icons.Default.Settings,
+                        contentDescription = "Pengaturan",
+                        size = 38.dp,
+                        iconSize = 20.dp,
+                        onClick = onSettingsClick
                     )
                 }
 

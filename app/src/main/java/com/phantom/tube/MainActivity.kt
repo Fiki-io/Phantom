@@ -45,6 +45,7 @@ import androidx.compose.animation.AnimatedVisibility
 import com.phantom.tube.ui.screens.channel.ChannelScreen
 import com.phantom.tube.ui.screens.player.PlayerScreen
 import com.phantom.tube.ui.screens.search.SearchScreen
+import com.phantom.tube.ui.screens.settings.SettingsScreen
 import com.phantom.tube.ui.screens.subscription.SubscriptionScreen
 
 class MainActivity : ComponentActivity() {
@@ -72,11 +73,18 @@ class MainActivity : ComponentActivity() {
                 var currentTab by remember { mutableStateOf(NavTab.HOME) }
                 var activeChannelId by remember { mutableStateOf<String?>(null) }
                 var activeChannelTitle by remember { mutableStateOf("") }
+                var isSettingsOpen by remember { mutableStateOf(false) }
 
-                // Intercept system back press when ChannelScreen is active
+                // Intercept system back press when ChannelScreen or SettingsScreen is active
                 if (activeChannelId != null) {
                     BackHandler {
                         activeChannelId = null
+                    }
+                }
+
+                if (isSettingsOpen) {
+                    BackHandler {
+                        isSettingsOpen = false
                     }
                 }
 
@@ -97,7 +105,7 @@ class MainActivity : ComponentActivity() {
                                 (slideInHorizontally(
                                     animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing),
                                     initialOffsetX = { fullWidth -> (fullWidth * 0.22f * slideDirection).toInt() }
-                               ) + fadeIn(
+                                ) + fadeIn(
                                     animationSpec = tween(durationMillis = 220)
                                 )) togetherWith (slideOutHorizontally(
                                     animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing),
@@ -119,7 +127,8 @@ class MainActivity : ComponentActivity() {
                                         activeChannelId = chId
                                         activeChannelTitle = chTitle
                                     },
-                                    onSearchClick = { currentTab = NavTab.SEARCH }
+                                    onSearchClick = { currentTab = NavTab.SEARCH },
+                                    onSettingsClick = { isSettingsOpen = true }
                                 )
                                 NavTab.SEARCH -> SearchScreen(
                                     repository = repository,
@@ -157,7 +166,7 @@ class MainActivity : ComponentActivity() {
                     }
 
                     // 2. BUBBLE BOTTOM NAVIGATION DOCK
-                    if (!isInPipMode && (activeVideo == null || isPlayerMinimized) && activeChannelId == null) {
+                    if (!isInPipMode && (activeVideo == null || isPlayerMinimized) && activeChannelId == null && !isSettingsOpen) {
                         BubbleBottomNav(
                             currentTab = currentTab,
                             onTabSelected = { currentTab = it },
@@ -194,6 +203,26 @@ class MainActivity : ComponentActivity() {
                                 modifier = Modifier.fillMaxSize()
                             )
                         }
+                    }
+
+                    // 3.5 SETTINGS SCREEN OVERLAY
+                    AnimatedVisibility(
+                        visible = isSettingsOpen,
+                        enter = slideInHorizontally(
+                            initialOffsetX = { fullWidth -> fullWidth },
+                            animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing)
+                        ) + fadeIn(animationSpec = tween(200)),
+                        exit = slideOutHorizontally(
+                            targetOffsetX = { fullWidth -> fullWidth },
+                            animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing)
+                        ) + fadeOut(animationSpec = tween(200))
+                    ) {
+                        SettingsScreen(
+                            preferences = app.preferences,
+                            repository = repository,
+                            onBackClick = { isSettingsOpen = false },
+                            modifier = Modifier.fillMaxSize()
+                        )
                     }
 
                     // 4. PERSISTENT PLAYER (Full screen OR Miniplayer)
@@ -241,8 +270,9 @@ class MainActivity : ComponentActivity() {
 
     override fun onUserLeaveHint() {
         super.onUserLeaveHint()
-        // Enter Picture-in-Picture only if video is actively playing in FULL player mode (not miniplayer / background audio)
-        if (activeVideo != null && !isPlayerMinimized && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        // Enter Picture-in-Picture only if enabled in preferences and video is actively playing in FULL player mode
+        val isAutoPip = (application as? PhantomApp)?.preferences?.autoPipEnabled?.value ?: true
+        if (isAutoPip && activeVideo != null && !isPlayerMinimized && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             try {
                 val params = PictureInPictureParams.Builder()
                     .setAspectRatio(Rational(16, 9))

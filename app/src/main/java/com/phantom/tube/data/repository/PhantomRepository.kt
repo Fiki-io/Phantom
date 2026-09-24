@@ -15,6 +15,7 @@ import com.phantom.tube.data.model.FeedResult
 import com.phantom.tube.data.model.NextQueue
 import com.phantom.tube.data.model.SponsorSegment
 import com.phantom.tube.data.model.VideoItem
+import com.phantom.tube.data.settings.PhantomPreferences
 import com.phantom.tube.data.sponsorblock.SponsorBlockClient
 import kotlinx.coroutines.flow.Flow
 
@@ -24,7 +25,8 @@ class PhantomRepository(
     private val watchHistoryDao: WatchHistoryDao,
     private val favoriteDao: FavoriteDao,
     private val searchHistoryDao: SearchHistoryDao,
-    private val subscriptionDao: SubscriptionDao
+    private val subscriptionDao: SubscriptionDao,
+    val preferences: PhantomPreferences? = null
 ) {
     suspend fun getHomeRecommendations(
         historyIndex: Int = 0,
@@ -54,8 +56,17 @@ class PhantomRepository(
             }
         }
 
-        // Fallback for new users (no watch history yet) or end of history:
-        return innerTubeClient.fetchFeedPage(query = "trending indonesia", continuation = continuation)
+        // Fallback for new users or end of history (based on selected Content Country):
+        val country = preferences?.contentCountry?.value ?: "ID"
+        val defaultQuery = when (country) {
+            "GLOBAL" -> "trending global"
+            "US" -> "trending us"
+            "JP" -> "trending japan"
+            "KR" -> "trending korea"
+            "GB" -> "trending uk"
+            else -> "trending indonesia"
+        }
+        return innerTubeClient.fetchFeedPage(query = defaultQuery, continuation = continuation)
     }
 
     suspend fun getFeedPage(query: String? = null, continuation: String? = null): FeedResult {
@@ -118,6 +129,9 @@ class PhantomRepository(
     }
 
     suspend fun getSponsorSegments(videoId: String): List<SponsorSegment> {
+        if (preferences?.sponsorBlockEnabled?.value == false) {
+            return emptyList()
+        }
         return sponsorBlockClient.getSkipSegments(videoId)
     }
 
@@ -150,6 +164,9 @@ class PhantomRepository(
         positionMs: Long = 0L,
         durationMs: Long = 0L
     ) {
+        if (preferences?.pauseWatchHistory?.value == true) {
+            return
+        }
         watchHistoryDao.insertOrUpdate(
             WatchHistoryEntity(
                 videoId = video.id,

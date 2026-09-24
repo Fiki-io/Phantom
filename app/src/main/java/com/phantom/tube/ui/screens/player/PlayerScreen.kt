@@ -202,6 +202,7 @@ fun PlayerScreen(
     var lastSkippedCategory by remember { mutableStateOf("sponsor") }
     val skippedSegmentUuids = remember(video.id) { mutableSetOf<String>() }
     val undoneSegmentUuids = remember(video.id) { mutableSetOf<String>() }
+    var appliedDefaultsVideoId by remember { mutableStateOf<String?>(null) }
 
     // YouTube Mix Playlist & Session (Preserving all songs in the Mix)
     var mixPlaylist by remember { mutableStateOf<List<VideoItem>>(emptyList()) }
@@ -347,6 +348,19 @@ fun PlayerScreen(
                     1 -> {
                         playerState = playerState.copy(isPlaying = true, isBuffering = false, isEnded = false, errorCode = null)
                         mediaService?.updatePlaybackState(true, (playerState.currentTimeSec * 1000).toLong())
+                        if (appliedDefaultsVideoId != currentVideo.id) {
+                            appliedDefaultsVideoId = currentVideo.id
+                            val defSpeed = repository.preferences?.defaultSpeed?.value ?: 1.0f
+                            if (defSpeed != 1.0f) {
+                                playerState = playerState.copy(playbackSpeed = defSpeed)
+                                controller.setPlaybackRate(defSpeed)
+                            }
+                            val defQuality = repository.preferences?.defaultQuality?.value ?: "auto"
+                            if (defQuality != "auto") {
+                                playerState = playerState.copy(currentQuality = defQuality)
+                                controller.setPlaybackQuality(defQuality)
+                            }
+                        }
                     }
                     2 -> {
                         playerState = playerState.copy(isPlaying = false, isBuffering = false)
@@ -415,25 +429,46 @@ fun PlayerScreen(
                 }
 
                 // Check SponsorBlock segments (UUID tracking & valid outro bounds)
-                if (duration > 0f && current < duration) {
-                    sponsorSegments.forEach { seg ->
-                        val uuid = if (seg.uuid.isNotBlank()) seg.uuid else "${seg.category}_${seg.startSecond}_${seg.endSecond}"
-                        if (uuid !in skippedSegmentUuids && uuid !in undoneSegmentUuids) {
-                            // Outro is only valid if video is past half duration and current is past half duration
-                            val isOutroValid = if (seg.category == "outro") {
-                                seg.startSecond >= (duration * 0.5f) && current >= (duration * 0.5f)
-                            } else true
+                val prefs = repository.preferences
+                val sbEnabled = prefs?.sponsorBlockEnabled?.value ?: true
+                if (sbEnabled && duration > 0f && current < duration) {
+                    val skipSponsor = prefs?.skipSponsor?.value ?: true
+                    val skipSelfPromo = prefs?.skipSelfPromo?.value ?: true
+                    val skipInteraction = prefs?.skipInteraction?.value ?: true
+                    val skipIntro = prefs?.skipIntro?.value ?: true
+                    val skipOutro = prefs?.skipOutro?.value ?: true
+                    val autoSkip = prefs?.sponsorBlockAutoSkip?.value ?: true
 
-                            if (isOutroValid && current >= seg.startSecond && current < (seg.endSecond - 0.5f)) {
-                                skippedSegmentUuids.add(uuid)
-                                lastSkippedFromSec = current
-                                lastSkippedSeconds = (seg.endSecond - seg.startSecond).toInt().coerceAtLeast(1)
-                                lastSkippedCategory = seg.category
-                                controller.seekTo(seg.endSecond)
-                                showSponsorPill = true
-                                scope.launch {
-                                    delay(4000)
-                                    showSponsorPill = false
+                    sponsorSegments.forEach { seg ->
+                        val isCatAllowed = when (seg.category) {
+                            "sponsor" -> skipSponsor
+                            "selfpromo" -> skipSelfPromo
+                            "interaction" -> skipInteraction
+                            "intro" -> skipIntro
+                            "outro" -> skipOutro
+                            else -> true
+                        }
+                        if (isCatAllowed) {
+                            val uuid = if (seg.uuid.isNotBlank()) seg.uuid else "${seg.category}_${seg.startSecond}_${seg.endSecond}"
+                            if (uuid !in skippedSegmentUuids && uuid !in undoneSegmentUuids) {
+                                // Outro is only valid if video is past half duration and current is past half duration
+                                val isOutroValid = if (seg.category == "outro") {
+                                    seg.startSecond >= (duration * 0.5f) && current >= (duration * 0.5f)
+                                } else true
+
+                                if (isOutroValid && current >= seg.startSecond && current < (seg.endSecond - 0.5f)) {
+                                    skippedSegmentUuids.add(uuid)
+                                    lastSkippedFromSec = current
+                                    lastSkippedSeconds = (seg.endSecond - seg.startSecond).toInt().coerceAtLeast(1)
+                                    lastSkippedCategory = seg.category
+                                    if (autoSkip) {
+                                        controller.seekTo(seg.endSecond)
+                                    }
+                                    showSponsorPill = true
+                                    scope.launch {
+                                        delay(4000)
+                                        showSponsorPill = false
+                                    }
                                 }
                             }
                         }
@@ -532,6 +567,7 @@ fun PlayerScreen(
     // Load new video into engine & immediately sync notification
     LaunchedEffect(video.id, mediaService) {
         playerState = PlayerState(videoId = video.id)
+        appliedDefaultsVideoId = null
         sponsorSegments = emptyList()
         lastRecordedPositionSec = 0f
         val fromInternal = isInternalNavigation

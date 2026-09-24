@@ -60,6 +60,7 @@ fun HomeScreen(
     onVideoClick: (VideoItem) -> Unit,
     onChannelClick: (channelId: String, channelTitle: String) -> Unit = { _, _ -> },
     onSearchClick: () -> Unit,
+    onSettingsClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val categories = listOf("Semua", "Trending", "Musik", "Gaming", "Berita", "Podcast", "Teknologi", "Animasi")
@@ -77,17 +78,28 @@ fun HomeScreen(
     val historyMap = remember(watchHistory) {
         watchHistory.associate { it.videoId to it.progressFraction }
     }
+    val contentCountry by (repository.preferences?.contentCountry ?: kotlinx.coroutines.flow.MutableStateFlow("ID")).collectAsState()
 
-    fun categoryToQuery(category: String): String = when (category) {
-        "Semua" -> "trending indonesia"
-        "Trending" -> "viral indonesia hari ini"
-        "Musik" -> "lagu indonesia hits terbaru"
-        "Gaming" -> "gaming trending indonesia"
-        "Berita" -> "berita terkini hari ini"
-        "Podcast" -> "podcast indonesia"
-        "Teknologi" -> "gadget teknologi indonesia"
-        "Animasi" -> "animasi indonesia anime"
-        else -> category
+    fun categoryToQuery(category: String, country: String): String {
+        val suffix = when (country) {
+            "GLOBAL" -> "global"
+            "US" -> "usa"
+            "JP" -> "japan"
+            "KR" -> "korea"
+            "GB" -> "uk"
+            else -> "indonesia"
+        }
+        return when (category) {
+            "Semua" -> "trending $suffix"
+            "Trending" -> "viral $suffix hari ini"
+            "Musik" -> "lagu hits $suffix terbaru"
+            "Gaming" -> "gaming trending $suffix"
+            "Berita" -> "berita terkini $suffix"
+            "Podcast" -> "podcast $suffix"
+            "Teknologi" -> "gadget teknologi $suffix"
+            "Animasi" -> "animasi anime"
+            else -> category
+        }
     }
 
     fun loadFeed(category: String, isRefresh: Boolean = false) {
@@ -102,7 +114,7 @@ fun HomeScreen(
                 val result = if (category == "Semua") {
                     repository.getHomeRecommendations(historyIndex = 0)
                 } else {
-                    repository.getFeedPage(query = categoryToQuery(category))
+                    repository.getFeedPage(query = categoryToQuery(category, contentCountry))
                 }
                 videos = result.videos
                 continuationToken = result.continuationToken
@@ -152,7 +164,7 @@ fun HomeScreen(
         }
     }
 
-    LaunchedEffect(selectedCategory) {
+    LaunchedEffect(selectedCategory, contentCountry) {
         loadFeed(selectedCategory)
     }
 
@@ -183,7 +195,8 @@ fun HomeScreen(
             categories = categories,
             onCategorySelected = { selectedCategory = it },
             onSearchClick = onSearchClick,
-            onRefreshClick = { loadFeed(selectedCategory, isRefresh = true) }
+            onRefreshClick = { loadFeed(selectedCategory, isRefresh = true) },
+            onSettingsClick = onSettingsClick
         )
 
         Box(modifier = Modifier.fillMaxSize()) {

@@ -10,6 +10,7 @@ import com.phantom.tube.core.database.PhantomDatabase
 import com.phantom.tube.data.innertube.InnerTubeClient
 import com.phantom.tube.data.repository.PhantomRepository
 import com.phantom.tube.data.sponsorblock.SponsorBlockClient
+import com.phantom.tube.data.settings.PhantomPreferences
 import okhttp3.Cache
 import okhttp3.ConnectionPool
 import okhttp3.OkHttpClient
@@ -18,6 +19,9 @@ import java.util.concurrent.TimeUnit
 class PhantomApp : Application(), ImageLoaderFactory {
 
     lateinit var database: PhantomDatabase
+        private set
+
+    lateinit var preferences: PhantomPreferences
         private set
 
     lateinit var repository: PhantomRepository
@@ -36,13 +40,15 @@ class PhantomApp : Application(), ImageLoaderFactory {
         super.onCreate()
         PhantomCrashHandler.install(this)
         database = PhantomDatabase.getInstance(this)
+        preferences = PhantomPreferences(this)
         repository = PhantomRepository(
             innerTubeClient = InnerTubeClient(httpClient = sharedHttpClient),
             sponsorBlockClient = SponsorBlockClient(httpClient = sharedHttpClient),
             watchHistoryDao = database.watchHistoryDao(),
             favoriteDao = database.favoriteDao(),
             searchHistoryDao = database.searchHistoryDao(),
-            subscriptionDao = database.subscriptionDao()
+            subscriptionDao = database.subscriptionDao(),
+            preferences = preferences
         )
     }
 
