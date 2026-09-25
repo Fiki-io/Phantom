@@ -2,7 +2,9 @@ package com.phantom.tube.ui.screens.settings
 
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
@@ -119,6 +121,20 @@ fun SettingsScreen(
 
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+
+    val appVersionName = remember(context) {
+        try {
+            val pInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                context.packageManager.getPackageInfo(context.packageName, PackageManager.PackageInfoFlags.of(0))
+            } else {
+                @Suppress("DEPRECATION")
+                context.packageManager.getPackageInfo(context.packageName, 0)
+            }
+            pInfo.versionName ?: "2.0.1"
+        } catch (e: Exception) {
+            "2.0.1"
+        }
+    }
 
     // Preferences states
     val defaultQuality by preferences.defaultQuality.collectAsState()
@@ -392,7 +408,7 @@ fun SettingsScreen(
                         )
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
-                            text = "Versi 2.0.0",
+                            text = "Versi $appVersionName",
                             color = TextSecondary,
                             fontSize = 12.sp
                         )
