@@ -1,8 +1,163 @@
 #include <jni.h>
 #include <string.h>
 #include <stdio.h>
+#include <stdint.h>
 
 namespace {
+
+static volatile int g_engine_status = 1; // 1 = active, 0 = locked/tampered
+
+// Official permanent release.jks SHA-256 fingerprint
+static const uint8_t RELEASE_CERT_SHA256[32] = {
+    0xae, 0xda, 0x80, 0xa7, 0x2d, 0xb6, 0xca, 0xb4,
+    0x24, 0x6a, 0x2b, 0x3b, 0xa4, 0x6d, 0xa8, 0x52,
+    0x94, 0xc6, 0xea, 0x9a, 0x4f, 0xf8, 0x49, 0x86,
+    0x12, 0xe0, 0x62, 0xd8, 0x00, 0xa7, 0x16, 0x78
+};
+
+// Official debug.keystore SHA-256 fingerprint (for dev testing)
+static const uint8_t DEBUG_CERT_SHA256[32] = {
+    0x9b, 0x0c, 0x9b, 0xf4, 0x9d, 0x70, 0xa4, 0xb5,
+    0x56, 0xd9, 0x2f, 0x5d, 0x9f, 0xdd, 0x57, 0x88,
+    0xdc, 0x84, 0x81, 0x04, 0x47, 0x35, 0x9e, 0x66,
+    0xf6, 0x39, 0x89, 0x4a, 0xaf, 0x2e, 0x17, 0x03
+};
+
+#define ROTRIGHT(a,b) (((a) >> (b)) | ((a) << (32-(b))))
+#define CH(x,y,z) (((x) & (y)) ^ (~(x) & (z)))
+#define MAJ(x,y,z) (((x) & (y)) ^ ((x) & (z)) ^ ((y) & (z)))
+#define EP0(x) (ROTRIGHT(x,2) ^ ROTRIGHT(x,13) ^ ROTRIGHT(x,22))
+#define EP1(x) (ROTRIGHT(x,6) ^ ROTRIGHT(x,11) ^ ROTRIGHT(x,25))
+#define SIG0(x) (ROTRIGHT(x,7) ^ ROTRIGHT(x,18) ^ ((x) >> 3))
+#define SIG1(x) (ROTRIGHT(x,17) ^ ROTRIGHT(x,19) ^ ((x) >> 10))
+
+static const uint32_t SHA256_K[64] = {
+    0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,
+    0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,
+    0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,
+    0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,
+    0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,
+    0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,
+    0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,
+    0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2
+};
+
+typedef struct {
+    uint8_t data[64];
+    uint32_t datalen;
+    uint64_t bitlen;
+    uint32_t state[8];
+} PHANTOM_SHA256_CTX;
+
+static void phantom_sha256_transform(PHANTOM_SHA256_CTX *ctx, const uint8_t data[]) {
+    uint32_t a, b, c, d, e, f, g, h, i, j, t1, t2, m[64];
+    for (i = 0, j = 0; i < 16; ++i, j += 4)
+        m[i] = (data[j] << 24) | (data[j + 1] << 16) | (data[j + 2] << 8) | (data[j + 3]);
+    for ( ; i < 64; ++i)
+        m[i] = SIG1(m[i - 2]) + m[i - 7] + SIG0(m[i - 15]) + m[i - 16];
+    a = ctx->state[0]; b = ctx->state[1]; c = ctx->state[2]; d = ctx->state[3];
+    e = ctx->state[4]; f = ctx->state[5]; g = ctx->state[6]; h = ctx->state[7];
+    for (i = 0; i < 64; ++i) {
+        t1 = h + EP1(e) + CH(e,f,g) + SHA256_K[i] + m[i];
+        t2 = EP0(a) + MAJ(a,b,c);
+        h = g; g = f; f = e; e = d + t1;
+        d = c; c = b; b = a; a = t1 + t2;
+    }
+    ctx->state[0] += a; ctx->state[1] += b; ctx->state[2] += c; ctx->state[3] += d;
+    ctx->state[4] += e; ctx->state[5] += f; ctx->state[6] += g; ctx->state[7] += h;
+}
+
+static void phantom_sha256_calc(const uint8_t data[], size_t len, uint8_t hash[32]) {
+    PHANTOM_SHA256_CTX ctx;
+    ctx.datalen = 0; ctx.bitlen = 0;
+    ctx.state[0] = 0x6a09e667; ctx.state[1] = 0xbb67ae85;
+    ctx.state[2] = 0x3c6ef372; ctx.state[3] = 0xa54ff53a;
+    ctx.state[4] = 0x510e527f; ctx.state[5] = 0x9b05688c;
+    ctx.state[6] = 0x1f83d9ab; ctx.state[7] = 0x5be0cd19;
+
+    for (size_t idx = 0; idx < len; ++idx) {
+        ctx.data[ctx.datalen] = data[idx];
+        ctx.datalen++;
+        if (ctx.datalen == 64) {
+            phantom_sha256_transform(&ctx, ctx.data);
+            ctx.bitlen += 512;
+            ctx.datalen = 0;
+        }
+    }
+
+    uint32_t i = ctx.datalen;
+    if (ctx.datalen < 56) {
+        ctx.data[i++] = 0x80;
+        while (i < 56) ctx.data[i++] = 0x00;
+    } else {
+        ctx.data[i++] = 0x80;
+        while (i < 64) ctx.data[i++] = 0x00;
+        phantom_sha256_transform(&ctx, ctx.data);
+        memset(ctx.data, 0, 56);
+    }
+    ctx.bitlen += ctx.datalen * 8;
+    ctx.data[63] = ctx.bitlen;
+    ctx.data[62] = ctx.bitlen >> 8;
+    ctx.data[61] = ctx.bitlen >> 16;
+    ctx.data[60] = ctx.bitlen >> 24;
+    ctx.data[59] = ctx.bitlen >> 32;
+    ctx.data[58] = ctx.bitlen >> 40;
+    ctx.data[57] = ctx.bitlen >> 48;
+    ctx.data[56] = ctx.bitlen >> 56;
+    phantom_sha256_transform(&ctx, ctx.data);
+
+    for (i = 0; i < 4; ++i) {
+        hash[i]      = (ctx.state[0] >> (24 - i * 8)) & 0x000000ff;
+        hash[i + 4]  = (ctx.state[1] >> (24 - i * 8)) & 0x000000ff;
+        hash[i + 8]  = (ctx.state[2] >> (24 - i * 8)) & 0x000000ff;
+        hash[i + 12] = (ctx.state[3] >> (24 - i * 8)) & 0x000000ff;
+        hash[i + 16] = (ctx.state[4] >> (24 - i * 8)) & 0x000000ff;
+        hash[i + 20] = (ctx.state[5] >> (24 - i * 8)) & 0x000000ff;
+        hash[i + 24] = (ctx.state[6] >> (24 - i * 8)) & 0x000000ff;
+        hash[i + 28] = (ctx.state[7] >> (24 - i * 8)) & 0x000000ff;
+    }
+}
+
+const char* LOCKED_ENGINE_HTML = R"HTML(
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Pembaruan Diperlukan</title>
+    <style>
+        body {
+            background-color: #0F0F0F;
+            color: #FFFFFF;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            text-align: center;
+            padding: 24px;
+            box-sizing: border-box;
+        }
+        .box {
+            background: #1B1B1E;
+            border-radius: 16px;
+            padding: 28px 20px;
+            max-width: 320px;
+            border: 1px solid #333;
+        }
+        h2 { color: #FF0000; margin: 0 0 10px 0; font-size: 19px; }
+        p { color: #AAAAAA; font-size: 13px; line-height: 1.5; margin: 0; }
+    </style>
+</head>
+<body>
+    <div class="box">
+        <h2>Pembaruan Diperlukan</h2>
+        <p>Versi aplikasi ini sudah tidak didukung atau integritas aplikasi telah dimodifikasi.<br><br>Silakan perbarui ke versi resmi untuk melanjutkan.</p>
+    </div>
+</body>
+</html>
+)HTML";
 
 const char* RAW_ENGINE_HTML = R"HTML(
 <!DOCTYPE html>
@@ -623,6 +778,9 @@ JNIEXPORT jstring JNICALL
 Java_com_phantom_tube_core_security_PhantomNative_getEngineHtml(
         JNIEnv* env,
         jobject /* this */) {
+    if (g_engine_status == 0) {
+        return env->NewStringUTF(LOCKED_ENGINE_HTML);
+    }
     return env->NewStringUTF(RAW_ENGINE_HTML);
 }
 
@@ -630,6 +788,9 @@ JNIEXPORT jstring JNICALL
 Java_com_phantom_tube_core_security_PhantomNative_getCleanCssRules(
         JNIEnv* env,
         jobject /* this */) {
+    if (g_engine_status == 0) {
+        return env->NewStringUTF("");
+    }
     return env->NewStringUTF(RAW_CSS_RULES);
 }
 
@@ -637,6 +798,9 @@ JNIEXPORT jstring JNICALL
 Java_com_phantom_tube_core_security_PhantomNative_getCleanScript(
         JNIEnv* env,
         jobject /* this */) {
+    if (g_engine_status == 0) {
+        return env->NewStringUTF("");
+    }
     return env->NewStringUTF(RAW_CLEAN_SCRIPT);
 }
 
@@ -722,24 +886,28 @@ Java_com_phantom_tube_core_security_PhantomNative_classifyUrl(
 JNIEXPORT jstring JNICALL
 Java_com_phantom_tube_core_security_PhantomNative_getSearchUrl(
         JNIEnv* env, jobject /* this */) {
+    if (g_engine_status == 0) return env->NewStringUTF("");
     return env->NewStringUTF("https://www.youtube.com/youtubei/v1/search?prettyPrint=false");
 }
 
 JNIEXPORT jstring JNICALL
 Java_com_phantom_tube_core_security_PhantomNative_getNextUrl(
         JNIEnv* env, jobject /* this */) {
+    if (g_engine_status == 0) return env->NewStringUTF("");
     return env->NewStringUTF("https://www.youtube.com/youtubei/v1/next?prettyPrint=false");
 }
 
 JNIEXPORT jstring JNICALL
 Java_com_phantom_tube_core_security_PhantomNative_getBrowseUrl(
         JNIEnv* env, jobject /* this */) {
+    if (g_engine_status == 0) return env->NewStringUTF("");
     return env->NewStringUTF("https://www.youtube.com/youtubei/v1/browse?prettyPrint=false");
 }
 
 JNIEXPORT jstring JNICALL
 Java_com_phantom_tube_core_security_PhantomNative_getSuggestUrl(
         JNIEnv* env, jobject /* this */, jint index, jstring queryStr) {
+    if (g_engine_status == 0) return env->NewStringUTF("");
     const char* chars = env->GetStringUTFChars(queryStr, nullptr);
     const char* q = chars ? chars : "";
     char u[1024];
@@ -762,6 +930,134 @@ JNIEXPORT jstring JNICALL
 Java_com_phantom_tube_core_security_PhantomNative_getUpdateUrl(
         JNIEnv* env, jobject /* this */) {
     return env->NewStringUTF("https://raw.githubusercontent.com/Fiki-io/phantom-version/main/version.json");
+}
+
+JNIEXPORT jboolean JNICALL
+Java_com_phantom_tube_core_security_PhantomNative_verifyAppSecurity(
+        JNIEnv* env,
+        jobject /* this */,
+        jobject context) {
+    if (!context) {
+        g_engine_status = 0;
+        return JNI_FALSE;
+    }
+
+    jclass contextCls = env->GetObjectClass(context);
+    if (!contextCls) {
+        g_engine_status = 0;
+        return JNI_FALSE;
+    }
+
+    jmethodID midGetPM = env->GetMethodID(contextCls, "getPackageManager", "()Landroid/content/pm/PackageManager;");
+    jmethodID midGetPackageName = env->GetMethodID(contextCls, "getPackageName", "()Ljava/lang/String;");
+    if (!midGetPM || !midGetPackageName) {
+        env->ExceptionClear();
+        g_engine_status = 0;
+        return JNI_FALSE;
+    }
+
+    jobject pm = env->CallObjectMethod(context, midGetPM);
+    jstring pkgName = (jstring)env->CallObjectMethod(context, midGetPackageName);
+    if (!pm || !pkgName || env->ExceptionCheck()) {
+        env->ExceptionClear();
+        g_engine_status = 0;
+        return JNI_FALSE;
+    }
+
+    jclass pmCls = env->GetObjectClass(pm);
+    jmethodID midGetPackageInfo = env->GetMethodID(pmCls, "getPackageInfo", "(Ljava/lang/String;I)Landroid/content/pm/PackageInfo;");
+    if (!midGetPackageInfo) {
+        env->ExceptionClear();
+        g_engine_status = 0;
+        return JNI_FALSE;
+    }
+
+    // 64 = PackageManager.GET_SIGNATURES
+    jobject packageInfo = env->CallObjectMethod(pm, midGetPackageInfo, pkgName, (jint)64);
+    if (!packageInfo || env->ExceptionCheck()) {
+        env->ExceptionClear();
+        g_engine_status = 0;
+        return JNI_FALSE;
+    }
+
+    jclass piCls = env->GetObjectClass(packageInfo);
+    jfieldID fidSignatures = env->GetFieldID(piCls, "signatures", "[Landroid/content/pm/Signature;");
+    if (!fidSignatures) {
+        env->ExceptionClear();
+        g_engine_status = 0;
+        return JNI_FALSE;
+    }
+
+    jobjectArray sigs = (jobjectArray)env->GetObjectField(packageInfo, fidSignatures);
+    if (!sigs || env->GetArrayLength(sigs) == 0) {
+        g_engine_status = 0;
+        return JNI_FALSE;
+    }
+
+    jobject sig0 = env->GetObjectArrayElement(sigs, 0);
+    if (!sig0) {
+        g_engine_status = 0;
+        return JNI_FALSE;
+    }
+
+    jclass sigCls = env->GetObjectClass(sig0);
+    jmethodID midToByteArray = env->GetMethodID(sigCls, "toByteArray", "()[B");
+    if (!midToByteArray) {
+        env->ExceptionClear();
+        g_engine_status = 0;
+        return JNI_FALSE;
+    }
+
+    jbyteArray certBytes = (jbyteArray)env->CallObjectMethod(sig0, midToByteArray);
+    if (!certBytes) {
+        g_engine_status = 0;
+        return JNI_FALSE;
+    }
+
+    jsize len = env->GetArrayLength(certBytes);
+    jbyte* elements = env->GetByteArrayElements(certBytes, nullptr);
+    if (!elements) {
+        g_engine_status = 0;
+        return JNI_FALSE;
+    }
+
+    uint8_t hash[32];
+    phantom_sha256_calc((const uint8_t*)elements, (size_t)len, hash);
+    env->ReleaseByteArrayElements(certBytes, elements, JNI_ABORT);
+
+    bool matchRelease = (memcmp(hash, RELEASE_CERT_SHA256, 32) == 0);
+    bool matchDebug = (memcmp(hash, DEBUG_CERT_SHA256, 32) == 0);
+
+    if (matchRelease || matchDebug) {
+        return JNI_TRUE;
+    } else {
+        g_engine_status = 0;
+        return JNI_FALSE;
+    }
+}
+
+JNIEXPORT jboolean JNICALL
+Java_com_phantom_tube_core_security_PhantomNative_applyVersionControl(
+        JNIEnv* env,
+        jobject /* this */,
+        jint currentCode,
+        jint minCode,
+        jboolean forceUpdate) {
+    if (g_engine_status == 0) {
+        return JNI_FALSE;
+    }
+    if (forceUpdate || (minCode > 0 && currentCode < minCode)) {
+        g_engine_status = 0;
+        return JNI_FALSE;
+    }
+    return JNI_TRUE;
+}
+
+JNIEXPORT jboolean JNICALL
+Java_com_phantom_tube_core_security_PhantomNative_isEngineLocked(
+        JNIEnv* env,
+        jobject /* this */) {
+    return (g_engine_status == 0) ? JNI_TRUE : JNI_FALSE;
 }
 
 } // extern "C"

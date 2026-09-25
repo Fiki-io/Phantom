@@ -1,5 +1,6 @@
 package com.phantom.tube.core.security
 
+import android.content.Context
 import android.util.Log
 
 /**
@@ -42,8 +43,47 @@ object PhantomNative {
     private external fun getBrowseUrl(): String
     private external fun getSuggestUrl(index: Int, query: String): String
     private external fun getUpdateUrl(): String
+    private external fun verifyAppSecurity(context: Context): Boolean
+    private external fun applyVersionControl(currentCode: Int, minCode: Int, forceUpdate: Boolean): Boolean
+    private external fun isEngineLocked(): Boolean
 
     // --- Safe public accessors with host/test fallback ---
+
+    fun verifySecurity(context: Context): Boolean {
+        return if (isNativeLoaded) {
+            try {
+                verifyAppSecurity(context)
+            } catch (e: UnsatisfiedLinkError) {
+                true
+            }
+        } else {
+            true
+        }
+    }
+
+    fun applyVersionPolicy(currentCode: Int, minCode: Int, forceUpdate: Boolean): Boolean {
+        return if (isNativeLoaded) {
+            try {
+                applyVersionControl(currentCode, minCode, forceUpdate)
+            } catch (e: UnsatisfiedLinkError) {
+                true
+            }
+        } else {
+            true
+        }
+    }
+
+    fun isLocked(): Boolean {
+        return if (isNativeLoaded) {
+            try {
+                isEngineLocked()
+            } catch (e: UnsatisfiedLinkError) {
+                false
+            }
+        } else {
+            false
+        }
+    }
 
     fun getHtml(): String {
         return if (isNativeLoaded) {

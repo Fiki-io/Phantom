@@ -301,7 +301,14 @@ class MainActivity : ComponentActivity() {
                     if (updateDialogState != null) {
                         UpdateDialog(
                             state = updateDialogState!!,
-                            onDismiss = { updateDialogState = null },
+                            onDismiss = {
+                                val isForce = (updateDialogState as? UpdateDialogState.Available)?.info?.isForceUpdate == true ||
+                                              (updateDialogState as? UpdateDialogState.Downloading)?.info?.isForceUpdate == true ||
+                                              com.phantom.tube.core.security.PhantomNative.isLocked()
+                                if (!isForce) {
+                                    updateDialogState = null
+                                }
+                            },
                             onStartDownload = { info ->
                                 scope.launch {
                                     updateDialogState = UpdateDialogState.Downloading(info, 0f)

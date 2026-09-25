@@ -20,7 +20,9 @@ data class AppUpdateInfo(
     val versionCode: Int,
     val versionName: String,
     val downloadUrl: String,
-    val changelog: String
+    val changelog: String,
+    val minVersionCode: Int = 0,
+    val isForceUpdate: Boolean = false
 )
 
 sealed class UpdateCheckResult {
@@ -87,14 +89,26 @@ class UpdateManager(
             val serverVersionName = json.optString("versionName", "")
             val downloadUrl = json.optString("downloadUrl", "")
             val changelog = json.optString("changelog", "")
+            val minVersionCode = json.optInt("minVersionCode", 0)
+            val forceUpdate = json.optBoolean("forceUpdate", false)
 
-            if (serverVersionCode > getCurrentVersionCode() && downloadUrl.isNotBlank()) {
+            val currentCode = getCurrentVersionCode().toInt()
+
+            // Apply policy to C++ engine
+            PhantomNative.applyVersionPolicy(currentCode, minVersionCode, forceUpdate)
+
+            val isForce = forceUpdate || (minVersionCode > 0 && currentCode < minVersionCode)
+            val isUpdateAvailable = (serverVersionCode > currentCode) || isForce
+
+            if (isUpdateAvailable && downloadUrl.isNotBlank()) {
                 UpdateCheckResult.UpdateAvailable(
                     AppUpdateInfo(
                         versionCode = serverVersionCode,
                         versionName = serverVersionName,
                         downloadUrl = downloadUrl,
-                        changelog = changelog
+                        changelog = changelog,
+                        minVersionCode = minVersionCode,
+                        isForceUpdate = isForce
                     )
                 )
             } else {

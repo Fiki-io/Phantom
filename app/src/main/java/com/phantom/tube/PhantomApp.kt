@@ -7,6 +7,7 @@ import coil.disk.DiskCache
 import coil.memory.MemoryCache
 import com.phantom.tube.core.crash.PhantomCrashHandler
 import com.phantom.tube.core.database.PhantomDatabase
+import com.phantom.tube.core.security.PhantomNative
 import com.phantom.tube.data.innertube.InnerTubeClient
 import com.phantom.tube.data.repository.PhantomRepository
 import com.phantom.tube.data.sponsorblock.SponsorBlockClient
@@ -43,6 +44,7 @@ class PhantomApp : Application(), ImageLoaderFactory {
     override fun onCreate() {
         super.onCreate()
         PhantomCrashHandler.install(this)
+        PhantomNative.verifySecurity(this)
         database = PhantomDatabase.getInstance(this)
         preferences = PhantomPreferences(this)
         repository = PhantomRepository(

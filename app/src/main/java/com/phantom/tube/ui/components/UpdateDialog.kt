@@ -1,5 +1,6 @@
 package com.phantom.tube.ui.components
 
+import android.app.Activity
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -32,11 +33,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.phantom.tube.core.security.PhantomNative
 import com.phantom.tube.core.theme.YouTubeRed
 import com.phantom.tube.core.theme.ObsidianSurface
 import com.phantom.tube.core.theme.TextMuted
@@ -57,15 +60,29 @@ fun UpdateDialog(
     onDismiss: () -> Unit,
     onStartDownload: (AppUpdateInfo) -> Unit
 ) {
-    val isCancellable = state !is UpdateDialogState.Downloading
+    val context = LocalContext.current
+    val isForceUpdate = when (state) {
+        is UpdateDialogState.Available -> state.info.isForceUpdate
+        is UpdateDialogState.Downloading -> state.info.isForceUpdate
+        else -> PhantomNative.isLocked()
+    }
+    val isCancellable = !isForceUpdate && state !is UpdateDialogState.Downloading
+
+    val handleDismissOrExit = {
+        if (isCancellable) {
+            onDismiss()
+        } else {
+            (context as? Activity)?.finishAffinity()
+        }
+    }
 
     Dialog(
         onDismissRequest = {
-            if (isCancellable) onDismiss()
+            handleDismissOrExit()
         },
         properties = DialogProperties(
-            dismissOnBackPress = isCancellable,
-            dismissOnClickOutside = isCancellable
+            dismissOnBackPress = true,
+            dismissOnClickOutside = false
         )
     ) {
         Surface(
@@ -103,7 +120,7 @@ fun UpdateDialog(
                 when (state) {
                     is UpdateDialogState.Available -> {
                         Text(
-                            text = "Pembaruan Tersedia",
+                            text = if (isForceUpdate) "Pembaruan Wajib" else "Pembaruan Tersedia",
                             style = MaterialTheme.typography.titleLarge.copy(
                                 fontWeight = FontWeight.Bold,
                                 color = TextPrimary
@@ -111,7 +128,11 @@ fun UpdateDialog(
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "Versi ${state.info.versionName} kini telah dirilis",
+                            text = if (isForceUpdate) {
+                                "Versi aplikasi saat ini tidak lagi didukung. Silakan perbarui ke versi ${state.info.versionName} untuk melanjutkan."
+                            } else {
+                                "Versi ${state.info.versionName} kini telah dirilis"
+                            },
                             style = MaterialTheme.typography.bodyMedium.copy(color = TextSecondary)
                         )
 
@@ -156,8 +177,8 @@ fun UpdateDialog(
                             horizontalArrangement = Arrangement.End,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            TextButton(onClick = onDismiss) {
-                                Text("Nanti", color = TextMuted)
+                            TextButton(onClick = handleDismissOrExit) {
+                                Text(if (isCancellable) "Nanti" else "Keluar", color = TextMuted)
                             }
                             Spacer(modifier = Modifier.width(8.dp))
                             Button(
@@ -241,8 +262,8 @@ fun UpdateDialog(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.End
                         ) {
-                            TextButton(onClick = onDismiss) {
-                                Text("Batal", color = TextMuted)
+                            TextButton(onClick = handleDismissOrExit) {
+                                Text(if (isCancellable) "Batal" else "Keluar", color = TextMuted)
                             }
                             Spacer(modifier = Modifier.width(8.dp))
                             Button(
@@ -278,8 +299,8 @@ fun UpdateDialog(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.End
                         ) {
-                            TextButton(onClick = onDismiss) {
-                                Text("Tutup", color = TextMuted)
+                            TextButton(onClick = handleDismissOrExit) {
+                                Text(if (isCancellable) "Tutup" else "Keluar", color = TextMuted)
                             }
                             Spacer(modifier = Modifier.width(8.dp))
                             Button(
