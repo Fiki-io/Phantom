@@ -37,7 +37,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import com.phantom.tube.core.theme.CrimsonPrimary
+import com.phantom.tube.core.theme.YouTubeRed
 import com.phantom.tube.core.theme.ObsidianSurface
 import com.phantom.tube.core.theme.TextMuted
 import com.phantom.tube.core.theme.TextPrimary
@@ -87,13 +87,13 @@ fun UpdateDialog(
                     modifier = Modifier
                         .size(56.dp)
                         .clip(CircleShape)
-                        .background(CrimsonPrimary.copy(alpha = 0.15f)),
+                        .background(YouTubeRed.copy(alpha = 0.15f)),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = if (state is UpdateDialogState.Downloading) Icons.Default.Download else Icons.Default.SystemUpdate,
                         contentDescription = null,
-                        tint = CrimsonPrimary,
+                        tint = YouTubeRed,
                         modifier = Modifier.size(28.dp)
                     )
                 }
@@ -134,7 +134,7 @@ fun UpdateDialog(
                                     Text(
                                         text = "Catatan Pembaruan:",
                                         style = MaterialTheme.typography.labelMedium.copy(
-                                            color = CrimsonPrimary,
+                                            color = YouTubeRed,
                                             fontWeight = FontWeight.SemiBold
                                         )
                                     )
@@ -163,7 +163,7 @@ fun UpdateDialog(
                             Button(
                                 onClick = { onStartDownload(state.info) },
                                 colors = ButtonDefaults.buttonColors(
-                                    containerColor = CrimsonPrimary,
+                                    containerColor = YouTubeRed,
                                     contentColor = Color.White
                                 ),
                                 shape = RoundedCornerShape(12.dp)
@@ -197,7 +197,7 @@ fun UpdateDialog(
                                     .fillMaxWidth()
                                     .height(8.dp)
                                     .clip(RoundedCornerShape(4.dp)),
-                                color = CrimsonPrimary,
+                                color = YouTubeRed,
                                 trackColor = Color(0xFF26262B)
                             )
                         } else {
@@ -206,7 +206,7 @@ fun UpdateDialog(
                                     .fillMaxWidth()
                                     .height(8.dp)
                                     .clip(RoundedCornerShape(4.dp)),
-                                color = CrimsonPrimary,
+                                color = YouTubeRed,
                                 trackColor = Color(0xFF26262B)
                             )
                         }
@@ -248,7 +248,7 @@ fun UpdateDialog(
                             Button(
                                 onClick = state.onOpenSettings,
                                 colors = ButtonDefaults.buttonColors(
-                                    containerColor = CrimsonPrimary,
+                                    containerColor = YouTubeRed,
                                     contentColor = Color.White
                                 ),
                                 shape = RoundedCornerShape(12.dp)
@@ -285,7 +285,7 @@ fun UpdateDialog(
                             Button(
                                 onClick = state.onRetry,
                                 colors = ButtonDefaults.buttonColors(
-                                    containerColor = CrimsonPrimary,
+                                    containerColor = YouTubeRed,
                                     contentColor = Color.White
                                 ),
                                 shape = RoundedCornerShape(12.dp)
