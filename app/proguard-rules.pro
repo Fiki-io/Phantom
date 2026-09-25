@@ -20,12 +20,6 @@
 -keep class * extends androidx.room.RoomDatabase
 -dontwarn androidx.room.paging.**
 
-# Gson Serialization
--keepclassmembers class * {
-    @com.google.gson.annotations.SerializedName <fields>;
-}
--keep class com.google.gson.** { *; }
-
 # OkHttp & Okio
 -dontwarn okhttp3.**
 -dontwarn okio.**
@@ -38,5 +32,5 @@
 # Flattens all internal classes into root package so architecture is hidden
 -repackageclasses ''
 -allowaccessmodification
--renamesourcefileattribute SourceFile
--keepattributes SourceFile,LineNumberTable
+-renamesourcefileattribute ''
+# Strip debug line numbers and filenames for smaller dex and maximum AI anti-decompilation

@@ -1,5 +1,6 @@
 #include <jni.h>
-#include <string>
+#include <string.h>
+#include <stdio.h>
 
 namespace {
 
@@ -670,15 +671,15 @@ Java_com_phantom_tube_core_security_PhantomNative_getSponsorBlockUrl(
         jobject /* this */,
         jstring videoId) {
     const char* vidChars = env->GetStringUTFChars(videoId, nullptr);
-    std::string vidStr = vidChars ? vidChars : "";
+    char url[512];
+    snprintf(url, sizeof(url),
+        "https://sponsor.ajay.app/api/skipSegments?videoID=%s&categories=%%5B%%22sponsor%%22%%2C%%22selfpromo%%22%%2C%%22interaction%%22%%2C%%22intro%%22%%2C%%22outro%%22%%5D",
+        vidChars ? vidChars : "");
     if (vidChars) {
         env->ReleaseStringUTFChars(videoId, vidChars);
     }
 
-    std::string url = "https://sponsor.ajay.app/api/skipSegments?videoID=" + vidStr +
-        "&categories=%5B%22sponsor%22%2C%22selfpromo%22%2C%22interaction%22%2C%22intro%22%2C%22outro%22%5D";
-
-    return env->NewStringUTF(url.c_str());
+    return env->NewStringUTF(url);
 }
 
 /**
@@ -696,26 +697,26 @@ Java_com_phantom_tube_core_security_PhantomNative_classifyUrl(
         jstring urlStr) {
     const char* chars = env->GetStringUTFChars(urlStr, nullptr);
     if (!chars) return 0;
-    std::string url = chars;
+
+    jint result = 0;
+    if (strstr(chars, "/engine/render") != nullptr) {
+        result = 1;
+    } else {
+        bool isYtHost = (strstr(chars, "youtube.com") != nullptr) ||
+                        (strstr(chars, "youtube-nocookie.com") != nullptr);
+
+        if (isYtHost && (strstr(chars, "/embed/") != nullptr || strstr(chars, "/embed?") != nullptr)) {
+            result = 2;
+        } else {
+            bool isMediaHost = isYtHost || (strstr(chars, "googlevideo.com") != nullptr);
+            if (isMediaHost && (strstr(chars, ".css") != nullptr || strstr(chars, "/ss/") != nullptr)) {
+                result = 3;
+            }
+        }
+    }
+
     env->ReleaseStringUTFChars(urlStr, chars);
-
-    if (url.find("/engine/render") != std::string::npos) {
-        return 1;
-    }
-
-    bool isYtHost = (url.find("youtube.com") != std::string::npos) ||
-                    (url.find("youtube-nocookie.com") != std::string::npos);
-
-    if (isYtHost && (url.find("/embed/") != std::string::npos || url.find("/embed?") != std::string::npos)) {
-        return 2;
-    }
-
-    bool isMediaHost = isYtHost || (url.find("googlevideo.com") != std::string::npos);
-    if (isMediaHost && (url.find(".css") != std::string::npos || url.find("/ss/") != std::string::npos)) {
-        return 3;
-    }
-
-    return 0;
+    return result;
 }
 
 JNIEXPORT jstring JNICALL
@@ -740,19 +741,21 @@ JNIEXPORT jstring JNICALL
 Java_com_phantom_tube_core_security_PhantomNative_getSuggestUrl(
         JNIEnv* env, jobject /* this */, jint index, jstring queryStr) {
     const char* chars = env->GetStringUTFChars(queryStr, nullptr);
-    std::string q = chars ? chars : "";
-    if (chars) env->ReleaseStringUTFChars(queryStr, chars);
+    const char* q = chars ? chars : "";
+    char u[1024];
 
     if (index == 0) {
-        std::string u = "https://suggestqueries-clients6.youtube.com/complete/search?client=firefox&ds=yt&hl=id&gl=ID&q=" + q;
-        return env->NewStringUTF(u.c_str());
+        snprintf(u, sizeof(u), "https://suggestqueries-clients6.youtube.com/complete/search?client=firefox&ds=yt&hl=id&gl=ID&q=%s", q);
     } else if (index == 1) {
-        std::string u = "https://suggestqueries-clients6.youtube.com/complete/search?client=youtube&ds=yt&hl=id&gl=ID&q=" + q;
-        return env->NewStringUTF(u.c_str());
+        snprintf(u, sizeof(u), "https://suggestqueries-clients6.youtube.com/complete/search?client=youtube&ds=yt&hl=id&gl=ID&q=%s", q);
     } else {
-        std::string u = "https://suggestqueries.google.com/complete/search?client=firefox&ds=yt&hl=id&gl=ID&q=" + q;
-        return env->NewStringUTF(u.c_str());
+        snprintf(u, sizeof(u), "https://suggestqueries.google.com/complete/search?client=firefox&ds=yt&hl=id&gl=ID&q=%s", q);
     }
+
+    if (chars) {
+        env->ReleaseStringUTFChars(queryStr, chars);
+    }
+    return env->NewStringUTF(u);
 }
 
 } // extern "C"

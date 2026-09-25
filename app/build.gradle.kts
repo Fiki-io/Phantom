@@ -22,6 +22,12 @@ android {
         ndk {
             abiFilters += listOf("armeabi-v7a", "arm64-v8a", "x86", "x86_64")
         }
+        resourceConfigurations += listOf("en", "id")
+        externalNativeBuild {
+            cmake {
+                arguments += listOf("-DANDROID_STL=none")
+            }
+        }
     }
 
     externalNativeBuild {
@@ -119,7 +125,6 @@ dependencies {
 
     // Networking (Live InnerTube & SponsorBlock API)
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
-    implementation("com.google.code.gson:gson:2.10.1")
 
     // AndroidX WebKit with WebViewAssetLoader for secure HTTPS origin/referer (Solves Error 150/152/153)
     implementation("androidx.webkit:webkit:1.11.0")
