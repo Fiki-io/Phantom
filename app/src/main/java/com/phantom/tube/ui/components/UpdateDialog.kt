@@ -68,7 +68,7 @@ fun UpdateDialog(
     }
     val isCancellable = !isForceUpdate && state !is UpdateDialogState.Downloading
 
-    val handleDismissOrExit = {
+    val handleDismissOrExit: () -> Unit = {
         if (isCancellable) {
             onDismiss()
         } else {
@@ -177,7 +177,7 @@ fun UpdateDialog(
                             horizontalArrangement = Arrangement.End,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            TextButton(onClick = handleDismissOrExit) {
+                            TextButton(onClick = { handleDismissOrExit() }) {
                                 Text(if (isCancellable) "Nanti" else "Keluar", color = TextMuted)
                             }
                             Spacer(modifier = Modifier.width(8.dp))
@@ -262,7 +262,7 @@ fun UpdateDialog(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.End
                         ) {
-                            TextButton(onClick = handleDismissOrExit) {
+                            TextButton(onClick = { handleDismissOrExit() }) {
                                 Text(if (isCancellable) "Batal" else "Keluar", color = TextMuted)
                             }
                             Spacer(modifier = Modifier.width(8.dp))
@@ -299,7 +299,7 @@ fun UpdateDialog(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.End
                         ) {
-                            TextButton(onClick = handleDismissOrExit) {
+                            TextButton(onClick = { handleDismissOrExit() }) {
                                 Text(if (isCancellable) "Tutup" else "Keluar", color = TextMuted)
                             }
                             Spacer(modifier = Modifier.width(8.dp))
