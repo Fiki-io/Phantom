@@ -42,6 +42,7 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.SurroundSound
+import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.RadioButton
@@ -108,6 +109,7 @@ fun SettingsScreen(
     preferences: PhantomPreferences,
     repository: PhantomRepository,
     onBackClick: () -> Unit,
+    onCheckUpdateClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     BackHandler(onBack = onBackClick)
@@ -408,6 +410,15 @@ fun SettingsScreen(
                     title = "Arsitektur Privasi",
                     subtitle = "Bebas pelacak, tanpa Google Play Services, pemrosesan data murni di perangkat Anda.",
                     onClick = {}
+                )
+
+                SettingsDivider()
+
+                SettingsItemClickable(
+                    icon = Icons.Default.SystemUpdate,
+                    title = "Periksa Pembaruan",
+                    subtitle = "Cek rilis versi terbaru dari server",
+                    onClick = onCheckUpdateClick
                 )
             }
 

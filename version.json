@@ -1,0 +1,6 @@
+{
+  "versionCode": 2,
+  "versionName": "2.0.0",
+  "downloadUrl": "https://github.com/Fiki-io/Phantom/releases/download/v2.0.0/app-release.apk",
+  "changelog": "- Rilis v2.0.0 (Universal APK 1.57 MB)\n- Mesin pemutar native C++ terlindungi\n- Dukungan pemutaran latar belakang penuh\n- Fitur Auto-Update in-app terintegrasi"
+}

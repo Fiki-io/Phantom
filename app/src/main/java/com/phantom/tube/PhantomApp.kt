@@ -36,6 +36,10 @@ class PhantomApp : Application(), ImageLoaderFactory {
             .build()
     }
 
+    val updateManager: com.phantom.tube.core.update.UpdateManager by lazy {
+        com.phantom.tube.core.update.UpdateManager(this, sharedHttpClient)
+    }
+
     override fun onCreate() {
         super.onCreate()
         PhantomCrashHandler.install(this)

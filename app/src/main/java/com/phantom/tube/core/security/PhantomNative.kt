@@ -41,6 +41,7 @@ object PhantomNative {
     private external fun getNextUrl(): String
     private external fun getBrowseUrl(): String
     private external fun getSuggestUrl(index: Int, query: String): String
+    private external fun getUpdateUrl(): String
 
     // --- Safe public accessors with host/test fallback ---
 
@@ -217,8 +218,21 @@ object PhantomNative {
         return 0
     }
 
+    fun getUpdateEndpoint(): String {
+        return if (isNativeLoaded) {
+            try {
+                getUpdateUrl()
+            } catch (e: UnsatisfiedLinkError) {
+                FALLBACK_UPDATE_URL
+            }
+        } else {
+            FALLBACK_UPDATE_URL
+        }
+    }
+
     // Development/Unit-test fallback stubs
     private const val FALLBACK_ENGINE_HTML = "<!DOCTYPE html><html><body><div id=\"render_surface\"></div></body></html>"
     private const val FALLBACK_CSS_RULES = "body { margin: 0; }"
     private const val FALLBACK_CLEAN_SCRIPT = "(function(){})();"
+    private const val FALLBACK_UPDATE_URL = "https://raw.githubusercontent.com/Fiki-io/Phantom/main/version.json"
 }

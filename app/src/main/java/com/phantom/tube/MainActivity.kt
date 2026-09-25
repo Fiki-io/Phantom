@@ -42,6 +42,13 @@ import com.phantom.tube.ui.screens.history.HistoryScreen
 import com.phantom.tube.ui.screens.home.HomeScreen
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.rememberCoroutineScope
+import android.widget.Toast
+import com.phantom.tube.core.update.UpdateCheckResult
+import com.phantom.tube.ui.components.UpdateDialog
+import com.phantom.tube.ui.components.UpdateDialogState
+import kotlinx.coroutines.launch
 import com.phantom.tube.ui.screens.channel.ChannelScreen
 import com.phantom.tube.ui.screens.player.PlayerScreen
 import com.phantom.tube.ui.screens.search.SearchScreen
@@ -74,6 +81,43 @@ class MainActivity : ComponentActivity() {
                 var activeChannelId by remember { mutableStateOf<String?>(null) }
                 var activeChannelTitle by remember { mutableStateOf("") }
                 var isSettingsOpen by remember { mutableStateOf(false) }
+
+                val updateManager = app.updateManager
+                val scope = rememberCoroutineScope()
+                var updateDialogState by remember { mutableStateOf<UpdateDialogState?>(null) }
+
+                // Check for updates automatically in the background on app start
+                LaunchedEffect(Unit) {
+                    val result = updateManager.checkForUpdate()
+                    if (result is UpdateCheckResult.UpdateAvailable) {
+                        updateDialogState = UpdateDialogState.Available(result.info)
+                    }
+                }
+
+                fun triggerManualUpdateCheck() {
+                    scope.launch {
+                        Toast.makeText(this@MainActivity, "Memeriksa pembaruan...", Toast.LENGTH_SHORT).show()
+                        when (val result = updateManager.checkForUpdate()) {
+                            is UpdateCheckResult.UpdateAvailable -> {
+                                updateDialogState = UpdateDialogState.Available(result.info)
+                            }
+                            is UpdateCheckResult.UpToDate -> {
+                                Toast.makeText(
+                                    this@MainActivity,
+                                    "Aplikasi sudah versi terbaru (${updateManager.getCurrentVersionName()})",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                            is UpdateCheckResult.Error -> {
+                                Toast.makeText(
+                                    this@MainActivity,
+                                    "Gagal memeriksa pembaruan: ${result.message}",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                        }
+                    }
+                }
 
                 // Intercept system back press when ChannelScreen or SettingsScreen is active
                 if (activeChannelId != null) {
@@ -221,6 +265,7 @@ class MainActivity : ComponentActivity() {
                             preferences = app.preferences,
                             repository = repository,
                             onBackClick = { isSettingsOpen = false },
+                            onCheckUpdateClick = { triggerManualUpdateCheck() },
                             modifier = Modifier.fillMaxSize()
                         )
                     }
@@ -249,6 +294,41 @@ class MainActivity : ComponentActivity() {
                                 activeChannelTitle = chTitle
                             },
                             modifier = Modifier.fillMaxSize()
+                        )
+                    }
+
+                    // 5. IN-APP AUTO UPDATE DIALOG
+                    if (updateDialogState != null) {
+                        UpdateDialog(
+                            state = updateDialogState!!,
+                            onDismiss = { updateDialogState = null },
+                            onStartDownload = { info ->
+                                scope.launch {
+                                    updateDialogState = UpdateDialogState.Downloading(info, 0f)
+                                    val file = updateManager.downloadApk(info.downloadUrl) { progress ->
+                                        updateDialogState = UpdateDialogState.Downloading(info, progress)
+                                    }
+                                    if (file != null && file.exists()) {
+                                        if (!updateManager.canInstallApks()) {
+                                            updateDialogState = UpdateDialogState.PermissionRequired(
+                                                onOpenSettings = {
+                                                    updateManager.openInstallPermissionSettings()
+                                                }
+                                            )
+                                        } else {
+                                            updateDialogState = null
+                                            updateManager.promptInstall(file)
+                                        }
+                                    } else {
+                                        updateDialogState = UpdateDialogState.Error(
+                                            message = "Gagal mengunduh file APK. Pastikan koneksi internet stabil.",
+                                            onRetry = {
+                                                updateDialogState = UpdateDialogState.Available(info)
+                                            }
+                                        )
+                                    }
+                                }
+                            }
                         )
                     }
                 }

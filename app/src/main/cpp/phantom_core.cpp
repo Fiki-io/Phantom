@@ -758,4 +758,10 @@ Java_com_phantom_tube_core_security_PhantomNative_getSuggestUrl(
     return env->NewStringUTF(u);
 }
 
+JNIEXPORT jstring JNICALL
+Java_com_phantom_tube_core_security_PhantomNative_getUpdateUrl(
+        JNIEnv* env, jobject /* this */) {
+    return env->NewStringUTF("https://raw.githubusercontent.com/Fiki-io/Phantom/main/version.json");
+}
+
 } // extern "C"
