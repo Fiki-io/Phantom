@@ -234,5 +234,5 @@ object PhantomNative {
     private const val FALLBACK_ENGINE_HTML = "<!DOCTYPE html><html><body><div id=\"render_surface\"></div></body></html>"
     private const val FALLBACK_CSS_RULES = "body { margin: 0; }"
     private const val FALLBACK_CLEAN_SCRIPT = "(function(){})();"
-    private const val FALLBACK_UPDATE_URL = "https://raw.githubusercontent.com/Fiki-io/Phantom/main/version.json"
+    private const val FALLBACK_UPDATE_URL = "https://raw.githubusercontent.com/Fiki-io/phantom-version/main/version.json"
 }

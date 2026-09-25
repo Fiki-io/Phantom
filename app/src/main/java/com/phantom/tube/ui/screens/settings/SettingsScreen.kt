@@ -6,9 +6,12 @@ import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.ui.res.painterResource
+import com.phantom.tube.R
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -370,33 +373,26 @@ fun SettingsScreen(
                         .padding(16.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Box(
+                    Image(
+                        painter = painterResource(id = R.drawable.ic_launcher_foreground),
+                        contentDescription = "Logo Phantom",
                         modifier = Modifier
                             .size(46.dp)
                             .clip(RoundedCornerShape(12.dp))
-                            .background(YouTubeRed),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.PlayArrow,
-                            contentDescription = null,
-                            tint = Color.White,
-                            modifier = Modifier.size(26.dp)
-                        )
-                    }
+                    )
 
                     Spacer(modifier = Modifier.width(14.dp))
 
                     Column {
                         Text(
-                            text = "Phantom Tube",
+                            text = "Phantom",
                             color = TextPrimary,
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold
                         )
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
-                            text = "Versi 2.0-clean (Client-Side InnerTube)",
+                            text = "Versi 2.0.0",
                             color = TextSecondary,
                             fontSize = 12.sp
                         )
@@ -407,8 +403,8 @@ fun SettingsScreen(
 
                 SettingsItemClickable(
                     icon = Icons.Default.Info,
-                    title = "Arsitektur Privasi",
-                    subtitle = "Bebas pelacak, tanpa Google Play Services, pemrosesan data murni di perangkat Anda.",
+                    title = "Kebijakan Privasi",
+                    subtitle = "Aplikasi memproses seluruh data secara lokal di perangkat Anda tanpa pelacakan.",
                     onClick = {}
                 )
 
@@ -417,7 +413,7 @@ fun SettingsScreen(
                 SettingsItemClickable(
                     icon = Icons.Default.SystemUpdate,
                     title = "Periksa Pembaruan",
-                    subtitle = "Cek rilis versi terbaru dari server",
+                    subtitle = "Periksa versi terbaru aplikasi",
                     onClick = onCheckUpdateClick
                 )
             }
