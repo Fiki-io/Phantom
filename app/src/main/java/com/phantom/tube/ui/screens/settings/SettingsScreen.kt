@@ -404,22 +404,6 @@ fun SettingsScreen(
                 SettingsDivider()
 
                 SettingsItemClickable(
-                    icon = Icons.Default.OpenInNew,
-                    title = "Repositori GitHub",
-                    subtitle = "Fiki-io/Phantom • Proyek Sumber Terbuka",
-                    onClick = {
-                        try {
-                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/Fiki-io/Phantom"))
-                            context.startActivity(intent)
-                        } catch (e: Exception) {
-                            Toast.makeText(context, "Tidak dapat membuka peramban", Toast.LENGTH_SHORT).show()
-                        }
-                    }
-                )
-
-                SettingsDivider()
-
-                SettingsItemClickable(
                     icon = Icons.Default.Info,
                     title = "Arsitektur Privasi",
                     subtitle = "Bebas pelacak, tanpa Google Play Services, pemrosesan data murni di perangkat Anda.",
