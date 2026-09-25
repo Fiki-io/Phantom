@@ -26,12 +26,12 @@ jobs:
       - name: Grant Execute Permission for Gradlew
         run: chmod +x gradlew
 
-      - name: Build Debug APK
-        run: ./gradlew assembleDebug --build-cache --parallel --stacktrace
+      - name: Build Release APK
+        run: ./gradlew assembleRelease --build-cache --parallel --stacktrace
 
-      - name: Upload Debug APK Artifact
+      - name: Upload Release APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Phantom-Debug-APK
-          path: app/build/outputs/apk/debug/*.apk
+          name: Phantom-Release-APK
+          path: app/build/outputs/apk/release/*.apk
           retention-days: 30

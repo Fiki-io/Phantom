@@ -482,12 +482,12 @@ fun PlayerScreen(
             },
             onErrorCallback = { errorCode ->
                 val msg = when (errorCode) {
-                    100 -> "Video tidak ditemukan"
-                    101, 150 -> "Pemilik membatasi pemutaran di aplikasi ini (Error 150)"
-                    152 -> "Video tidak dapat diputar (Error 152)"
-                    2 -> "Parameter video tidak valid"
-                    5 -> "Gagal memuat pemutar video"
-                    else -> "Terjadi kesalahan pemutaran ($errorCode)"
+                    100 -> "Video tidak tersedia"
+                    101, 150 -> "Pemutaran dibatasi pada perangkat ini"
+                    152 -> "Format video tidak didukung"
+                    2 -> "Parameter tidak valid"
+                    5 -> "Gagal memuat video"
+                    else -> "Kesalahan pemutaran ($errorCode)"
                 }
                 playerState = playerState.copy(isBuffering = false, errorCode = msg)
             },

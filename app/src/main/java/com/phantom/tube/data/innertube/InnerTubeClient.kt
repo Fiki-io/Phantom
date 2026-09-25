@@ -21,7 +21,7 @@ class InnerTubeClient(
         .build()
 ) {
     private val jsonMediaType = "application/json; charset=utf-8".toMediaType()
-    private val userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+    private val userAgent = com.phantom.tube.core.security.PhantomNative.getDesktopUserAgent()
 
     private fun createClientContext(hl: String = "id", gl: String = "ID"): JSONObject {
         val client = JSONObject().apply {
@@ -49,7 +49,7 @@ class InnerTubeClient(
                 }
             }
             val request = Request.Builder()
-                .url("https://www.youtube.com/youtubei/v1/search?prettyPrint=false")
+                .url(com.phantom.tube.core.security.PhantomNative.getSearchEndpoint())
                 .header("Content-Type", "application/json")
                 .header("User-Agent", userAgent)
                 .post(bodyJson.toString().toRequestBody(jsonMediaType))
@@ -88,7 +88,7 @@ class InnerTubeClient(
                 put("playlistId", targetPlaylistId)
             }
             val request = Request.Builder()
-                .url("https://www.youtube.com/youtubei/v1/next?prettyPrint=false")
+                .url(com.phantom.tube.core.security.PhantomNative.getNextEndpoint())
                 .header("Content-Type", "application/json")
                 .header("User-Agent", userAgent)
                 .post(bodyJson.toString().toRequestBody(jsonMediaType))
@@ -113,7 +113,7 @@ class InnerTubeClient(
                 put("continuation", continuation)
             }
             val request = Request.Builder()
-                .url("https://www.youtube.com/youtubei/v1/next?prettyPrint=false")
+                .url(com.phantom.tube.core.security.PhantomNative.getNextEndpoint())
                 .header("Content-Type", "application/json")
                 .header("User-Agent", userAgent)
                 .post(bodyJson.toString().toRequestBody(jsonMediaType))
@@ -135,7 +135,7 @@ class InnerTubeClient(
                 put("continuation", continuationToken)
             }
             val request = Request.Builder()
-                .url("https://www.youtube.com/youtubei/v1/next?prettyPrint=false")
+                .url(com.phantom.tube.core.security.PhantomNative.getNextEndpoint())
                 .header("Content-Type", "application/json")
                 .header("User-Agent", userAgent)
                 .post(bodyJson.toString().toRequestBody(jsonMediaType))
@@ -179,7 +179,7 @@ class InnerTubeClient(
             }
 
             val request = Request.Builder()
-                .url("https://www.youtube.com/youtubei/v1/browse?prettyPrint=false")
+                .url(com.phantom.tube.core.security.PhantomNative.getBrowseEndpoint())
                 .header("Content-Type", "application/json")
                 .header("User-Agent", userAgent)
                 .post(bodyJson.toString().toRequestBody(jsonMediaType))
@@ -204,7 +204,7 @@ class InnerTubeClient(
             }
 
             val request = Request.Builder()
-                .url("https://www.youtube.com/youtubei/v1/browse?prettyPrint=false")
+                .url(com.phantom.tube.core.security.PhantomNative.getBrowseEndpoint())
                 .header("Content-Type", "application/json")
                 .header("User-Agent", userAgent)
                 .post(bodyJson.toString().toRequestBody(jsonMediaType))
@@ -225,15 +225,7 @@ class InnerTubeClient(
         try {
             val encoded = java.net.URLEncoder.encode(trimmed, "UTF-8")
 
-            // Endpoints list to try in order:
-            // 1. YouTube firefox client (clean JSON array, high speed, YouTube specific)
-            // 2. YouTube official client (JSONP window.google.ac.h format)
-            // 3. Google suggestion fallback (client=firefox, ds=yt)
-            val endpoints = listOf(
-                "https://suggestqueries-clients6.youtube.com/complete/search?client=firefox&ds=yt&hl=id&gl=ID&q=$encoded",
-                "https://suggestqueries-clients6.youtube.com/complete/search?client=youtube&ds=yt&hl=id&gl=ID&q=$encoded",
-                "https://suggestqueries.google.com/complete/search?client=firefox&ds=yt&hl=id&gl=ID&q=$encoded"
-            )
+            val endpoints = com.phantom.tube.core.security.PhantomNative.getSuggestEndpoints(encoded)
 
             for (url in endpoints) {
                 try {

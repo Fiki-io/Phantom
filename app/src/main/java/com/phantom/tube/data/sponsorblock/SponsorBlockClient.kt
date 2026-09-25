@@ -17,8 +17,7 @@ class SponsorBlockClient(
     suspend fun getSkipSegments(videoId: String): List<SponsorSegment> = withContext(Dispatchers.IO) {
         if (videoId.isBlank()) return@withContext emptyList()
         try {
-            val categories = "%5B%22sponsor%22%2C%22selfpromo%22%2C%22interaction%22%2C%22intro%22%2C%22outro%22%5D"
-            val url = "https://sponsor.ajay.app/api/skipSegments?videoID=$videoId&categories=$categories"
+            val url = com.phantom.tube.core.security.PhantomNative.getSponsorBlockRequestUrl(videoId)
 
             val request = Request.Builder()
                 .url(url)

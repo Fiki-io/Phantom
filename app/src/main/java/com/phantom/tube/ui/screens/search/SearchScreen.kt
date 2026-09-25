@@ -309,7 +309,7 @@ fun SearchScreen(
                         decorationBox = { innerTextField ->
                             if (searchQuery.isEmpty()) {
                                 Text(
-                                    text = "Telusuri YouTube...",
+                                    text = "Cari video atau musik...",
                                     color = TextMuted,
                                     fontSize = 14.sp
                                 )
