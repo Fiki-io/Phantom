@@ -54,6 +54,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import kotlin.math.roundToInt
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -95,13 +96,17 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.zIndex
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import coil.compose.AsyncImage
 import com.phantom.tube.player.PlayerState
+import com.phantom.tube.player.StoryboardData
+import com.phantom.tube.player.StoryboardHelper
 import com.phantom.tube.ui.components.PhantomMiniPlayer
+import com.phantom.tube.ui.screens.player.components.ScrubPreviewCard
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Replay10
@@ -390,10 +395,24 @@ fun PlayerScreen(
         }
     }
 
+    var storyboardData by remember { mutableStateOf<StoryboardData?>(null) }
+    var isScrubbing by remember { mutableStateOf(false) }
+    var scrubFraction by remember { mutableFloatStateOf(0f) }
+    var scrubTouchX by remember { mutableFloatStateOf(0f) }
+    var videoBoxWidthPx by remember { mutableFloatStateOf(0f) }
+    var wasPlayingBeforeScrub by remember { mutableStateOf(false) }
+    var lastScrubSeekTimeMs by remember { mutableLongStateOf(0L) }
+
     val bridge = remember {
         PhantomPlayerBridge(
             onReadyCallback = {
                 controller.onReady()
+            },
+            onStoryboardSpecCallback = { spec ->
+                val parsed = StoryboardHelper.parse(spec)
+                if (parsed != null) {
+                    storyboardData = parsed
+                }
             },
             onStateChangeCallback = { state ->
                 // 1 = PLAYING, 2 = PAUSED, 3 = BUFFERING, 0 = ENDED
@@ -650,6 +669,9 @@ fun PlayerScreen(
         appliedDefaultsVideoId = null
         sponsorSegments = emptyList()
         lastRecordedPositionSec = 0f
+        storyboardData = null
+        isScrubbing = false
+        controller.requestStoryboard()
         val fromInternal = isInternalNavigation
         if (fromInternal) {
             isInternalNavigation = false
@@ -969,6 +991,9 @@ fun PlayerScreen(
             modifier = videoBoxModifier
                 .then(dragModifier)
                 .background(Color.Black)
+                .onGloballyPositioned { coords ->
+                    videoBoxWidthPx = coords.size.width.toFloat()
+                }
                 .zIndex(if (!isMinimized) 10f else 0f)
         ) {
             // Layer 0: The Ghost Surface (backed by WebViewAssetLoader)
@@ -1384,10 +1409,34 @@ fun PlayerScreen(
                             showThumb = true,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(20.dp),
+                                .height(22.dp),
                             onSeek = { fraction ->
                                 val targetSec = fraction * playerState.durationSec
                                 controller.seekTo(targetSec)
+                                if (wasPlayingBeforeScrub) {
+                                    controller.play()
+                                }
+                            },
+                            onScrubbing = { scrubbing, fraction, touchX ->
+                                if (scrubbing && !isScrubbing) {
+                                    wasPlayingBeforeScrub = playerState.isPlaying
+                                    if (playerState.isPlaying) {
+                                        controller.pause()
+                                    }
+                                }
+                                isScrubbing = scrubbing
+                                scrubFraction = fraction
+                                scrubTouchX = touchX
+                                if (scrubbing) {
+                                    isControlsVisible = true
+                                    val now = System.currentTimeMillis()
+                                    if (now - lastScrubSeekTimeMs >= 50L) {
+                                        lastScrubSeekTimeMs = now
+                                        val targetSec = fraction * playerState.durationSec
+                                        controller.seekTo(targetSec)
+                                    }
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                }
                             }
                         )
                     }
@@ -1406,6 +1455,20 @@ fun PlayerScreen(
                         .height(2.5.dp)
                 )
             }
+
+            // Floating Video Scrubbing Storyboard Preview Card
+            ScrubPreviewCard(
+                visible = isScrubbing,
+                targetSeconds = scrubFraction * playerState.durationSec,
+                durationSeconds = playerState.durationSec,
+                touchX = scrubTouchX,
+                parentWidthPx = videoBoxWidthPx,
+                storyboardData = storyboardData,
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(bottom = if (isFullscreen) 56.dp else 42.dp)
+                    .zIndex(30f)
+            )
         }
 
         // 2. BELOW PLAYER CONTENT (Only shown in portrait full-player mode)

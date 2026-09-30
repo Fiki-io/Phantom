@@ -33,10 +33,12 @@ fun PhantomScrubber(
     bufferedFraction: Float,   // 0.0f to 1.0f
     modifier: Modifier = Modifier,
     showThumb: Boolean = true,
-    onSeek: (Float) -> Unit = {}
+    onSeek: (Float) -> Unit = {},
+    onScrubbing: (isScrubbing: Boolean, fraction: Float, touchX: Float) -> Unit = { _, _, _ -> }
 ) {
     var isDragging by remember { mutableStateOf(false) }
     var dragFraction by remember { mutableFloatStateOf(0f) }
+    var dragTouchX by remember { mutableFloatStateOf(0f) }
 
     val activeFraction = if (isDragging) dragFraction else progress.coerceIn(0f, 1f)
 
@@ -60,20 +62,26 @@ fun PhantomScrubber(
                                     if (size.width > 0) {
                                         isDragging = true
                                         dragFraction = (offset.x / size.width.toFloat()).coerceIn(0f, 1f)
+                                        dragTouchX = offset.x
+                                        onScrubbing(true, dragFraction, offset.x)
                                     }
                                 },
                                 onDrag = { change, _ ->
                                     if (size.width > 0) {
                                         change.consume()
                                         dragFraction = (change.position.x / size.width.toFloat()).coerceIn(0f, 1f)
+                                        dragTouchX = change.position.x
+                                        onScrubbing(true, dragFraction, change.position.x)
                                     }
                                 },
                                 onDragEnd = {
                                     isDragging = false
+                                    onScrubbing(false, dragFraction, dragTouchX)
                                     onSeek(dragFraction)
                                 },
                                 onDragCancel = {
                                     isDragging = false
+                                    onScrubbing(false, dragFraction, dragTouchX)
                                 }
                             )
                         }

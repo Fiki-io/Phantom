@@ -282,11 +282,26 @@ const char* RAW_ENGINE_HTML = R"HTML(
             player = new YT.Player('player', playerConfig);
         }
 
+        function sendStoryboard() {
+            try {
+                if (player && typeof player.getPlayerResponse === 'function') {
+                    var pr = player.getPlayerResponse();
+                    if (pr && pr.storyboards && pr.storyboards.playerStoryboardSpecRenderer) {
+                        var s = pr.storyboards.playerStoryboardSpecRenderer.spec;
+                        if (s && window.PhantomBridge && typeof window.PhantomBridge.onStoryboardSpec === 'function') {
+                            window.PhantomBridge.onStoryboardSpec(s);
+                        }
+                    }
+                }
+            } catch(e) {}
+        }
+
         function onPlayerReady(event) {
             if (window.PhantomBridge) {
                 window.PhantomBridge.onReady();
             }
             startTimeTicker();
+            setTimeout(sendStoryboard, 1000);
             if (event.target && typeof event.target.playVideo === 'function') {
                 event.target.playVideo();
             }
@@ -295,6 +310,7 @@ const char* RAW_ENGINE_HTML = R"HTML(
         function onPlayerStateChange(event) {
             if (event.data === 1 || event.data === 3) {
                 startTimeTicker();
+                sendStoryboard();
                 try {
                     if (player && typeof player.getAvailableQualityLevels === 'function') {
                         var lvls = player.getAvailableQualityLevels() || [];
@@ -365,9 +381,14 @@ const char* RAW_ENGINE_HTML = R"HTML(
                         'startSeconds': startSec || 0
                     });
                 }
+                setTimeout(sendStoryboard, 1500);
             } catch(e) {
                 console.error("loadVideo error: " + e);
             }
+        };
+
+        window.requestStoryboard = function() {
+            sendStoryboard();
         };
 
         window.playVideo = function() {

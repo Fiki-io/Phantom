@@ -96,6 +96,10 @@ class PhantomPlayerController(context: Context) {
         evaluateJs("window.setPlaybackQuality('$quality');")
     }
 
+    fun requestStoryboard() {
+        evaluateJs("if (window.requestStoryboard) window.requestStoryboard();")
+    }
+
     private fun evaluateJs(script: String) {
         val target = webView ?: return
         if (Looper.myLooper() == Looper.getMainLooper()) {
