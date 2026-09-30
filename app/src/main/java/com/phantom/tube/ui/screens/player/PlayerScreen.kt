@@ -6,10 +6,15 @@ import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
 import android.content.pm.ActivityInfo
+import android.content.res.Configuration
 import android.os.Build
 import android.os.IBinder
 import android.view.WindowManager
 import androidx.activity.compose.BackHandler
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.ui.platform.LocalLifecycleOwner
@@ -87,6 +92,10 @@ import androidx.compose.material.icons.filled.FullscreenExit
 import androidx.compose.material.icons.filled.QueueMusic
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.zIndex
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
@@ -184,6 +193,46 @@ fun PlayerScreen(
     var playerState by remember { mutableStateOf(PlayerState(videoId = video.id)) }
     var isControlsVisible by remember { mutableStateOf(true) }
     var isFullscreen by remember { mutableStateOf(false) }
+
+    val configuration = LocalConfiguration.current
+    val isDeviceLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+
+    // Sync fullscreen state with physical device orientation
+    LaunchedEffect(isDeviceLandscape) {
+        if (isDeviceLandscape && !isFullscreen) {
+            isFullscreen = true
+        } else if (!isDeviceLandscape && isFullscreen) {
+            val activity = context as? Activity
+            if (activity?.requestedOrientation == ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE) {
+                activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+            }
+            isFullscreen = false
+        }
+    }
+
+    // Hide status bar & navigation bar in landscape / fullscreen (Immersive Sticky Mode)
+    DisposableEffect(isFullscreen, isMinimized) {
+        val activity = context as? Activity
+        val window = activity?.window
+        if (window != null) {
+            val insetsController = WindowCompat.getInsetsController(window, window.decorView)
+            if (isFullscreen && !isMinimized) {
+                insetsController.systemBarsBehavior =
+                    WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                insetsController.hide(WindowInsetsCompat.Type.systemBars())
+            } else {
+                insetsController.show(WindowInsetsCompat.Type.systemBars())
+            }
+        }
+        onDispose {
+            val activity = context as? Activity
+            val window = activity?.window
+            if (window != null) {
+                val insetsController = WindowCompat.getInsetsController(window, window.decorView)
+                insetsController.show(WindowInsetsCompat.Type.systemBars())
+            }
+        }
+    }
 
     // Double-Tap Seek Visual Feedback State
     var seekAnimationSide by remember { mutableStateOf<SeekFeedbackDirection?>(null) }
@@ -546,6 +595,11 @@ fun PlayerScreen(
             activity?.window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
             if (isFullscreen) {
                 activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+                val window = activity?.window
+                if (window != null) {
+                    val insetsController = WindowCompat.getInsetsController(window, window.decorView)
+                    insetsController.show(WindowInsetsCompat.Type.systemBars())
+                }
             }
             controller.release()
             try {
@@ -689,6 +743,17 @@ fun PlayerScreen(
         }
     }
 
+    val exitFullscreenToPortrait = {
+        val activity = context as? Activity
+        if (activity != null) {
+            activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+            activity.window.decorView.postDelayed({
+                activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+            }, 600)
+        }
+        isFullscreen = false
+    }
+
     BackHandler(enabled = !isMinimized) {
         if (showDescriptionSheet) {
             showDescriptionSheet = false
@@ -697,9 +762,7 @@ fun PlayerScreen(
         } else if (showSettingsSheet) {
             showSettingsSheet = false
         } else if (isFullscreen) {
-            val activity = context as? Activity
-            activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
-            isFullscreen = false
+            exitFullscreenToPortrait()
         } else if (showMixSheet) {
             showMixSheet = false
         } else {
@@ -717,14 +780,27 @@ fun PlayerScreen(
         label = "drag_minimize_offset"
     )
 
+    val haptic = LocalHapticFeedback.current
+    var hasTriggeredHaptic by remember { mutableStateOf(false) }
+
+    LaunchedEffect(dragOffsetY) {
+        val threshold = if (isFullscreen) 80f else 180f
+        if (dragOffsetY > threshold && !hasTriggeredHaptic) {
+            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+            hasTriggeredHaptic = true
+        } else if (dragOffsetY == 0f) {
+            hasTriggeredHaptic = false
+        }
+    }
+
     LaunchedEffect(isMinimized) {
         dragOffsetY = 0f
     }
 
     val lazyListState = rememberLazyListState()
 
-    val dragModifier = if (!isMinimized && !isFullscreen) {
-        Modifier.pointerInput(Unit) {
+    val dragModifier = if (!isMinimized) {
+        Modifier.pointerInput(isFullscreen) {
             detectVerticalDragGestures(
                 onVerticalDrag = { change, dragAmount ->
                     if (dragAmount > 0f || dragOffsetY > 0f) {
@@ -733,11 +809,22 @@ fun PlayerScreen(
                     }
                 },
                 onDragEnd = {
-                    if (dragOffsetY > 220f) {
-                        dragOffsetY = 0f
-                        onMinimize()
+                    if (isFullscreen) {
+                        // Tarik dari atas ke bawah di mode landscape / fullscreen untuk kembali ke portrait (seperti YouTube)
+                        if (dragOffsetY > 80f) {
+                            dragOffsetY = 0f
+                            exitFullscreenToPortrait()
+                        } else {
+                            dragOffsetY = 0f
+                        }
                     } else {
-                        dragOffsetY = 0f
+                        // Tarik ke bawah di mode portrait untuk memperkecil ke miniplayer
+                        if (dragOffsetY > 220f) {
+                            dragOffsetY = 0f
+                            onMinimize()
+                        } else {
+                            dragOffsetY = 0f
+                        }
                     }
                 },
                 onDragCancel = {
@@ -821,31 +908,61 @@ fun PlayerScreen(
             }
     }
 
+    val dragProgress = (animatedDragOffset / 220f).coerceIn(0f, 1f)
+    val backdropScrimAlpha = if (isFullscreen) {
+        (1f - (animatedDragOffset / 120f)).coerceIn(0f, 0.95f)
+    } else {
+        (1f - dragProgress).coerceIn(0f, 1f)
+    }
+
     Box(
         modifier = if (isMinimized) {
             modifier
         } else {
             modifier
                 .fillMaxSize()
-                .offset { IntOffset(0, animatedDragOffset.roundToInt()) }
                 .drawBehind {
-                    val alpha = (1f - (animatedDragOffset / 1500f)).coerceIn(0.6f, 1f)
-                    drawRect(ObsidianDark.copy(alpha = alpha))
+                    if (backdropScrimAlpha > 0f) {
+                        drawRect(ObsidianDark.copy(alpha = backdropScrimAlpha))
+                    }
                 }
         }
     ) {
         // 1. THE SINGLE PERSISTENT VIDEO PLAYER BOX (Always at exact same tree slot)
+        val videoCorners = (dragProgress * 16f).dp
         val videoBoxModifier = when {
             isMinimized -> Modifier
                 .size(1.dp)
                 .alpha(0.01f)
                 .align(Alignment.TopStart)
-            isFullscreen -> Modifier.fillMaxSize()
+            isFullscreen -> {
+                val landscapeDragProgress = (animatedDragOffset / 100f).coerceIn(0f, 1f)
+                val landscapeScale = (1f - (animatedDragOffset / 1000f)).coerceIn(0.88f, 1f)
+                val landscapeCorners = (landscapeDragProgress * 20f).dp
+                Modifier
+                    .fillMaxSize()
+                    .graphicsLayer {
+                        scaleX = landscapeScale
+                        scaleY = landscapeScale
+                        translationY = animatedDragOffset
+                        shape = RoundedCornerShape(landscapeCorners)
+                        clip = landscapeCorners > 0.dp
+                        shadowElevation = landscapeDragProgress * 24f
+                    }
+            }
             else -> Modifier
                 .fillMaxWidth()
+                .offset { IntOffset(0, animatedDragOffset.roundToInt()) }
                 .statusBarsPadding()
                 .aspectRatio(16f / 9f)
                 .align(Alignment.TopCenter)
+                .clip(RoundedCornerShape(videoCorners))
+                .shadow(
+                    elevation = (dragProgress * 14f).dp,
+                    shape = RoundedCornerShape(videoCorners),
+                    ambientColor = Color(0x66FF0033),
+                    spotColor = Color(0x99000000)
+                )
         }
 
         Box(
@@ -1105,9 +1222,7 @@ fun PlayerScreen(
                             iconSize = 24.dp,
                             onClick = {
                                 if (isFullscreen) {
-                                    val activity = context as? Activity
-                                    activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
-                                    isFullscreen = false
+                                    exitFullscreenToPortrait()
                                 } else {
                                     onMinimize()
                                 }
@@ -1251,11 +1366,10 @@ fun PlayerScreen(
                                 size = 36.dp,
                                 iconSize = 20.dp,
                                 onClick = {
-                                    val activity = context as? Activity
                                     if (isFullscreen) {
-                                        activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
-                                        isFullscreen = false
+                                        exitFullscreenToPortrait()
                                     } else {
+                                        val activity = context as? Activity
                                         activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
                                         isFullscreen = true
                                     }
@@ -1296,10 +1410,15 @@ fun PlayerScreen(
 
         // 2. BELOW PLAYER CONTENT (Only shown in portrait full-player mode)
         if (!isMinimized && !isFullscreen) {
+            val contentAlpha = (1f - (animatedDragOffset / 90f) * 1.5f).coerceIn(0f, 1f)
             Column(
                 modifier = Modifier
                     .fillMaxSize()
+                    .offset { IntOffset(0, animatedDragOffset.roundToInt()) }
                     .statusBarsPadding()
+                    .graphicsLayer {
+                        alpha = contentAlpha
+                    }
                     .zIndex(1f)
             ) {
                 // Spacer reserving the height of the top 16:9 Video Player Box
@@ -1792,6 +1911,10 @@ fun PlayerScreen(
                 },
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
+                    .offset { IntOffset(0, animatedDragOffset.roundToInt()) }
+                    .graphicsLayer {
+                        alpha = (1f - (animatedDragOffset / 90f) * 1.5f).coerceIn(0f, 1f)
+                    }
                     .zIndex(4f)
                     .navigationBarsPadding()
                     .padding(start = 12.dp, end = 12.dp, bottom = 10.dp)
@@ -1851,7 +1974,7 @@ fun PlayerScreen(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .zIndex(7f)
+                    .zIndex(25f)
             ) {
                 PlayerSettingsSheet(
                     visible = showSettingsSheet,
@@ -1928,7 +2051,7 @@ fun PlayerScreen(
             onDismiss = { showDescriptionSheet = false },
             modifier = Modifier
                 .fillMaxSize()
-                .zIndex(5f)
+                .zIndex(22f)
         )
 
         // 8. Komentar Bottom Sheet (YouTube standard, non-screen-covering)
@@ -1961,7 +2084,7 @@ fun PlayerScreen(
             onDismiss = { showCommentsSheet = false },
             modifier = Modifier
                 .fillMaxSize()
-                .zIndex(5f)
+                .zIndex(22f)
         )
     }
 }

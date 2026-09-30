@@ -421,7 +421,17 @@ fun SettingsScreen(
                     icon = Icons.Default.Info,
                     title = "Kebijakan Privasi",
                     subtitle = "Aplikasi memproses seluruh data secara lokal di perangkat Anda tanpa pelacakan.",
-                    onClick = {}
+                    onClick = {
+                        try {
+                            val intent = Intent(
+                                Intent.ACTION_VIEW,
+                                Uri.parse("https://telegra.ph/Privacy-Policy---Phantom-09-25")
+                            )
+                            context.startActivity(intent)
+                        } catch (e: Exception) {
+                            Toast.makeText(context, "Tidak dapat membuka peramban", Toast.LENGTH_SHORT).show()
+                        }
+                    }
                 )
 
                 SettingsDivider()
