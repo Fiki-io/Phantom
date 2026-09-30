@@ -87,6 +87,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.BookmarkBorder
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ClosedCaption
 import androidx.compose.material.icons.filled.CropFree
@@ -98,6 +99,7 @@ import androidx.compose.material.icons.filled.FitScreen
 import androidx.compose.material.icons.filled.Forward10
 import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material.icons.filled.FullscreenExit
+import androidx.compose.material.icons.filled.HighQuality
 import androidx.compose.material.icons.filled.QueueMusic
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
@@ -124,6 +126,8 @@ import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -165,12 +169,14 @@ import androidx.compose.material.icons.filled.Settings
 import com.phantom.tube.player.PhantomGhostSurface
 import com.phantom.tube.player.PhantomPlayerBridge
 import com.phantom.tube.player.PhantomPlayerController
+import com.phantom.tube.ui.components.ALL_STANDARD_QUALITIES
 import com.phantom.tube.ui.components.PhantomIconButton
 import com.phantom.tube.ui.components.PhantomScrubber
 import com.phantom.tube.ui.components.PhantomVideoCard
 import com.phantom.tube.ui.components.PlayerSettingsSheet
 import com.phantom.tube.ui.components.SleepTimerOption
 import com.phantom.tube.ui.components.SponsorSkipPill
+import com.phantom.tube.ui.components.VideoQualityOption
 import androidx.compose.material.icons.filled.Reply
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.ThumbDown
@@ -186,6 +192,22 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 enum class SeekFeedbackDirection { FORWARD, REWIND }
+
+private fun getShortQualityBadge(code: String): String {
+    return when (code.lowercase()) {
+        "auto" -> "Auto"
+        "highres" -> "High"
+        "hd2160" -> "4K"
+        "hd1440" -> "1440p"
+        "hd1080" -> "1080p"
+        "hd720" -> "720p"
+        "large" -> "480p"
+        "medium" -> "360p"
+        "small" -> "240p"
+        "tiny" -> "144p"
+        else -> if (code.endsWith("p")) code else code.take(5).uppercase()
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -415,6 +437,7 @@ fun PlayerScreen(
     var isZoomToFill by remember { mutableStateOf(false) }
     var isCaptionsEnabled by remember { mutableStateOf(false) }
     var hasCaptions by remember { mutableStateOf(false) }
+    var isQualityMenuExpanded by remember { mutableStateOf(false) }
     var playerNoticeText by remember { mutableStateOf<String?>(null) }
     var noticeJob by remember { mutableStateOf<Job?>(null) }
     var videoBoxHeightPx by remember { mutableFloatStateOf(0f) }
@@ -710,8 +733,8 @@ fun PlayerScreen(
     }
 
     // Auto-hide controls timer
-    LaunchedEffect(isControlsVisible, playerState.isPlaying) {
-        if (isControlsVisible && playerState.isPlaying) {
+    LaunchedEffect(isControlsVisible, playerState.isPlaying, isQualityMenuExpanded) {
+        if (isControlsVisible && playerState.isPlaying && !isQualityMenuExpanded) {
             delay(4000)
             isControlsVisible = false
         }
@@ -725,6 +748,7 @@ fun PlayerScreen(
         lastRecordedPositionSec = 0f
         storyboardData = null
         isScrubbing = false
+        isQualityMenuExpanded = false
         controller.requestStoryboard()
         val fromInternal = isInternalNavigation
         if (fromInternal) {
@@ -1123,7 +1147,11 @@ fun PlayerScreen(
                     .pointerInput(doubleTapSeekSeconds) {
                         detectTapGestures(
                             onTap = {
-                                isControlsVisible = !isControlsVisible
+                                if (isQualityMenuExpanded) {
+                                    isQualityMenuExpanded = false
+                                } else {
+                                    isControlsVisible = !isControlsVisible
+                                }
                             },
                             onDoubleTap = { offset ->
                                 val delta = doubleTapSeekSeconds
@@ -1354,6 +1382,107 @@ fun PlayerScreen(
                                     tint = if (isCaptionsEnabled && hasCaptions) YouTubeRed else if (!hasCaptions) Color.White.copy(alpha = 0.35f) else Color.White.copy(alpha = 0.75f),
                                     modifier = Modifier.size(19.dp)
                                 )
+                            }
+
+                            // Quick Video Quality Dropdown Button (pinggir tombol CC)
+                            Box {
+                                val currentQualityBadge = remember(playerState.currentQuality) {
+                                    getShortQualityBadge(playerState.currentQuality)
+                                }
+                                val isHighQuality = playerState.currentQuality in listOf("highres", "hd2160", "hd1440", "hd1080", "hd720")
+
+                                Box(
+                                    modifier = Modifier
+                                        .height(34.dp)
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .background(
+                                            if (isQualityMenuExpanded) Color(0x33FF0033)
+                                            else if (isHighQuality) Color(0x33FFFFFF)
+                                            else Color(0x44272727)
+                                        )
+                                        .border(
+                                            width = if (isQualityMenuExpanded) 1.2.dp else 0.5.dp,
+                                            color = if (isQualityMenuExpanded) YouTubeRed else Color.White.copy(alpha = 0.2f),
+                                            shape = RoundedCornerShape(10.dp)
+                                        )
+                                        .clickable {
+                                            isQualityMenuExpanded = !isQualityMenuExpanded
+                                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                        }
+                                        .padding(horizontal = 8.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.HighQuality,
+                                            contentDescription = "Kualitas Video: $currentQualityBadge",
+                                            tint = if (isQualityMenuExpanded) YouTubeRed else if (isHighQuality) Color.White else Color.White.copy(alpha = 0.85f),
+                                            modifier = Modifier.size(17.dp)
+                                        )
+                                        Text(
+                                            text = currentQualityBadge,
+                                            color = if (isQualityMenuExpanded) YouTubeRed else Color.White,
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                }
+
+                                DropdownMenu(
+                                    expanded = isQualityMenuExpanded,
+                                    onDismissRequest = { isQualityMenuExpanded = false },
+                                    modifier = Modifier
+                                        .background(Color(0xFF212121), RoundedCornerShape(12.dp))
+                                        .border(0.5.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(12.dp))
+                                ) {
+                                    val qualityOptions = remember(playerState.availableQualities) {
+                                        if (playerState.availableQualities.isNotEmpty()) {
+                                            val list = mutableListOf(VideoQualityOption("auto", "Otomatis (Disarankan)"))
+                                            val availableSet = playerState.availableQualities.toSet()
+                                            ALL_STANDARD_QUALITIES.filter { it.code != "auto" && availableSet.contains(it.code) }.forEach {
+                                                list.add(it)
+                                            }
+                                            if (list.size == 1) ALL_STANDARD_QUALITIES else list
+                                        } else {
+                                            ALL_STANDARD_QUALITIES
+                                        }
+                                    }
+
+                                    qualityOptions.forEach { opt ->
+                                        val isSelected = (opt.code == playerState.currentQuality)
+                                        DropdownMenuItem(
+                                            text = {
+                                                Text(
+                                                    text = opt.label,
+                                                    color = if (isSelected) YouTubeRed else TextPrimary,
+                                                    fontSize = 13.sp,
+                                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                                )
+                                            },
+                                            leadingIcon = if (isSelected) {
+                                                {
+                                                    Icon(
+                                                        imageVector = Icons.Default.Check,
+                                                        contentDescription = "Terpilih",
+                                                        tint = YouTubeRed,
+                                                        modifier = Modifier.size(16.dp)
+                                                    )
+                                                }
+                                            } else null,
+                                            onClick = {
+                                                playerState = playerState.copy(currentQuality = opt.code)
+                                                controller.setPlaybackQuality(opt.code)
+                                                isQualityMenuExpanded = false
+                                                showNotice("Kualitas: ${opt.label}")
+                                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                            },
+                                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 4.dp)
+                                        )
+                                    }
+                                }
                             }
 
                             // Zoom to Fill / Aspect Ratio Toggle Button
