@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -26,6 +27,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
@@ -48,6 +50,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -112,7 +115,7 @@ fun PlayerDescriptionSheet(
         exit = fadeOut(animationSpec = tween(100)) + slideOutVertically(animationSpec = tween(150, easing = FastOutLinearInEasing)) { it },
         modifier = modifier
     ) {
-        Box(
+        Column(
             modifier = Modifier
                 .fillMaxSize()
                 .clickable(
@@ -120,11 +123,19 @@ fun PlayerDescriptionSheet(
                     indication = null
                 ) { onDismiss() }
         ) {
+            // Invisible top spacer reserving the height of status bar + 16:9 Video Player Box
+            Spacer(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .statusBarsPadding()
+                    .aspectRatio(16f / 9f)
+            )
+
+            // Sheet container filling the space below the video, NEVER overlapping the video
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .fillMaxHeight(0.72f)
-                    .align(Alignment.BottomCenter)
+                    .weight(1f)
                     .offset { IntOffset(0, animatedDescSheetOffsetY.roundToInt()) }
                     .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
                     .background(Color(0xFF212121))
@@ -264,85 +275,116 @@ fun PlayerDescriptionSheet(
                             }
                         }
 
-                        // 3. Stats Row
+                        // 3. Stats Card (YouTube Mobile Official Style)
                         item {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 4.dp),
-                                horizontalArrangement = Arrangement.SpaceEvenly,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Text(
-                                        text = nextQueueData?.likeCountText?.ifBlank { "-" } ?: "-",
-                                        color = TextPrimary,
-                                        fontSize = 15.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                    Text(text = "Suka", color = TextMuted, fontSize = 11.sp)
-                                }
+                            val rawViews = nextQueueData?.fullViewCountText?.ifBlank { video.viewCountText } ?: "-"
+                            val displayViews = if (rawViews.contains("ditonton", ignoreCase = true)) {
+                                rawViews.replace("ditonton", "").replace("x", "").trim()
+                            } else if (rawViews.contains("views", ignoreCase = true)) {
+                                rawViews.replace("views", "", ignoreCase = true).trim()
+                            } else rawViews
 
-                                Box(modifier = Modifier.height(28.dp).width(1.dp).background(Color(0xFF333333)))
+                            val rawDate = nextQueueData?.dateText?.ifBlank { video.publishedTimeText } ?: "-"
+                            val displayDate = rawDate
+                                .replace("Telah tayang perdana pada", "", ignoreCase = true)
+                                .replace("Tayang perdana pada", "", ignoreCase = true)
+                                .replace("Premiered on", "", ignoreCase = true)
+                                .replace("Premiered", "", ignoreCase = true)
+                                .replace("Streamed", "", ignoreCase = true)
+                                .replace("Disiarkan langsung pada", "", ignoreCase = true)
+                                .trim()
+                                .ifBlank { rawDate }
 
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    val rawViews = nextQueueData?.fullViewCountText?.ifBlank { video.viewCountText } ?: "-"
-                                    val displayViews = if (rawViews.contains("ditonton", ignoreCase = true)) {
-                                        rawViews.replace("ditonton", "").replace("x", "").trim()
-                                    } else if (rawViews.contains("views", ignoreCase = true)) {
-                                        rawViews.replace("views", "", ignoreCase = true).trim()
-                                    } else rawViews
-                                    Text(
-                                        text = displayViews.ifBlank { "-" },
-                                        color = TextPrimary,
-                                        fontSize = 15.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                    Text(text = "Penayangan", color = TextMuted, fontSize = 11.sp)
-                                }
-
-                                Box(modifier = Modifier.height(28.dp).width(1.dp).background(Color(0xFF333333)))
-
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    val rawDate = nextQueueData?.dateText?.ifBlank { video.publishedTimeText } ?: "-"
-                                    val displayDate = InnerTubeHelpers.normalizePublishedTime(rawDate)
-                                    Text(
-                                        text = displayDate.ifBlank { "-" },
-                                        color = TextPrimary,
-                                        fontSize = 15.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                    Text(text = "Tanggal", color = TextMuted, fontSize = 11.sp)
-                                }
-                            }
-                        }
-
-                        item {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(1.dp)
-                                    .background(Color(0xFF272727))
-                            )
-                        }
-
-                        // 4. Description Content
-                        item {
-                            val desc = nextQueueData?.description?.ifBlank { "Tidak ada deskripsi." }
-                                ?: "Tidak ada deskripsi."
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clip(RoundedCornerShape(12.dp))
-                                    .background(Color(0xFF1B1B1B))
+                                    .background(Color(0xFF2B2B2B))
+                                    .padding(vertical = 12.dp, horizontal = 8.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceEvenly,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        modifier = Modifier.weight(1f)
+                                    ) {
+                                        Text(
+                                            text = nextQueueData?.likeCountText?.ifBlank { "-" } ?: "-",
+                                            color = TextPrimary,
+                                            fontSize = 15.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                        Spacer(modifier = Modifier.height(2.dp))
+                                        Text(text = "Suka", color = TextMuted, fontSize = 11.sp)
+                                    }
+
+                                    Box(
+                                        modifier = Modifier
+                                            .height(26.dp)
+                                            .width(1.dp)
+                                            .background(Color(0xFF424242))
+                                    )
+
+                                    Column(
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        modifier = Modifier.weight(1f)
+                                    ) {
+                                        Text(
+                                            text = displayViews.ifBlank { "-" },
+                                            color = TextPrimary,
+                                            fontSize = 15.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                        Spacer(modifier = Modifier.height(2.dp))
+                                        Text(text = "Penayangan", color = TextMuted, fontSize = 11.sp)
+                                    }
+
+                                    Box(
+                                        modifier = Modifier
+                                            .height(26.dp)
+                                            .width(1.dp)
+                                            .background(Color(0xFF424242))
+                                    )
+
+                                    Column(
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        modifier = Modifier.weight(1f)
+                                    ) {
+                                        Text(
+                                            text = displayDate.ifBlank { "-" },
+                                            color = TextPrimary,
+                                            fontSize = 13.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                        Spacer(modifier = Modifier.height(2.dp))
+                                        Text(text = "Tanggal Rilis", color = TextMuted, fontSize = 11.sp)
+                                    }
+                                }
+                            }
+                        }
+
+                        // 4. Description Content (Clean Readable Card)
+                        item {
+                            val desc = nextQueueData?.description?.ifBlank { "Tidak ada deskripsi untuk video ini." }
+                                ?: "Tidak ada deskripsi untuk video ini."
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(Color(0xFF282828))
                                     .padding(14.dp)
                             ) {
                                 SelectionContainer {
                                     Text(
                                         text = desc,
                                         color = TextPrimary,
-                                        fontSize = 13.sp,
-                                        lineHeight = 21.sp,
+                                        fontSize = 13.5.sp,
+                                        lineHeight = 22.sp,
                                         modifier = Modifier.fillMaxWidth()
                                     )
                                 }

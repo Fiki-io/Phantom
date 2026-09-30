@@ -30,6 +30,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -286,7 +287,7 @@ fun PlayerMixSheet(
         modifier = modifier
     ) {
         // Scrim background (tap empty area to dismiss). Transparent so video on top continues playing clearly
-        Box(
+        Column(
             modifier = Modifier
                 .fillMaxSize()
                 .clickable(
@@ -294,11 +295,18 @@ fun PlayerMixSheet(
                     indication = null
                 ) { onDismiss() }
         ) {
+            // Invisible top spacer reserving the height of status bar + 16:9 Video Player Box
+            Spacer(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .statusBarsPadding()
+                    .aspectRatio(16f / 9f)
+            )
+
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .fillMaxHeight(0.72f)
-                    .align(Alignment.BottomCenter)
+                    .weight(1f)
                     .offset { IntOffset(0, animatedMixSheetOffsetY.roundToInt()) }
                     .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
                     .background(Color(0xFF212121))
