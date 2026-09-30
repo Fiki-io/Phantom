@@ -28,6 +28,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.core.FastOutLinearInEasing
@@ -38,14 +39,18 @@ import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
@@ -83,17 +88,22 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.ClosedCaption
+import androidx.compose.material.icons.filled.CropFree
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.FastForward
 import androidx.compose.material.icons.filled.FastRewind
+import androidx.compose.material.icons.filled.FitScreen
 import androidx.compose.material.icons.filled.Forward10
 import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material.icons.filled.FullscreenExit
 import androidx.compose.material.icons.filled.QueueMusic
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -402,11 +412,49 @@ fun PlayerScreen(
     var videoBoxWidthPx by remember { mutableFloatStateOf(0f) }
     var wasPlayingBeforeScrub by remember { mutableStateOf(false) }
     var lastScrubSeekTimeMs by remember { mutableLongStateOf(0L) }
+    var isZoomToFill by remember { mutableStateOf(false) }
+    var isCaptionsEnabled by remember { mutableStateOf(false) }
+    var hasCaptions by remember { mutableStateOf(false) }
+    var playerNoticeText by remember { mutableStateOf<String?>(null) }
+    var noticeJob by remember { mutableStateOf<Job?>(null) }
+    var videoBoxHeightPx by remember { mutableFloatStateOf(0f) }
+
+    fun showNotice(text: String) {
+        noticeJob?.cancel()
+        playerNoticeText = text
+        noticeJob = scope.launch {
+            delay(1800)
+            playerNoticeText = null
+        }
+    }
+
+    val fillScale = remember(videoBoxWidthPx, videoBoxHeightPx) {
+        if (videoBoxHeightPx > 0f && videoBoxWidthPx > 0f) {
+            val containerRatio = videoBoxWidthPx / videoBoxHeightPx
+            val videoRatio = 16f / 9f
+            if (containerRatio > videoRatio) {
+                (containerRatio / videoRatio).coerceIn(1.0f, 2.5f)
+            } else {
+                (videoRatio / containerRatio).coerceIn(1.0f, 2.5f)
+            }
+        } else {
+            1.28f
+        }
+    }
+
+    val animatedZoomScale by animateFloatAsState(
+        targetValue = if (isZoomToFill) fillScale else 1.0f,
+        animationSpec = spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMediumLow),
+        label = "zoomScale"
+    )
 
     val bridge = remember {
         PhantomPlayerBridge(
             onReadyCallback = {
                 controller.onReady()
+                if (isCaptionsEnabled) {
+                    controller.setCaptionsEnabled(true)
+                }
             },
             onStoryboardSpecCallback = { spec ->
                 val parsed = StoryboardHelper.parse(spec)
@@ -420,6 +468,9 @@ fun PlayerScreen(
                     1 -> {
                         playerState = playerState.copy(isPlaying = true, isBuffering = false, isEnded = false, errorCode = null)
                         mediaService?.updatePlaybackState(true, (playerState.currentTimeSec * 1000).toLong())
+                        if (isCaptionsEnabled) {
+                            controller.setCaptionsEnabled(true)
+                        }
                         if (appliedDefaultsVideoId != currentVideo.id) {
                             appliedDefaultsVideoId = currentVideo.id
                             val defSpeed = repository.preferences?.defaultSpeed?.value ?: 1.0f
@@ -564,6 +615,9 @@ fun PlayerScreen(
                     currentQuality = currentQuality,
                     availableQualities = availableQualities
                 )
+            },
+            onCaptionsAvailableCallback = { available ->
+                hasCaptions = available
             }
         )
     }
@@ -993,16 +1047,28 @@ fun PlayerScreen(
                 .background(Color.Black)
                 .onGloballyPositioned { coords ->
                     videoBoxWidthPx = coords.size.width.toFloat()
+                    videoBoxHeightPx = coords.size.height.toFloat()
                 }
                 .zIndex(if (!isMinimized) 10f else 0f)
         ) {
-            // Layer 0: The Ghost Surface (backed by WebViewAssetLoader)
-            PhantomGhostSurface(
-                videoId = video.id,
-                modifier = Modifier.matchParentSize(),
-                controller = controller,
-                bridge = bridge
-            )
+            // Layer 0: The Ghost Surface (backed by WebViewAssetLoader with Zoom to Fill)
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .clipToBounds()
+                    .graphicsLayer {
+                        scaleX = animatedZoomScale
+                        scaleY = animatedZoomScale
+                        transformOrigin = TransformOrigin.Center
+                    }
+            ) {
+                PhantomGhostSurface(
+                    videoId = video.id,
+                    modifier = Modifier.matchParentSize(),
+                    controller = controller,
+                    bridge = bridge
+                )
+            }
 
             // Audio-Only Mode AMOLED Overlay
             if (isAudioOnly) {
@@ -1258,6 +1324,64 @@ fun PlayerScreen(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
+                            // Closed Captions / Subtitle Toggle Button
+                            Box(
+                                modifier = Modifier
+                                    .size(34.dp)
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(if (isCaptionsEnabled && hasCaptions) Color(0x33FF0033) else Color(0x44272727))
+                                    .border(
+                                        width = if (isCaptionsEnabled && hasCaptions) 1.2.dp else 0.5.dp,
+                                        color = if (isCaptionsEnabled && hasCaptions) YouTubeRed else Color.White.copy(alpha = 0.2f),
+                                        shape = RoundedCornerShape(10.dp)
+                                    )
+                                    .clickable {
+                                        if (!hasCaptions) {
+                                            showNotice("Video ini tidak menyediakan teks")
+                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        } else {
+                                            isCaptionsEnabled = !isCaptionsEnabled
+                                            controller.setCaptionsEnabled(isCaptionsEnabled)
+                                            showNotice(if (isCaptionsEnabled) "Teks diaktifkan" else "Teks dinonaktifkan")
+                                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                        }
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.ClosedCaption,
+                                    contentDescription = if (isCaptionsEnabled) "Matikan Teks" else "Hidupkan Teks",
+                                    tint = if (isCaptionsEnabled && hasCaptions) YouTubeRed else if (!hasCaptions) Color.White.copy(alpha = 0.35f) else Color.White.copy(alpha = 0.75f),
+                                    modifier = Modifier.size(19.dp)
+                                )
+                            }
+
+                            // Zoom to Fill / Aspect Ratio Toggle Button
+                            Box(
+                                modifier = Modifier
+                                    .size(34.dp)
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(if (isZoomToFill) Color.White.copy(alpha = 0.22f) else Color(0x44272727))
+                                    .border(
+                                        width = if (isZoomToFill) 1.2.dp else 0.5.dp,
+                                        color = if (isZoomToFill) Color.White else Color.White.copy(alpha = 0.2f),
+                                        shape = RoundedCornerShape(10.dp)
+                                    )
+                                    .clickable {
+                                        isZoomToFill = !isZoomToFill
+                                        showNotice(if (isZoomToFill) "Di-zoom untuk memenuhi" else "Asli")
+                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = if (isZoomToFill) Icons.Default.FitScreen else Icons.Default.CropFree,
+                                    contentDescription = if (isZoomToFill) "Rasio Asli" else "Zoom Penuhi Layar",
+                                    tint = if (isZoomToFill) Color.White else Color.White.copy(alpha = 0.65f),
+                                    modifier = Modifier.size(19.dp)
+                                )
+                            }
+
                             // Playback Speed Quick Button (cycles 1.0x -> 1.5x -> 2.0x -> 0.5x)
                             Box(
                                 modifier = Modifier
@@ -1469,6 +1593,33 @@ fun PlayerScreen(
                     .padding(bottom = if (isFullscreen) 56.dp else 42.dp)
                     .zIndex(30f)
             )
+
+            // Floating YouTube-style Toast Notification ("Di-zoom untuk memenuhi", "Asli", "Teks diaktifkan", dsb.)
+            AnimatedVisibility(
+                visible = playerNoticeText != null,
+                enter = fadeIn(tween(140)) + scaleIn(initialScale = 0.85f),
+                exit = fadeOut(tween(220)) + scaleOut(targetScale = 0.85f),
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(top = if (isFullscreen) 60.dp else 44.dp)
+                    .zIndex(50f)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .shadow(16.dp, RoundedCornerShape(20.dp), ambientColor = Color(0x99000000))
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(Color(0xEE1A1A1D))
+                        .border(BorderStroke(1.dp, Color.White.copy(alpha = 0.25f)), RoundedCornerShape(20.dp))
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                ) {
+                    Text(
+                        text = playerNoticeText ?: "",
+                        color = Color.White,
+                        fontSize = 12.5.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
         }
 
         // 2. BELOW PLAYER CONTENT (Only shown in portrait full-player mode)

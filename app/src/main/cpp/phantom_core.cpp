@@ -261,7 +261,8 @@ const char* RAW_ENGINE_HTML = R"HTML(
                     'enablejsapi': 1,
                     'showinfo': 0,
                     'autohide': 1,
-                    'cc_load_policy': 0,
+                    'cc_load_policy': 1,
+                    'cc_lang_pref': 'id',
                     'origin': 'https://appassets.androidplatform.net',
                     'widget_referrer': 'https://appassets.androidplatform.net'
                 },
@@ -368,6 +369,9 @@ const char* RAW_ENGINE_HTML = R"HTML(
                 if (window.PhantomBridge && typeof window.PhantomBridge.onQualityChange === 'function') {
                     window.PhantomBridge.onQualityChange(e.data.current || 'auto', JSON.stringify(e.data.levels || []));
                 }
+                if (window.PhantomBridge && typeof window.PhantomBridge.onCaptionsAvailable === 'function' && typeof e.data.hasCaptions !== 'undefined') {
+                    window.PhantomBridge.onCaptionsAvailable(!!e.data.hasCaptions);
+                }
             }
         });
 
@@ -437,6 +441,51 @@ const char* RAW_ENGINE_HTML = R"HTML(
                 var iframe = document.querySelector('iframe');
                 if (iframe && iframe.contentWindow) {
                     iframe.contentWindow.postMessage({ type: 'PHANTOM_SET_QUALITY', quality: quality }, '*');
+                }
+            } catch(e) {}
+        };
+
+        window.setCaptionsEnabled = function(enabled, lang) {
+            try {
+                if (player) {
+                    if (enabled) {
+                        try { if (typeof player.loadModule === 'function') player.loadModule('captions'); } catch(e) {}
+                        try {
+                            var tl = (typeof player.getOption === 'function') ? player.getOption('captions', 'tracklist') : null;
+                            if (tl && tl.length > 0) {
+                                var chosen = null;
+                                for (var i = 0; i < tl.length; i++) {
+                                    if (tl[i].languageCode === 'id' || tl[i].languageCode === 'in') {
+                                        chosen = tl[i]; break;
+                                    }
+                                }
+                                if (!chosen) {
+                                    for (var i = 0; i < tl.length; i++) {
+                                        if (tl[i].languageCode === 'jv' || tl[i].languageCode === 'en') {
+                                            chosen = tl[i]; break;
+                                        }
+                                    }
+                                }
+                                if (!chosen) chosen = tl[0];
+                                player.setOption('captions', 'track', chosen);
+                            } else {
+                                player.setOption('captions', 'track', { 'languageCode': lang || 'id' });
+                            }
+                        } catch(e) {}
+                    } else {
+                        try {
+                            if (typeof player.unloadModule === 'function') player.unloadModule('captions');
+                            if (typeof player.setOption === 'function') player.setOption('captions', 'track', {});
+                        } catch(e) {}
+                    }
+                }
+                var iframe = document.querySelector('iframe');
+                if (iframe && iframe.contentWindow) {
+                    iframe.contentWindow.postMessage({
+                        type: 'PHANTOM_SET_CAPTIONS',
+                        enabled: !!enabled,
+                        lang: lang || 'id'
+                    }, '*');
                 }
             } catch(e) {}
         };
@@ -716,7 +765,6 @@ const char* RAW_CLEAN_SCRIPT = R"JS(
                         els[i].style.setProperty('opacity', '0', 'important');
                         els[i].style.setProperty('visibility', 'hidden', 'important');
                         els[i].style.setProperty('pointer-events', 'none', 'important');
-                        els[i].remove();
                     } catch(e) {}
                 }
             } catch(e) {}
@@ -728,10 +776,11 @@ const char* RAW_CLEAN_SCRIPT = R"JS(
                 var kids = Array.prototype.slice.call(player.children);
                 for (var k = 0; k < kids.length; k++) {
                     var child = kids[k];
+                    var cName = (child.className || '').toString().toLowerCase();
                     if (child.classList.contains('html5-video-container') ||
-                        child.classList.contains('caption-window') ||
-                        child.classList.contains('ytp-caption-window-container') ||
-                        child.tagName.toLowerCase() === 'video') {
+                        child.tagName.toLowerCase() === 'video' ||
+                        cName.indexOf('caption') !== -1 ||
+                        cName.indexOf('subtitle') !== -1) {
                         continue;
                     }
                     try {
@@ -739,7 +788,6 @@ const char* RAW_CLEAN_SCRIPT = R"JS(
                         child.style.setProperty('opacity', '0', 'important');
                         child.style.setProperty('visibility', 'hidden', 'important');
                         child.style.setProperty('pointer-events', 'none', 'important');
-                        child.remove();
                     } catch(e) {}
                 }
             }
@@ -766,6 +814,63 @@ const char* RAW_CLEAN_SCRIPT = R"JS(
                 try { if (typeof p.setPlaybackQualityRange === 'function') p.setPlaybackQualityRange(q, q); } catch(err) {}
                 try { if (typeof p.setPlaybackQuality === 'function') p.setPlaybackQuality(q); } catch(err) {}
             }
+        } else if (e.data && e.data.type === 'PHANTOM_SET_CAPTIONS') {
+            try {
+                var isEnabled = !!e.data.enabled;
+                var p = document.getElementById('movie_player') || document.querySelector('.html5-video-player');
+                if (p) {
+                    if (isEnabled) {
+                        try { if (typeof p.loadModule === 'function') p.loadModule('captions'); } catch(err) {}
+                        try {
+                            var tl = (typeof p.getOption === 'function') ? p.getOption('captions', 'tracklist') : null;
+                            if (tl && tl.length > 0) {
+                                var chosen = null;
+                                for (var i = 0; i < tl.length; i++) {
+                                    if (tl[i].languageCode === 'id' || tl[i].languageCode === 'in') {
+                                        chosen = tl[i]; break;
+                                    }
+                                }
+                                if (!chosen) {
+                                    for (var i = 0; i < tl.length; i++) {
+                                        if (tl[i].languageCode === 'jv' || tl[i].languageCode === 'en') {
+                                            chosen = tl[i]; break;
+                                        }
+                                    }
+                                }
+                                if (!chosen) chosen = tl[0];
+                                p.setOption('captions', 'track', chosen);
+                            } else {
+                                p.setOption('captions', 'track', { 'languageCode': 'id' });
+                            }
+                        } catch(err) {}
+                    } else {
+                        try {
+                            if (typeof p.unloadModule === 'function') p.unloadModule('captions');
+                            if (typeof p.setOption === 'function') p.setOption('captions', 'track', {});
+                        } catch(err) {}
+                    }
+                }
+                var subBtn = document.querySelector('.ytp-subtitles-button');
+                if (subBtn) {
+                    var pressed = (subBtn.getAttribute('aria-pressed') === 'true');
+                    if (isEnabled && !pressed) {
+                        subBtn.click();
+                    } else if (!isEnabled && pressed) {
+                        subBtn.click();
+                    }
+                }
+                var sEl = document.getElementById('phantom-caption-lock');
+                if (!sEl) {
+                    sEl = document.createElement('style');
+                    sEl.id = 'phantom-caption-lock';
+                    document.head.appendChild(sEl);
+                }
+                if (isEnabled) {
+                    sEl.textContent = '.ytp-caption-window-container, .caption-window, .captions-text, .caption-visual-line, .ytp-caption-segment { display: block !important; visibility: visible !important; opacity: 1 !important; z-index: 2147483647 !important; }';
+                } else {
+                    sEl.textContent = '.ytp-caption-window-container, .caption-window, .captions-text, .caption-visual-line, .ytp-caption-segment { display: none !important; visibility: hidden !important; opacity: 0 !important; }';
+                }
+            } catch(err) {}
         }
     });
 
@@ -775,13 +880,15 @@ const char* RAW_CLEAN_SCRIPT = R"JS(
             if (p) {
                 var levels = (typeof p.getAvailableQualityLevels === 'function') ? p.getAvailableQualityLevels() : [];
                 var current = (typeof p.getPlaybackQuality === 'function') ? p.getPlaybackQuality() : 'auto';
-                if (levels && levels.length > 0) {
-                    window.parent.postMessage({
-                        type: 'PHANTOM_QUALITY_REPORT',
-                        current: current,
-                        levels: levels
-                    }, '*');
-                }
+                var tracks = (typeof p.getOption === 'function') ? p.getOption('captions', 'tracklist') : [];
+                var subBtn = document.querySelector('.ytp-subtitles-button');
+                var hasCaps = (tracks && tracks.length > 0) || (subBtn != null && subBtn.style.display !== 'none');
+                window.parent.postMessage({
+                    type: 'PHANTOM_QUALITY_REPORT',
+                    current: current,
+                    levels: levels,
+                    hasCaptions: !!hasCaps
+                }, '*');
             }
         } catch(e) {}
     }

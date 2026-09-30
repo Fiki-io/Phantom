@@ -8,8 +8,14 @@ class PhantomPlayerBridge(
     var onTimeUpdateCallback: (String, Float, Float, Float) -> Unit = { _, _, _, _ -> },
     var onErrorCallback: (Int) -> Unit = {},
     var onQualityChangeCallback: (String, List<String>) -> Unit = { _, _ -> },
-    var onStoryboardSpecCallback: (String) -> Unit = {}
+    var onStoryboardSpecCallback: (String) -> Unit = {},
+    var onCaptionsAvailableCallback: (Boolean) -> Unit = {}
 ) {
+    @JavascriptInterface
+    fun onCaptionsAvailable(available: Boolean) {
+        onCaptionsAvailableCallback(available)
+    }
+
     @JavascriptInterface
     fun onStoryboardSpec(spec: String) {
         onStoryboardSpecCallback(spec)

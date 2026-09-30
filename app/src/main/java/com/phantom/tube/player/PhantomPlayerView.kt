@@ -96,6 +96,10 @@ class PhantomPlayerController(context: Context) {
         evaluateJs("window.setPlaybackQuality('$quality');")
     }
 
+    fun setCaptionsEnabled(enabled: Boolean, languageCode: String = "id") {
+        evaluateJs("if (window.setCaptionsEnabled) window.setCaptionsEnabled($enabled, '$languageCode');")
+    }
+
     fun requestStoryboard() {
         evaluateJs("if (window.requestStoryboard) window.requestStoryboard();")
     }
