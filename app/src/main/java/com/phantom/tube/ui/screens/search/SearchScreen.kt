@@ -358,9 +358,10 @@ fun SearchScreen(
                                 .size(18.dp)
                                 .clickable {
                                     updateSearchInput("")
-                                    suggestions = emptyList()
+                                    detailedSuggestions = emptyList()
                                     hasSearched = false
                                     searchResults = emptyList()
+                                    searchChannels = emptyList()
                                     searchContinuationToken = null
                                     lastSearchQuery = ""
                                 }

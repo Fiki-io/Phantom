@@ -97,9 +97,10 @@ import com.phantom.tube.data.model.VideoItem
 import com.phantom.tube.data.repository.PhantomRepository
 import com.phantom.tube.ui.components.PhantomIconButton
 import com.phantom.tube.ui.components.PhantomVideoCard
+import androidx.compose.foundation.ExperimentalFoundationApi
 import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun ChannelScreen(
     channelId: String,
