@@ -1,5 +1,6 @@
 package com.phantom.tube.data.innertube.parser
 
+import com.phantom.tube.data.innertube.cache.ChannelAvatarCache
 import com.phantom.tube.data.model.SuggestionItem
 import org.json.JSONArray
 
@@ -73,6 +74,10 @@ object SuggestionParser {
                                         break
                                     }
                                 }
+                            }
+
+                            if (!chAvatar.isNullOrBlank()) {
+                                ChannelAvatarCache.put(chId, chTitle ?: text, chAvatar)
                             }
 
                             suggestions.add(

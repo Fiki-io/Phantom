@@ -12,6 +12,10 @@ import com.phantom.tube.data.innertube.InnerTubeClient
 import com.phantom.tube.data.repository.PhantomRepository
 import com.phantom.tube.data.sponsorblock.SponsorBlockClient
 import com.phantom.tube.data.settings.PhantomPreferences
+import com.phantom.tube.data.innertube.cache.ChannelAvatarCache
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import okhttp3.Cache
 import okhttp3.ConnectionPool
 import okhttp3.OkHttpClient
@@ -47,8 +51,10 @@ class PhantomApp : Application(), ImageLoaderFactory {
         PhantomNative.verifySecurity(this)
         database = PhantomDatabase.getInstance(this)
         preferences = PhantomPreferences(this)
+        val innerTube = InnerTubeClient(httpClient = sharedHttpClient)
+        ChannelAvatarCache.init(innerTube)
         repository = PhantomRepository(
-            innerTubeClient = InnerTubeClient(httpClient = sharedHttpClient),
+            innerTubeClient = innerTube,
             sponsorBlockClient = SponsorBlockClient(httpClient = sharedHttpClient),
             watchHistoryDao = database.watchHistoryDao(),
             favoriteDao = database.favoriteDao(),
@@ -56,6 +62,25 @@ class PhantomApp : Application(), ImageLoaderFactory {
             subscriptionDao = database.subscriptionDao(),
             preferences = preferences
         )
+
+        // Preload avatar cache with subscribed channels from local DB
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                database.subscriptionDao().getAllSubscriptions().collect { subs ->
+                    subs.forEach { sub ->
+                        if (sub.channelAvatarUrl.isNotBlank()) {
+                            ChannelAvatarCache.put(
+                                sub.channelId,
+                                sub.channelTitle,
+                                sub.channelAvatarUrl
+                            )
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                // Ignore background DB error
+            }
+        }
     }
 
     override fun newImageLoader(): ImageLoader {

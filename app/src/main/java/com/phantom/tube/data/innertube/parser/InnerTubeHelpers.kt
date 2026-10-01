@@ -82,6 +82,18 @@ object InnerTubeHelpers {
         }
     }
 
+    fun normalizeUrl(raw: String?): String {
+        if (raw.isNullOrBlank()) return ""
+        val trimmed = raw.trim()
+        if (trimmed.startsWith("//")) {
+            return "https:$trimmed"
+        }
+        if (trimmed.startsWith("http://")) {
+            return "https://" + trimmed.removePrefix("http://")
+        }
+        return trimmed
+    }
+
     fun extractThumbnail(obj: JSONObject?, videoId: String): String {
         if (obj == null) return if (videoId.isNotBlank()) "https://i.ytimg.com/vi/$videoId/hqdefault.jpg" else ""
         val thumbnails = obj.optJSONArray("thumbnails")
@@ -89,19 +101,23 @@ object InnerTubeHelpers {
             val last = thumbnails.optJSONObject(thumbnails.length() - 1)
             val url = last?.optString("url") ?: ""
             if (url.isNotBlank()) {
-                return if (url.startsWith("//")) "https:$url" else url
+                return normalizeUrl(url)
             }
         }
         return if (videoId.isNotBlank()) "https://i.ytimg.com/vi/$videoId/hqdefault.jpg" else ""
     }
 
-    fun extractAvatar(json: JSONObject): String {
+    private val yt3AvatarRegex = Regex("""(?:https?:)?//yt3\.(?:ggpht\.com|googleusercontent\.com)/[^\s",]+""")
+
+    fun extractAvatar(json: JSONObject?): String {
+        if (json == null) return ""
+
         // 1. channelThumbnailSupportedRenderers -> channelThumbnailWithLinkRenderer -> thumbnail -> thumbnails
         val ctsr = json.optJSONObject("channelThumbnailSupportedRenderers")
             ?.optJSONObject("channelThumbnailWithLinkRenderer")
             ?.optJSONObject("thumbnail")
         val url1 = extractThumbnail(ctsr, "")
-        if (url1.isNotBlank()) return url1
+        if (url1.isNotBlank()) return normalizeUrl(url1)
 
         // 2. avatar -> decoratedAvatarViewModel -> avatar -> avatarViewModel -> image -> sources
         val avatarSources = json.optJSONObject("avatar")
@@ -114,30 +130,90 @@ object InnerTubeHelpers {
             val last = avatarSources.optJSONObject(avatarSources.length() - 1)
             val url2 = last?.optString("url") ?: ""
             if (url2.isNotBlank()) {
-                return if (url2.startsWith("//")) "https:$url2" else url2
+                return normalizeUrl(url2)
             }
         }
 
-        // 3. channelThumbnail -> thumbnails
-        val ct = json.optJSONObject("channelThumbnail")
-        val url3 = extractThumbnail(ct, "")
-        if (url3.isNotBlank()) return url3
-
-        // 4. lockupViewModel metadata image
-        val lvmImage = json.optJSONObject("metadata")
-            ?.optJSONObject("lockupMetadataViewModel")
-            ?.optJSONObject("image")
-            ?.optJSONObject("decoratedAvatarViewModel")
-            ?.optJSONObject("avatar")
+        // 3. avatar -> avatarViewModel -> image -> sources (direct avatarViewModel)
+        val directAvatarSources = json.optJSONObject("avatar")
             ?.optJSONObject("avatarViewModel")
             ?.optJSONObject("image")
             ?.optJSONArray("sources")
-        if (lvmImage != null && lvmImage.length() > 0) {
-            val last = lvmImage.optJSONObject(lvmImage.length() - 1)
-            val url4 = last?.optString("url") ?: ""
-            if (url4.isNotBlank()) {
-                return if (url4.startsWith("//")) "https:$url4" else url4
+        if (directAvatarSources != null && directAvatarSources.length() > 0) {
+            val last = directAvatarSources.optJSONObject(directAvatarSources.length() - 1)
+            val url3 = last?.optString("url") ?: ""
+            if (url3.isNotBlank()) {
+                return normalizeUrl(url3)
             }
+        }
+
+        // 4. channelThumbnail -> thumbnails
+        val ct = json.optJSONObject("channelThumbnail")
+        val url4 = extractThumbnail(ct, "")
+        if (url4.isNotBlank()) return normalizeUrl(url4)
+
+        // 5. metadata -> lockupMetadataViewModel -> image
+        val metaImg = json.optJSONObject("metadata")
+            ?.optJSONObject("lockupMetadataViewModel")
+            ?.optJSONObject("image")
+        if (metaImg != null) {
+            // 5a. decoratedAvatarViewModel
+            val decSources = metaImg.optJSONObject("decoratedAvatarViewModel")
+                ?.optJSONObject("avatar")
+                ?.optJSONObject("avatarViewModel")
+                ?.optJSONObject("image")
+                ?.optJSONArray("sources")
+            if (decSources != null && decSources.length() > 0) {
+                val last = decSources.optJSONObject(decSources.length() - 1)
+                val url5a = last?.optString("url") ?: ""
+                if (url5a.isNotBlank()) return normalizeUrl(url5a)
+            }
+
+            // 5b. avatarStackViewModel (collaborative/featured videos!)
+            val stackAvatars = metaImg.optJSONObject("avatarStackViewModel")?.optJSONArray("avatars")
+            if (stackAvatars != null && stackAvatars.length() > 0) {
+                val firstAvSources = stackAvatars.optJSONObject(0)?.optJSONObject("avatarViewModel")
+                    ?.optJSONObject("image")?.optJSONArray("sources")
+                if (firstAvSources != null && firstAvSources.length() > 0) {
+                    val last = firstAvSources.optJSONObject(firstAvSources.length() - 1)
+                    val url5b = last?.optString("url") ?: ""
+                    if (url5b.isNotBlank()) return normalizeUrl(url5b)
+                }
+            }
+
+            // 5c. direct avatarViewModel in image
+            val directAvSources = metaImg.optJSONObject("avatarViewModel")
+                ?.optJSONObject("image")?.optJSONArray("sources")
+            if (directAvSources != null && directAvSources.length() > 0) {
+                val last = directAvSources.optJSONObject(directAvSources.length() - 1)
+                val url5c = last?.optString("url") ?: ""
+                if (url5c.isNotBlank()) return normalizeUrl(url5c)
+            }
+
+            // 5d. contentPreviewImageViewModel
+            val prevSources = metaImg.optJSONObject("contentPreviewImageViewModel")
+                ?.optJSONObject("image")?.optJSONArray("sources")
+            if (prevSources != null && prevSources.length() > 0) {
+                val last = prevSources.optJSONObject(prevSources.length() - 1)
+                val url5d = last?.optString("url") ?: ""
+                if (url5d.isNotBlank()) return normalizeUrl(url5d)
+            }
+        }
+
+        // 6. Direct thumbnail (when passed a channelRenderer or videoOwnerRenderer directly)
+        val directThumb = json.optJSONObject("thumbnail")
+        val url6 = extractThumbnail(directThumb, "")
+        if (url6.isNotBlank()) return normalizeUrl(url6)
+
+        // 7. authorThumbnail (comments)
+        val authThumb = json.optJSONObject("authorThumbnail")
+        val url7 = extractThumbnail(authThumb, "")
+        if (url7.isNotBlank()) return normalizeUrl(url7)
+
+        // 8. Deep regex scan for any yt3 channel avatar URL in the JSON snippet
+        val match = yt3AvatarRegex.find(json.toString())
+        if (match != null) {
+            return normalizeUrl(match.value)
         }
 
         return ""

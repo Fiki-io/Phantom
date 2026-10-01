@@ -23,7 +23,11 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -37,6 +41,7 @@ import coil.compose.AsyncImage
 import com.phantom.tube.core.theme.TextPrimary
 import com.phantom.tube.core.theme.TextSecondary
 import com.phantom.tube.core.theme.YouTubeRed
+import com.phantom.tube.data.innertube.cache.ChannelAvatarCache
 import com.phantom.tube.data.innertube.parser.InnerTubeHelpers
 import com.phantom.tube.data.model.VideoItem
 
@@ -134,6 +139,20 @@ fun PhantomVideoCard(
             verticalAlignment = Alignment.Top
         ) {
             val targetChannelId = video.channelId.ifBlank { video.channelTitle }
+            var avatarUrl by remember(video.id, video.channelAvatarUrl) {
+                val clean = InnerTubeHelpers.normalizeUrl(video.channelAvatarUrl)
+                mutableStateOf(clean.ifBlank { ChannelAvatarCache.get(video.channelId, video.channelTitle) })
+            }
+
+            LaunchedEffect(video.id, video.channelId, video.channelTitle, avatarUrl) {
+                if (avatarUrl.isBlank() && video.channelId.isNotBlank() && video.channelId.startsWith("UC")) {
+                    val resolved = ChannelAvatarCache.resolveAvatar(video.channelId, video.channelTitle)
+                    if (!resolved.isNullOrBlank()) {
+                        avatarUrl = resolved
+                    }
+                }
+            }
+
             Box(
                 modifier = Modifier
                     .size(36.dp)
@@ -146,9 +165,9 @@ fun PhantomVideoCard(
                     ),
                 contentAlignment = Alignment.Center
             ) {
-                if (video.channelAvatarUrl.isNotBlank()) {
+                if (avatarUrl.isNotBlank()) {
                     AsyncImage(
-                        model = video.channelAvatarUrl,
+                        model = avatarUrl,
                         contentDescription = video.channelTitle,
                         modifier = Modifier
                             .matchParentSize()
@@ -156,12 +175,22 @@ fun PhantomVideoCard(
                         contentScale = ContentScale.Crop
                     )
                 } else {
-                    Icon(
-                        imageVector = Icons.Default.PlayArrow,
-                        contentDescription = null,
-                        tint = YouTubeRed,
-                        modifier = Modifier.size(18.dp)
-                    )
+                    val initials = video.channelTitle.trim().take(1).uppercase()
+                    if (initials.isNotBlank()) {
+                        Text(
+                            text = initials,
+                            color = TextPrimary,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Default.PlayArrow,
+                            contentDescription = null,
+                            tint = YouTubeRed,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
                 }
             }
 

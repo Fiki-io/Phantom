@@ -1,5 +1,6 @@
 package com.phantom.tube.data.innertube.parser
 
+import com.phantom.tube.data.innertube.cache.ChannelAvatarCache
 import com.phantom.tube.data.model.ChannelProfile
 import com.phantom.tube.data.model.ChannelSortChip
 import com.phantom.tube.data.model.FeedResult
@@ -45,6 +46,10 @@ object ChannelParser {
                     if (avatarSources != null && avatarSources.length() > 0) {
                         avatarUrl = avatarSources.optJSONObject(avatarSources.length() - 1)?.optString("url") ?: ""
                     }
+                    if (avatarUrl.isBlank()) {
+                        avatarUrl = InnerTubeHelpers.extractAvatar(content.optJSONObject("image") ?: content)
+                    }
+                    avatarUrl = InnerTubeHelpers.normalizeUrl(avatarUrl)
 
                     // Banner
                     val bannerSources = content.optJSONObject("banner")
@@ -52,7 +57,7 @@ object ChannelParser {
                         ?.optJSONObject("image")
                         ?.optJSONArray("sources")
                     if (bannerSources != null && bannerSources.length() > 0) {
-                        bannerUrl = bannerSources.optJSONObject(bannerSources.length() - 1)?.optString("url") ?: ""
+                        bannerUrl = InnerTubeHelpers.normalizeUrl(bannerSources.optJSONObject(bannerSources.length() - 1)?.optString("url") ?: "")
                     }
 
                     // Metadata (handle, subscribers, videos)
@@ -100,6 +105,11 @@ object ChannelParser {
                 if (subscriberCountText.isBlank()) subscriberCountText = c4Header.optJSONObject("subscriberCountText")?.optString("simpleText") ?: ""
                 val cId = c4Header.optString("channelId")
                 if (cId.isNotBlank()) channelId = cId
+            }
+
+            avatarUrl = InnerTubeHelpers.normalizeUrl(avatarUrl)
+            if (avatarUrl.isNotBlank() && channelId.isNotBlank()) {
+                ChannelAvatarCache.put(channelId, title, avatarUrl)
             }
 
             if (title.isBlank() && fallbackChannelId.isNotBlank()) {

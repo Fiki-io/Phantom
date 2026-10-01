@@ -1,5 +1,6 @@
 package com.phantom.tube.data.innertube.parser
 
+import com.phantom.tube.data.innertube.cache.ChannelAvatarCache
 import com.phantom.tube.data.model.FeedResult
 import com.phantom.tube.data.model.NextQueue
 import com.phantom.tube.data.model.VideoComment
@@ -84,13 +85,17 @@ object WatchNextParser {
                         val ownerThumb = InnerTubeHelpers.extractThumbnail(owner.optJSONObject("thumbnail"), "").ifBlank {
                             InnerTubeHelpers.extractAvatar(owner)
                         }
-                        if (ownerThumb.isNotBlank()) {
-                            currentAvatar = ownerThumb
+                        val cleanOwnerThumb = InnerTubeHelpers.normalizeUrl(ownerThumb)
+                        if (cleanOwnerThumb.isNotBlank()) {
+                            currentAvatar = cleanOwnerThumb
                         }
                         val nav = owner.optJSONObject("navigationEndpoint")?.optJSONObject("browseEndpoint")
                         currentChannelId = nav?.optString("browseId") ?: ""
                         currentHandle = nav?.optString("canonicalBaseUrl")?.removePrefix("/") ?: ""
                         currentSubs = InnerTubeHelpers.parseRunsText(owner.optJSONObject("subscriberCountText"))
+                        if (currentAvatar.isNotBlank() && currentChannelId.isNotBlank()) {
+                            ChannelAvatarCache.put(currentChannelId, currentChannel, currentAvatar)
+                        }
                     }
                     val desc = InnerTubeHelpers.parseRunsText(videoSecondaryInfo.optJSONObject("description"))
                     videoDescription = if (desc.isNotBlank()) desc else {

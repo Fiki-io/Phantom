@@ -78,6 +78,8 @@ import com.phantom.tube.ui.components.PhantomIconButton
 import com.phantom.tube.ui.components.PhantomVideoCard
 import com.phantom.tube.ui.components.SearchChannelCard
 import com.phantom.tube.ui.components.VideoFeedSkeleton
+import com.phantom.tube.data.innertube.cache.ChannelAvatarCache
+import com.phantom.tube.data.innertube.parser.InnerTubeHelpers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -452,8 +454,12 @@ fun SearchScreen(
                                                 .padding(horizontal = 10.dp, vertical = 8.dp),
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
+                                            val suggAvatar = remember(item.channelAvatarUrl, item.channelId, item.channelTitle) {
+                                                val clean = InnerTubeHelpers.normalizeUrl(item.channelAvatarUrl)
+                                                clean.ifBlank { ChannelAvatarCache.get(item.channelId, item.channelTitle) }
+                                            }
                                             AsyncImage(
-                                                model = item.channelAvatarUrl,
+                                                model = suggAvatar,
                                                 contentDescription = item.channelTitle ?: item.query,
                                                 contentScale = ContentScale.Crop,
                                                 modifier = Modifier

@@ -20,9 +20,13 @@ import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -37,6 +41,8 @@ import com.phantom.tube.core.database.SubscriptionEntity
 import com.phantom.tube.core.theme.TextMuted
 import com.phantom.tube.core.theme.TextPrimary
 import com.phantom.tube.core.theme.TextSecondary
+import com.phantom.tube.data.innertube.cache.ChannelAvatarCache
+import com.phantom.tube.data.innertube.parser.InnerTubeHelpers
 import com.phantom.tube.data.model.SearchChannelItem
 import com.phantom.tube.data.repository.PhantomRepository
 import kotlinx.coroutines.launch
@@ -69,16 +75,47 @@ fun SearchChannelCard(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                var avatarUrl by remember(channel.id, channel.avatarUrl) {
+                    val clean = InnerTubeHelpers.normalizeUrl(channel.avatarUrl)
+                    mutableStateOf(clean.ifBlank { ChannelAvatarCache.get(channel.id, channel.title) })
+                }
+
+                LaunchedEffect(channel.id, channel.title, avatarUrl) {
+                    if (avatarUrl.isBlank() && channel.id.isNotBlank() && channel.id.startsWith("UC")) {
+                        val resolved = ChannelAvatarCache.resolveAvatar(channel.id, channel.title)
+                        if (!resolved.isNullOrBlank()) {
+                            avatarUrl = resolved
+                        }
+                    }
+                }
+
                 // Large circular avatar
-                AsyncImage(
-                    model = channel.avatarUrl,
-                    contentDescription = channel.title,
-                    contentScale = ContentScale.Crop,
+                Box(
                     modifier = Modifier
                         .size(64.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFF262626))
-                )
+                        .background(Color(0xFF262626)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (avatarUrl.isNotBlank()) {
+                        AsyncImage(
+                            model = avatarUrl,
+                            contentDescription = channel.title,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier
+                                .matchParentSize()
+                                .clip(CircleShape)
+                        )
+                    } else {
+                        val initials = channel.title.trim().take(1).uppercase()
+                        Text(
+                            text = initials,
+                            color = TextPrimary,
+                            fontSize = 22.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
 
                 Spacer(modifier = Modifier.width(14.dp))
 

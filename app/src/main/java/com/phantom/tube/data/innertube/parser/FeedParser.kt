@@ -1,5 +1,6 @@
 package com.phantom.tube.data.innertube.parser
 
+import com.phantom.tube.data.innertube.cache.ChannelAvatarCache
 import com.phantom.tube.data.model.FeedResult
 import com.phantom.tube.data.model.SearchChannelItem
 import com.phantom.tube.data.model.VideoItem
@@ -139,7 +140,14 @@ object FeedParser {
         val title = cr.optJSONObject("title")?.optString("simpleText")?.ifBlank { null }
             ?: InnerTubeHelpers.parseRunsText(cr.optJSONObject("title"))
 
-        val avatarUrl = InnerTubeHelpers.extractThumbnail(cr.optJSONObject("thumbnail"), "")
+        var avatarUrl = InnerTubeHelpers.extractThumbnail(cr.optJSONObject("thumbnail"), "")
+        if (avatarUrl.isBlank()) {
+            avatarUrl = InnerTubeHelpers.extractAvatar(cr)
+        }
+        avatarUrl = InnerTubeHelpers.normalizeUrl(avatarUrl)
+        if (avatarUrl.isNotBlank() && channelId.isNotBlank()) {
+            ChannelAvatarCache.put(channelId, title, avatarUrl)
+        }
 
         val subscriberText = cr.optJSONObject("subscriberCountText")?.optString("simpleText")?.ifBlank { null }
             ?: InnerTubeHelpers.parseRunsText(cr.optJSONObject("subscriberCountText"))
@@ -209,7 +217,12 @@ object FeedParser {
         // Avatar image
         val imgSources = header.optJSONObject("image")?.optJSONObject("contentPreviewImageViewModel")
             ?.optJSONObject("image")?.optJSONArray("sources")
-        val avatarUrl = imgSources?.optJSONObject(0)?.optString("url", "") ?: ""
+        var avatarUrl = InnerTubeHelpers.normalizeUrl(imgSources?.optJSONObject(0)?.optString("url", ""))
+        if (avatarUrl.isBlank()) {
+            avatarUrl = InnerTubeHelpers.extractAvatar(header).ifBlank {
+                InnerTubeHelpers.extractAvatar(card)
+            }
+        }
 
         // Browse ID / channelId
         var channelId = card.optJSONObject("rendererContext")?.optJSONObject("commandContext")
@@ -262,6 +275,10 @@ object FeedParser {
             }
         }
 
+        if (avatarUrl.isNotBlank() && channelId.isNotBlank()) {
+            ChannelAvatarCache.put(channelId, title, avatarUrl)
+        }
+
         return SearchChannelItem(
             id = channelId,
             title = title,
@@ -286,11 +303,17 @@ object FeedParser {
             val views = vr.optJSONObject("shortViewCountText")?.optString("simpleText") ?: ""
             val published = vr.optJSONObject("publishedTimeText")?.optString("simpleText") ?: ""
             val thumb = InnerTubeHelpers.extractThumbnail(vr.optJSONObject("thumbnail"), videoId)
-            val avatar = InnerTubeHelpers.extractAvatar(vr)
             val channelId = vr.optJSONObject("ownerText")?.optJSONArray("runs")?.optJSONObject(0)
                 ?.optJSONObject("navigationEndpoint")?.optJSONObject("browseEndpoint")?.optString("browseId")
                 ?: vr.optJSONObject("navigationEndpoint")?.optJSONObject("browseEndpoint")?.optString("browseId")
                 ?: ""
+
+            var avatar = InnerTubeHelpers.normalizeUrl(InnerTubeHelpers.extractAvatar(vr))
+            if (avatar.isNotBlank()) {
+                ChannelAvatarCache.put(channelId, channel, avatar)
+            } else {
+                avatar = ChannelAvatarCache.get(channelId, channel)
+            }
 
             return VideoItem(
                 id = videoId,
@@ -316,12 +339,18 @@ object FeedParser {
             val views = cvr.optJSONObject("shortViewCountText")?.optString("simpleText") ?: ""
             val published = cvr.optJSONObject("publishedTimeText")?.optString("simpleText") ?: ""
             val thumb = InnerTubeHelpers.extractThumbnail(cvr.optJSONObject("thumbnail"), videoId)
-            val avatar = InnerTubeHelpers.extractAvatar(cvr)
             val channelId = cvr.optJSONObject("shortBylineText")?.optJSONArray("runs")?.optJSONObject(0)
                 ?.optJSONObject("navigationEndpoint")?.optJSONObject("browseEndpoint")?.optString("browseId")
                 ?: cvr.optJSONObject("longBylineText")?.optJSONArray("runs")?.optJSONObject(0)
                 ?.optJSONObject("navigationEndpoint")?.optJSONObject("browseEndpoint")?.optString("browseId")
                 ?: ""
+
+            var avatar = InnerTubeHelpers.normalizeUrl(InnerTubeHelpers.extractAvatar(cvr))
+            if (avatar.isNotBlank()) {
+                ChannelAvatarCache.put(channelId, channel, avatar)
+            } else {
+                avatar = ChannelAvatarCache.get(channelId, channel)
+            }
 
             return VideoItem(
                 id = videoId,
@@ -396,7 +425,7 @@ object FeedParser {
             if (thumbSources != null && thumbSources.length() > 0) {
                 val lastThumb = thumbSources.optJSONObject(thumbSources.length() - 1)?.optString("url") ?: ""
                 if (lastThumb.isNotBlank()) {
-                    thumb = if (lastThumb.startsWith("//")) "https:$lastThumb" else lastThumb
+                    thumb = InnerTubeHelpers.normalizeUrl(lastThumb)
                 }
             }
 
@@ -429,14 +458,40 @@ object FeedParser {
                 if (duration.isNotBlank()) break
             }
 
-            // Extract channelId from lvm
+            // Extract channelId from lvm: direct inspection from metadataRows commandRuns, then regex fallback
             var channelId = ""
-            val bIdMatch = Regex("""\"browseId\":\s*\"(UC[a-zA-Z0-9_-]{22})\"""").find(lvm.toString())
-            if (bIdMatch != null) {
-                channelId = bIdMatch.groupValues[1]
+            for (ri in 0 until metaRows.length()) {
+                val parts = metaRows.optJSONObject(ri)?.optJSONArray("metadataParts") ?: continue
+                for (pi in 0 until parts.length()) {
+                    val textObj = parts.optJSONObject(pi)?.optJSONObject("text") ?: continue
+                    val cmdRuns = textObj.optJSONArray("commandRuns") ?: continue
+                    for (ci in 0 until cmdRuns.length()) {
+                        val bId = cmdRuns.optJSONObject(ci)?.optJSONObject("onTap")
+                            ?.optJSONObject("innertubeCommand")
+                            ?.optJSONObject("browseEndpoint")
+                            ?.optString("browseId", "") ?: ""
+                        if (bId.startsWith("UC")) {
+                            channelId = bId
+                            break
+                        }
+                    }
+                    if (channelId.isNotBlank()) break
+                }
+                if (channelId.isNotBlank()) break
+            }
+            if (channelId.isBlank()) {
+                val bIdMatch = Regex("""\"browseId\":\s*\"(UC[a-zA-Z0-9_-]{22})\"""").find(lvm.toString())
+                if (bIdMatch != null) {
+                    channelId = bIdMatch.groupValues[1]
+                }
             }
 
-            val avatar = InnerTubeHelpers.extractAvatar(lvm)
+            var avatar = InnerTubeHelpers.normalizeUrl(InnerTubeHelpers.extractAvatar(lvm))
+            if (avatar.isNotBlank()) {
+                ChannelAvatarCache.put(channelId, channel, avatar)
+            } else {
+                avatar = ChannelAvatarCache.get(channelId, channel)
+            }
 
             return VideoItem(
                 id = videoId,
