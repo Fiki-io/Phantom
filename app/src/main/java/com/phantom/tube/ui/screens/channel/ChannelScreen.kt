@@ -810,7 +810,7 @@ fun ChannelScreen(
                         }
 
                         // Floating animated refresh status pill
-                        AnimatedVisibility(
+                        androidx.compose.animation.AnimatedVisibility(
                             visible = isRefreshing,
                             enter = fadeIn() + slideInVertically(initialOffsetY = { -it }),
                             exit = fadeOut() + slideOutVertically(targetOffsetY = { -it }),
