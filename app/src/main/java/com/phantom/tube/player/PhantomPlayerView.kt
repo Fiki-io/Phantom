@@ -43,7 +43,7 @@ class PhantomBackgroundWebView @JvmOverloads constructor(
     }
 }
 
-class PhantomPlayerController(context: Context) {
+class PhantomPlayerController(@Suppress("UNUSED_PARAMETER") context: Context) {
     private var webView: WebView? = null
     private var isReady = false
     private var pendingVideoId: String? = null

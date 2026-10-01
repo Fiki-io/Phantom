@@ -265,8 +265,6 @@ fun PlayerScreen(
             }
         }
         onDispose {
-            val activity = context as? Activity
-            val window = activity?.window
             if (window != null) {
                 val insetsController = WindowCompat.getInsetsController(window, window.decorView)
                 insetsController.show(WindowInsetsCompat.Type.systemBars())

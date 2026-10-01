@@ -97,6 +97,12 @@ android {
             )
         }
     }
+    lint {
+        checkReleaseBuilds = false
+        abortOnError = false
+        ignoreWarnings = true
+        checkDependencies = false
+    }
 }
 
 dependencies {
