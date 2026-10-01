@@ -1,8 +1,8 @@
 package com.phantom.tube.ui.components
 
-import androidx.compose.foundation.border
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -14,15 +14,18 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -41,9 +44,23 @@ fun PhantomIconButton(
     shape: Shape = CircleShape,
     onClick: () -> Unit
 ) {
+    val haptic = LocalHapticFeedback.current
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
-    val scale by animateFloatAsState(if (isPressed) 0.92f else 1.0f, label = "button_scale")
+
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.88f else 1.0f,
+        animationSpec = IosSpringSpecs.Bouncy,
+        label = "button_scale"
+    )
+
+    LaunchedEffect(isPressed) {
+        if (isPressed) {
+            try {
+                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+            } catch (_: Exception) {}
+        }
+    }
 
     val borderModifier = if (accentGlow != null && accentGlow != Color.Transparent) {
         Modifier.border(1.dp, accentGlow.copy(alpha = if (isPressed) 0.6f else 0.35f), shape)
@@ -52,7 +69,10 @@ fun PhantomIconButton(
     Box(
         modifier = modifier
             .size(size)
-            .scale(scale)
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            }
             .then(borderModifier)
             .clip(shape)
             .background(
@@ -75,7 +95,7 @@ fun PhantomIconButton(
 }
 
 /**
- * Chip kategori standar dengan rounded corner 8dp.
+ * Chip kategori standar dengan rounded corner 10dp dan fisika pegas iOS.
  */
 @Composable
 fun PhantomChip(
@@ -84,14 +104,31 @@ fun PhantomChip(
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
+    val haptic = LocalHapticFeedback.current
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
-    val scale by animateFloatAsState(if (isPressed) 0.95f else 1.0f, label = "chip_scale")
+
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.92f else 1.0f,
+        animationSpec = IosSpringSpecs.Bouncy,
+        label = "chip_scale"
+    )
+
+    LaunchedEffect(isPressed) {
+        if (isPressed) {
+            try {
+                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+            } catch (_: Exception) {}
+        }
+    }
 
     Box(
         modifier = modifier
-            .scale(scale)
-            .clip(RoundedCornerShape(8.dp))
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            }
+            .clip(RoundedCornerShape(10.dp))
             .background(
                 if (isSelected) Color.White else Color(0xFF272727)
             )
@@ -100,7 +137,7 @@ fun PhantomChip(
                 indication = null,
                 onClick = onClick
             )
-            .padding(horizontal = 12.dp, vertical = 6.dp),
+            .padding(horizontal = 14.dp, vertical = 7.dp),
         contentAlignment = Alignment.Center
     ) {
         Text(

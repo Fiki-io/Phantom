@@ -146,27 +146,28 @@ fun PhantomMiniPlayer(
                 // Play / Pause Button
                 Box(
                     modifier = Modifier
-                        .size(36.dp)
+                        .size(38.dp)
                         .clip(CircleShape)
-                        .clickable(onClick = onTogglePlayPause),
+                        .background(Color(0x1AFFFFFF))
+                        .iosBounceClick(scaleDown = 0.88f, onClick = onTogglePlayPause),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                         contentDescription = if (isPlaying) "Jeda" else "Putar",
                         tint = Color.White,
-                        modifier = Modifier.size(24.dp)
+                        modifier = Modifier.size(22.dp)
                     )
                 }
 
-                Spacer(modifier = Modifier.width(4.dp))
+                Spacer(modifier = Modifier.width(6.dp))
 
                 // Close Button
                 Box(
                     modifier = Modifier
                         .size(34.dp)
                         .clip(CircleShape)
-                        .clickable(onClick = onClose),
+                        .iosBounceClick(scaleDown = 0.85f, onClick = onClose),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(

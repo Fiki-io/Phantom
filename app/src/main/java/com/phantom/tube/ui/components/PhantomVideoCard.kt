@@ -60,8 +60,12 @@ fun PhantomVideoCard(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(8.dp))
-            .clickable(onClick = onClick)
+            .clip(RoundedCornerShape(12.dp))
+            .iosBounceClick(
+                scaleDown = 0.975f,
+                alphaDown = 0.95f,
+                onClick = onClick
+            )
             .padding(bottom = 12.dp)
     ) {
         // Thumbnail
@@ -137,7 +141,7 @@ fun PhantomVideoCard(
                     .background(Color(0xFF272727))
                     .then(
                         if (onChannelClick != null && targetChannelId.isNotBlank()) {
-                            Modifier.clickable { onChannelClick(targetChannelId) }
+                            Modifier.iosBounceClick(scaleDown = 0.90f) { onChannelClick(targetChannelId) }
                         } else Modifier
                     ),
                 contentAlignment = Alignment.Center

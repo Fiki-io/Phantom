@@ -118,6 +118,8 @@ import com.phantom.tube.player.PlayerState
 import com.phantom.tube.player.StoryboardData
 import com.phantom.tube.player.StoryboardHelper
 import com.phantom.tube.ui.components.PhantomMiniPlayer
+import com.phantom.tube.ui.components.iosBounceClick
+import com.phantom.tube.ui.components.IosSpringSpecs
 import com.phantom.tube.ui.screens.player.components.ScrubPreviewCard
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
@@ -1155,6 +1157,9 @@ fun PlayerScreen(
                             },
                             onDoubleTap = { offset ->
                                 val delta = doubleTapSeekSeconds
+                                try {
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                } catch (_: Exception) {}
                                 if (offset.x < size.width / 2) {
                                     seekAccumulatedSeconds = if (seekAnimationSide == SeekFeedbackDirection.REWIND) {
                                         seekAccumulatedSeconds + delta
@@ -1179,11 +1184,11 @@ fun PlayerScreen(
                     }
             )
 
-            // Layer 1.5: Double-Tap Seek Visual Ripple Indicator
+            // Layer 1.5: Double-Tap Seek Visual Ripple Indicator (iOS Spring Fluidity)
             AnimatedVisibility(
                 visible = seekAnimationSide == SeekFeedbackDirection.REWIND,
-                enter = fadeIn(tween(120)) + scaleIn(initialScale = 0.85f),
-                exit = fadeOut(tween(250)),
+                enter = fadeIn(tween(100)) + scaleIn(initialScale = 0.80f, animationSpec = spring(dampingRatio = 0.68f, stiffness = 400f)),
+                exit = fadeOut(tween(260)) + scaleOut(targetScale = 0.95f, animationSpec = tween(260)),
                 modifier = Modifier
                     .fillMaxHeight()
                     .fillMaxWidth(0.42f)
@@ -1193,7 +1198,8 @@ fun PlayerScreen(
                     modifier = Modifier
                         .fillMaxSize()
                         .clip(RoundedCornerShape(topEndPercent = 100, bottomEndPercent = 100))
-                        .background(Color(0x55000000)),
+                        .background(Color(0x66000000))
+                        .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(topEndPercent = 100, bottomEndPercent = 100)),
                     contentAlignment = Alignment.Center
                 ) {
                     Column(
@@ -1204,7 +1210,7 @@ fun PlayerScreen(
                             imageVector = Icons.Default.FastRewind,
                             contentDescription = null,
                             tint = Color.White,
-                            modifier = Modifier.size(32.dp)
+                            modifier = Modifier.size(34.dp)
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
@@ -1219,8 +1225,8 @@ fun PlayerScreen(
 
             AnimatedVisibility(
                 visible = seekAnimationSide == SeekFeedbackDirection.FORWARD,
-                enter = fadeIn(tween(120)) + scaleIn(initialScale = 0.85f),
-                exit = fadeOut(tween(250)),
+                enter = fadeIn(tween(100)) + scaleIn(initialScale = 0.80f, animationSpec = spring(dampingRatio = 0.68f, stiffness = 400f)),
+                exit = fadeOut(tween(260)) + scaleOut(targetScale = 0.95f, animationSpec = tween(260)),
                 modifier = Modifier
                     .fillMaxHeight()
                     .fillMaxWidth(0.42f)
@@ -1230,7 +1236,8 @@ fun PlayerScreen(
                     modifier = Modifier
                         .fillMaxSize()
                         .clip(RoundedCornerShape(topStartPercent = 100, bottomStartPercent = 100))
-                        .background(Color(0x55000000)),
+                        .background(Color(0x66000000))
+                        .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(topStartPercent = 100, bottomStartPercent = 100)),
                     contentAlignment = Alignment.Center
                 ) {
                     Column(
@@ -1241,7 +1248,7 @@ fun PlayerScreen(
                             imageVector = Icons.Default.FastForward,
                             contentDescription = null,
                             tint = Color.White,
-                            modifier = Modifier.size(32.dp)
+                            modifier = Modifier.size(34.dp)
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
@@ -1308,8 +1315,8 @@ fun PlayerScreen(
             // Layer 4: 100% Native Liquid Glass Controls Overlay
             androidx.compose.animation.AnimatedVisibility(
                 visible = isControlsVisible,
-                enter = fadeIn(),
-                exit = fadeOut(),
+                enter = fadeIn(tween(180)) + scaleIn(initialScale = 0.94f, animationSpec = spring(dampingRatio = 0.78f, stiffness = 380f)),
+                exit = fadeOut(tween(180)) + scaleOut(targetScale = 0.96f, animationSpec = tween(180)),
                 modifier = Modifier.matchParentSize()
             ) {
                 Box(
@@ -1941,7 +1948,7 @@ fun PlayerScreen(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(20.dp))
                                     .background(if (isSubscribed) Color(0xFF272727) else Color.White)
-                                    .clickable {
+                                    .iosBounceClick(scaleDown = 0.90f) {
                                         val currentAvatar = nextQueueData?.currentVideo?.channelAvatarUrl?.ifBlank { activeAvatarUrl } ?: activeAvatarUrl
                                         scope.launch {
                                             if (isSubscribed) {
@@ -2024,7 +2031,7 @@ fun PlayerScreen(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(20.dp))
                                     .background(Color(0xFF272727))
-                                    .clickable {
+                                    .iosBounceClick(scaleDown = 0.92f) {
                                         val sendIntent = Intent(Intent.ACTION_SEND).apply {
                                             type = "text/plain"
                                             putExtra(Intent.EXTRA_SUBJECT, activeTitle)
@@ -2056,7 +2063,7 @@ fun PlayerScreen(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(20.dp))
                                     .background(Color(0xFF272727))
-                                    .clickable {
+                                    .iosBounceClick(scaleDown = 0.92f) {
                                         scope.launch {
                                             repository.toggleFavorite(video, isFavorite)
                                         }
@@ -2098,7 +2105,7 @@ fun PlayerScreen(
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(12.dp))
                                 .background(Color(0xFF212121))
-                                .clickable {
+                                .iosBounceClick(scaleDown = 0.97f) {
                                     showDescriptionSheet = false
                                     showMixSheet = false
                                     showSettingsSheet = false
