@@ -219,12 +219,11 @@ class InnerTubeClient(
         }
     }
 
-    suspend fun fetchSuggestions(query: String): List<String> = withContext(Dispatchers.IO) {
+    suspend fun fetchDetailedSuggestions(query: String): List<com.phantom.tube.data.model.SuggestionItem> = withContext(Dispatchers.IO) {
         val trimmed = query.trim()
         if (trimmed.isBlank()) return@withContext emptyList()
         try {
             val encoded = java.net.URLEncoder.encode(trimmed, "UTF-8")
-
             val endpoints = com.phantom.tube.core.security.PhantomNative.getSuggestEndpoints(encoded)
 
             for (url in endpoints) {
@@ -241,7 +240,7 @@ class InnerTubeClient(
                         if (resp.isSuccessful) {
                             val bodyBytes = resp.body?.bytes()
                             if (bodyBytes != null && bodyBytes.isNotEmpty()) {
-                                val parsed = InnerTubeParser.parseSuggestions(String(bodyBytes, Charsets.UTF_8))
+                                val parsed = InnerTubeParser.parseDetailedSuggestions(String(bodyBytes, Charsets.UTF_8))
                                 if (parsed.isNotEmpty()) {
                                     return@withContext parsed
                                 }
@@ -258,5 +257,9 @@ class InnerTubeClient(
             e.printStackTrace()
             emptyList()
         }
+    }
+
+    suspend fun fetchSuggestions(query: String): List<String> = withContext(Dispatchers.IO) {
+        return@withContext fetchDetailedSuggestions(query).map { it.query }
     }
 }

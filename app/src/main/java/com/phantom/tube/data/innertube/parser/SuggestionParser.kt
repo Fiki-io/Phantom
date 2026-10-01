@@ -1,11 +1,16 @@
 package com.phantom.tube.data.innertube.parser
 
+import com.phantom.tube.data.model.SuggestionItem
 import org.json.JSONArray
 
 object SuggestionParser {
 
     fun parseSuggestions(jsonString: String): List<String> {
-        val suggestions = mutableListOf<String>()
+        return parseDetailedSuggestions(jsonString).map { it.query }
+    }
+
+    fun parseDetailedSuggestions(jsonString: String): List<SuggestionItem> {
+        val suggestions = mutableListOf<SuggestionItem>()
         try {
             var raw = jsonString.trim()
             if (raw.startsWith("window.google.ac.h(") || (raw.contains("(") && raw.contains(")"))) {
@@ -22,12 +27,41 @@ object SuggestionParser {
                     val item = items.opt(i)
                     if (item is String) {
                         if (item.isNotBlank()) {
-                            suggestions.add(item)
+                            suggestions.add(SuggestionItem(query = item))
                         }
                     } else if (item is JSONArray) {
                         val text = item.optString(0)
                         if (text.isNotBlank()) {
-                            suggestions.add(text)
+                            var chId: String? = null
+                            var chTitle: String? = null
+                            var chHandle: String? = null
+                            var chAvatar: String? = null
+
+                            // Check metadata object in suggestion item array
+                            for (k in 1 until item.length()) {
+                                val obj = item.optJSONObject(k)
+                                if (obj != null) {
+                                    val possibleId = obj.optString("zav")
+                                    if (possibleId.isNotBlank() && possibleId.startsWith("UC")) {
+                                        chId = possibleId
+                                        chTitle = obj.optString("zao").ifBlank { text }
+                                        chHandle = obj.optString("zaf")
+                                        val rawAvatar = obj.optString("zai")
+                                        chAvatar = if (rawAvatar.startsWith("//")) "https:$rawAvatar" else rawAvatar
+                                        break
+                                    }
+                                }
+                            }
+
+                            suggestions.add(
+                                SuggestionItem(
+                                    query = text,
+                                    channelId = chId,
+                                    channelTitle = chTitle,
+                                    channelHandle = chHandle,
+                                    channelAvatarUrl = chAvatar
+                                )
+                            )
                         }
                     }
                 }

@@ -89,6 +89,10 @@ class PhantomRepository(
         return innerTubeClient.fetchSuggestions(query)
     }
 
+    suspend fun getDetailedSuggestions(query: String): List<com.phantom.tube.data.model.SuggestionItem> {
+        return innerTubeClient.fetchDetailedSuggestions(query)
+    }
+
     suspend fun getWatchNext(videoId: String, playlistId: String? = null): NextQueue? {
         return innerTubeClient.fetchWatchNext(videoId, playlistId)
     }

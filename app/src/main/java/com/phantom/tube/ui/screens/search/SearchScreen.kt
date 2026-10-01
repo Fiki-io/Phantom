@@ -19,7 +19,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
@@ -53,6 +53,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
@@ -62,24 +63,34 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 import com.phantom.tube.core.theme.ObsidianDark
 import com.phantom.tube.core.theme.TextMuted
 import com.phantom.tube.core.theme.TextPrimary
 import com.phantom.tube.core.theme.TextSecondary
 import com.phantom.tube.core.theme.YouTubeRed
 import com.phantom.tube.core.theme.YouTubeSurface
+import com.phantom.tube.data.model.SearchChannelItem
+import com.phantom.tube.data.model.SuggestionItem
 import com.phantom.tube.data.model.VideoItem
 import com.phantom.tube.data.repository.PhantomRepository
 import com.phantom.tube.ui.components.PhantomIconButton
 import com.phantom.tube.ui.components.PhantomVideoCard
+import com.phantom.tube.ui.components.SearchChannelCard
 import com.phantom.tube.ui.components.VideoFeedSkeleton
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 data class SearchSuggestionItem(
     val query: String,
-    val isHistory: Boolean
-)
+    val isHistory: Boolean,
+    val channelId: String? = null,
+    val channelTitle: String? = null,
+    val channelHandle: String? = null,
+    val channelAvatarUrl: String? = null
+) {
+    val isChannel: Boolean get() = !channelId.isNullOrBlank()
+}
 
 @Composable
 fun SearchScreen(
@@ -92,8 +103,9 @@ fun SearchScreen(
     var searchTextFieldValue by remember { mutableStateOf(TextFieldValue("")) }
     val searchQuery = searchTextFieldValue.text
     var lastSearchQuery by remember { mutableStateOf("") }
-    var suggestions by remember { mutableStateOf<List<String>>(emptyList()) }
+    var detailedSuggestions by remember { mutableStateOf<List<SuggestionItem>>(emptyList()) }
     var searchResults by remember { mutableStateOf<List<VideoItem>>(emptyList()) }
+    var searchChannels by remember { mutableStateOf<List<SearchChannelItem>>(emptyList()) }
     var searchContinuationToken by remember { mutableStateOf<String?>(null) }
     var isSearching by remember { mutableStateOf(false) }
     var isLoadingMore by remember { mutableStateOf(false) }
@@ -114,8 +126,8 @@ fun SearchScreen(
         else searchHistory.filter { it.query.contains(trimmed, ignoreCase = true) }
     }
 
-    // Unified hybrid suggestions: matching local search history first, then live YouTube suggestions
-    val combinedSuggestions = remember(matchingHistory, suggestions, searchQuery) {
+    // Unified hybrid suggestions: matching channels first, then history, then YouTube suggestions
+    val combinedSuggestions = remember(matchingHistory, detailedSuggestions, searchQuery) {
         val trimmed = searchQuery.trim()
         if (trimmed.isBlank()) {
             emptyList()
@@ -123,7 +135,24 @@ fun SearchScreen(
             val list = mutableListOf<SearchSuggestionItem>()
             val seen = mutableSetOf<String>()
 
-            // 1. Matching history queries first
+            // 1. Channel suggestion first if returned by YouTube suggest
+            detailedSuggestions.filter { it.isChannel }.forEach { ch ->
+                val key = "channel_${ch.channelId}"
+                if (seen.add(key)) {
+                    list.add(
+                        SearchSuggestionItem(
+                            query = ch.query,
+                            isHistory = false,
+                            channelId = ch.channelId,
+                            channelTitle = ch.channelTitle,
+                            channelHandle = ch.channelHandle,
+                            channelAvatarUrl = ch.channelAvatarUrl
+                        )
+                    )
+                }
+            }
+
+            // 2. Matching history queries
             matchingHistory.forEach { item ->
                 val q = item.query.trim()
                 if (q.isNotEmpty() && seen.add(q.lowercase())) {
@@ -131,9 +160,9 @@ fun SearchScreen(
                 }
             }
 
-            // 2. YouTube network suggestions
-            suggestions.forEach { sugg ->
-                val q = sugg.trim()
+            // 3. YouTube live suggestions
+            detailedSuggestions.filter { !it.isChannel }.forEach { sugg ->
+                val q = sugg.query.trim()
                 if (q.isNotEmpty() && seen.add(q.lowercase())) {
                     list.add(SearchSuggestionItem(query = q, isHistory = false))
                 }
@@ -166,15 +195,17 @@ fun SearchScreen(
             repository.saveSearchQuery(trimmed)
             isSearching = true
             hasSearched = true
-            suggestions = emptyList()
+            detailedSuggestions = emptyList()
             searchContinuationToken = null
             lastSearchQuery = trimmed
             try {
                 val pageResult = repository.searchPage(query = trimmed)
                 searchResults = pageResult.videos
+                searchChannels = pageResult.channels
                 searchContinuationToken = pageResult.continuationToken
             } catch (e: Exception) {
                 searchResults = emptyList()
+                searchChannels = emptyList()
                 searchContinuationToken = null
             } finally {
                 isSearching = false
@@ -226,9 +257,9 @@ fun SearchScreen(
             isFetchingSuggestions = true
             delay(120) // Fast 120ms debounce for responsive typing
             try {
-                val fetched = repository.getSuggestions(trimmed)
+                val fetched = repository.getDetailedSuggestions(trimmed)
                 if (fetched.isNotEmpty()) {
-                    suggestions = fetched
+                    detailedSuggestions = fetched
                 }
             } catch (e: Exception) {
                 // Keep suggestions if network glitches
@@ -236,7 +267,7 @@ fun SearchScreen(
                 isFetchingSuggestions = false
             }
         } else if (trimmed.isBlank()) {
-            suggestions = emptyList()
+            detailedSuggestions = emptyList()
             isFetchingSuggestions = false
         }
     }
@@ -398,60 +429,122 @@ fun SearchScreen(
                             } else {
                                 itemsIndexed(
                                     items = combinedSuggestions,
-                                    key = { index, item -> "${item.isHistory}_${item.query}_$index" },
-                                    contentType = { _, _ -> "suggestion_item" }
+                                    key = { index, item -> "${item.isHistory}_${item.channelId}_${item.query}_$index" },
+                                    contentType = { _, item -> if (item.isChannel) "channel_suggestion" else "query_suggestion" }
                                 ) { _, item ->
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .clip(RoundedCornerShape(8.dp))
-                                            .clickable {
-                                                updateSearchInput(item.query)
-                                                executeSearch(item.query)
-                                            }
-                                            .padding(horizontal = 12.dp, vertical = 10.dp),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Icon(
-                                            imageVector = if (item.isHistory) Icons.Default.History else Icons.Default.Search,
-                                            contentDescription = if (item.isHistory) "Riwayat" else "Saran",
-                                            tint = if (item.isHistory) TextSecondary else TextMuted,
-                                            modifier = Modifier.size(18.dp)
-                                        )
-                                        Spacer(modifier = Modifier.width(14.dp))
-                                        Text(
-                                            text = item.query,
-                                            color = if (item.isHistory) TextPrimary else TextPrimary.copy(alpha = 0.95f),
-                                            fontSize = 14.sp,
-                                            modifier = Modifier.weight(1f),
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis
-                                        )
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                        Icon(
-                                            imageVector = Icons.Default.NorthWest,
-                                            contentDescription = "Gunakan kueri",
-                                            tint = TextMuted,
+                                    if (item.isChannel && !item.channelId.isNullOrBlank()) {
+                                        // Channel suggestion row with circular avatar
+                                        Row(
                                             modifier = Modifier
-                                                .size(16.dp)
+                                                .fillMaxWidth()
+                                                .clip(RoundedCornerShape(10.dp))
                                                 .clickable {
-                                                    updateSearchInput(item.query, requestKeyboardFocus = true)
+                                                    onChannelClick(item.channelId, item.channelTitle ?: item.query)
                                                 }
-                                        )
-                                        if (item.isHistory) {
-                                            Spacer(modifier = Modifier.width(12.dp))
+                                                .padding(horizontal = 10.dp, vertical = 8.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            AsyncImage(
+                                                model = item.channelAvatarUrl,
+                                                contentDescription = item.channelTitle ?: item.query,
+                                                contentScale = ContentScale.Crop,
+                                                modifier = Modifier
+                                                    .size(40.dp)
+                                                    .clip(CircleShape)
+                                                    .background(Color(0xFF262626))
+                                            )
+
+                                            Spacer(modifier = Modifier.width(14.dp))
+
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Text(
+                                                    text = item.channelTitle ?: item.query,
+                                                    color = TextPrimary,
+                                                    fontSize = 15.sp,
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
+                                                val subline = if (!item.channelHandle.isNullOrBlank()) {
+                                                    "${item.channelHandle} • Saluran"
+                                                } else {
+                                                    "Channel • Saluran"
+                                                }
+                                                Text(
+                                                    text = subline,
+                                                    color = TextSecondary,
+                                                    fontSize = 12.sp,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
+                                            }
+
+                                            Spacer(modifier = Modifier.width(8.dp))
+
                                             Icon(
-                                                imageVector = Icons.Default.Close,
-                                                contentDescription = "Hapus kueri",
+                                                imageVector = Icons.Default.NorthWest,
+                                                contentDescription = "Buka channel",
                                                 tint = TextMuted,
                                                 modifier = Modifier
                                                     .size(16.dp)
                                                     .clickable {
-                                                        scope.launch {
-                                                            repository.deleteSearchQuery(item.query)
-                                                        }
+                                                        updateSearchInput(item.channelTitle ?: item.query, requestKeyboardFocus = true)
                                                     }
                                             )
+                                        }
+                                    } else {
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .clip(RoundedCornerShape(8.dp))
+                                                .clickable {
+                                                    updateSearchInput(item.query)
+                                                    executeSearch(item.query)
+                                                }
+                                                .padding(horizontal = 12.dp, vertical = 10.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Icon(
+                                                imageVector = if (item.isHistory) Icons.Default.History else Icons.Default.Search,
+                                                contentDescription = if (item.isHistory) "Riwayat" else "Saran",
+                                                tint = if (item.isHistory) TextSecondary else TextMuted,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(14.dp))
+                                            Text(
+                                                text = item.query,
+                                                color = if (item.isHistory) TextPrimary else TextPrimary.copy(alpha = 0.95f),
+                                                fontSize = 14.sp,
+                                                modifier = Modifier.weight(1f),
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Icon(
+                                                imageVector = Icons.Default.NorthWest,
+                                                contentDescription = "Gunakan kueri",
+                                                tint = TextMuted,
+                                                modifier = Modifier
+                                                    .size(16.dp)
+                                                    .clickable {
+                                                        updateSearchInput(item.query, requestKeyboardFocus = true)
+                                                    }
+                                            )
+                                            if (item.isHistory) {
+                                                Spacer(modifier = Modifier.width(12.dp))
+                                                Icon(
+                                                    imageVector = Icons.Default.Close,
+                                                    contentDescription = "Hapus kueri",
+                                                    tint = TextMuted,
+                                                    modifier = Modifier
+                                                        .size(16.dp)
+                                                        .clickable {
+                                                            scope.launch {
+                                                                repository.deleteSearchQuery(item.query)
+                                                            }
+                                                        }
+                                                )
+                                            }
                                         }
                                     }
                                 }
@@ -459,13 +552,31 @@ fun SearchScreen(
                         }
                     }
                 }
-                hasSearched && searchResults.isNotEmpty() -> {
+                hasSearched && (searchResults.isNotEmpty() || searchChannels.isNotEmpty()) -> {
                     LazyColumn(
                         state = searchListState,
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 6.dp, bottom = 100.dp),
                         verticalArrangement = Arrangement.spacedBy(14.dp)
                     ) {
+                        // 1. YouTube-style Channel Card at top of search results
+                        if (searchChannels.isNotEmpty()) {
+                            items(
+                                items = searchChannels,
+                                key = { "search_ch_${it.id}" },
+                                contentType = { "channel_card" }
+                            ) { channel ->
+                                SearchChannelCard(
+                                    channel = channel,
+                                    repository = repository,
+                                    onClick = {
+                                        onChannelClick(channel.id, channel.title)
+                                    }
+                                )
+                            }
+                        }
+
+                        // 2. Video items
                         itemsIndexed(
                             items = searchResults,
                             key = { index, video -> "search_${video.id}_$index" },
@@ -514,7 +625,7 @@ fun SearchScreen(
                         }
                     }
                 }
-                hasSearched && searchResults.isEmpty() -> {
+                hasSearched && searchResults.isEmpty() && searchChannels.isEmpty() -> {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Text(
                             text = "Tidak ada hasil untuk \"${searchQuery.trim()}\"",

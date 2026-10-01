@@ -39,6 +39,9 @@ object InnerTubeParser {
     fun parseSuggestions(jsonString: String): List<String> =
         SuggestionParser.parseSuggestions(jsonString)
 
+    fun parseDetailedSuggestions(jsonString: String): List<com.phantom.tube.data.model.SuggestionItem> =
+        SuggestionParser.parseDetailedSuggestions(jsonString)
+
     fun parseChannelPage(jsonString: String, fallbackChannelId: String): ChannelProfile? =
         ChannelParser.parseChannelPage(jsonString, fallbackChannelId)
 

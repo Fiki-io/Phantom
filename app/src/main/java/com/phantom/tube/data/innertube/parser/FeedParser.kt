@@ -1,6 +1,7 @@
 package com.phantom.tube.data.innertube.parser
 
 import com.phantom.tube.data.model.FeedResult
+import com.phantom.tube.data.model.SearchChannelItem
 import com.phantom.tube.data.model.VideoItem
 import org.json.JSONArray
 import org.json.JSONObject
@@ -13,6 +14,7 @@ object FeedParser {
 
     fun parseFeedWithContinuation(jsonString: String): FeedResult {
         val items = mutableListOf<VideoItem>()
+        val channels = mutableListOf<SearchChannelItem>()
         var continuationToken: String? = null
 
         try {
@@ -40,13 +42,18 @@ object FeedParser {
                     }
                 }
 
-                // Check videos in itemSectionRenderer
+                // Check videos and channels in itemSectionRenderer
                 val itemSection = sec.optJSONObject("itemSectionRenderer")
                 if (itemSection != null) {
                     val contentsArray = itemSection.optJSONArray("contents") ?: JSONArray()
                     for (j in 0 until contentsArray.length()) {
                         val rawItem = contentsArray.optJSONObject(j) ?: continue
-                        parseVideoItem(rawItem)?.let { items.add(it) }
+                        val ch = parseChannelItem(rawItem)
+                        if (ch != null) {
+                            channels.add(ch)
+                        } else {
+                            parseVideoItem(rawItem)?.let { items.add(it) }
+                        }
                     }
                 }
             }
@@ -73,17 +80,27 @@ object FeedParser {
                         }
                     }
 
-                    // Check videos in itemSectionRenderer
+                    // Check videos and channels in itemSectionRenderer
                     val itemSection = cItem.optJSONObject("itemSectionRenderer")
                     if (itemSection != null) {
                         val subContents = itemSection.optJSONArray("contents") ?: JSONArray()
                         for (k in 0 until subContents.length()) {
                             val subItem = subContents.optJSONObject(k) ?: continue
-                            parseVideoItem(subItem)?.let { items.add(it) }
+                            val ch = parseChannelItem(subItem)
+                            if (ch != null) {
+                                channels.add(ch)
+                            } else {
+                                parseVideoItem(subItem)?.let { items.add(it) }
+                            }
                         }
                     } else {
-                        // Direct video item or lockupViewModel
-                        parseVideoItem(cItem)?.let { items.add(it) }
+                        // Direct video item or channel item or lockupViewModel
+                        val ch = parseChannelItem(cItem)
+                        if (ch != null) {
+                            channels.add(ch)
+                        } else {
+                            parseVideoItem(cItem)?.let { items.add(it) }
+                        }
                     }
                 }
             }
@@ -93,7 +110,81 @@ object FeedParser {
 
         return FeedResult(
             videos = items,
+            channels = channels,
             continuationToken = continuationToken
+        )
+    }
+
+    fun parseChannelItem(json: JSONObject): SearchChannelItem? {
+        val cr = json.optJSONObject("channelRenderer") ?: return null
+        val channelId = cr.optString("channelId").ifBlank {
+            cr.optJSONObject("navigationEndpoint")
+                ?.optJSONObject("browseEndpoint")
+                ?.optString("browseId") ?: ""
+        }
+        if (channelId.isBlank()) return null
+
+        val title = cr.optJSONObject("title")?.optString("simpleText")?.ifBlank { null }
+            ?: InnerTubeHelpers.parseRunsText(cr.optJSONObject("title"))
+
+        val avatarUrl = InnerTubeHelpers.extractThumbnail(cr.optJSONObject("thumbnail"), "")
+
+        val subscriberText = cr.optJSONObject("subscriberCountText")?.optString("simpleText")?.ifBlank { null }
+            ?: InnerTubeHelpers.parseRunsText(cr.optJSONObject("subscriberCountText"))
+
+        val videoText = cr.optJSONObject("videoCountText")?.optString("simpleText")?.ifBlank { null }
+            ?: InnerTubeHelpers.parseRunsText(cr.optJSONObject("videoCountText"))
+
+        val canonicalUrl = cr.optJSONObject("navigationEndpoint")
+            ?.optJSONObject("browseEndpoint")
+            ?.optString("canonicalBaseUrl", "") ?: ""
+
+        val handle = if (subscriberText.startsWith("@")) {
+            subscriberText
+        } else if (canonicalUrl.isNotBlank()) {
+            canonicalUrl.removePrefix("/")
+        } else {
+            ""
+        }
+
+        val subscriberCount = if (!subscriberText.startsWith("@") && subscriberText.isNotBlank()) {
+            subscriberText
+        } else if (videoText.contains("subscriber", ignoreCase = true) || videoText.contains("langganan", ignoreCase = true) || videoText.contains("sub", ignoreCase = true)) {
+            videoText
+        } else {
+            ""
+        }
+
+        val videoCount = if (videoText != subscriberCount && (videoText.contains("video", ignoreCase = true) || videoText.contains("vid", ignoreCase = true))) {
+            videoText
+        } else {
+            ""
+        }
+
+        val description = InnerTubeHelpers.parseRunsText(cr.optJSONObject("descriptionSnippet"))
+
+        // Check verification badge
+        var isVerified = false
+        val badges = cr.optJSONArray("ownerBadges") ?: JSONArray()
+        for (i in 0 until badges.length()) {
+            val badgeObj = badges.optJSONObject(i)?.optJSONObject("metadataBadgeRenderer")
+            val style = badgeObj?.optString("style", "") ?: ""
+            val iconType = badgeObj?.optJSONObject("icon")?.optString("iconType", "") ?: ""
+            if (style.contains("VERIFIED", ignoreCase = true) || iconType.contains("CHECK", ignoreCase = true)) {
+                isVerified = true
+                break
+            }
+        }
+
+        return SearchChannelItem(
+            id = channelId,
+            title = title.ifBlank { "Channel" },
+            handle = handle,
+            avatarUrl = avatarUrl,
+            subscriberCountText = subscriberCount,
+            videoCountText = videoCount,
+            description = description,
+            isVerified = isVerified
         )
     }
 
