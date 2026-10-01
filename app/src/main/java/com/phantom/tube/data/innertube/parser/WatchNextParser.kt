@@ -181,6 +181,7 @@ object WatchNextParser {
             // 2. Full YouTube Mix Playlist
             val playlistObj = watchNext.optJSONObject("playlist")?.optJSONObject("playlist")
                 ?: watchNext.optJSONObject("playlist")?.optJSONObject("playlistPanelRenderer")
+            val detectedPlaylistId = playlistObj?.optString("playlistId")?.ifBlank { null }
 
             val fullPlaylist = mutableListOf<VideoItem>()
             var detectedCurrentIndex = 0
@@ -213,7 +214,8 @@ object WatchNextParser {
                         channelTitle = channel,
                         channelId = itemChannelId,
                         thumbnailUrl = thumb,
-                        durationText = duration
+                        durationText = duration,
+                        playlistId = detectedPlaylistId
                     )
                     fullPlaylist.add(item)
 
@@ -308,6 +310,7 @@ object WatchNextParser {
                 recommendations = recommendationsList,
                 recommendationsContinuationToken = recContinuationToken,
                 playlistTitle = playlistTitle,
+                playlistId = detectedPlaylistId,
                 currentIndex = detectedCurrentIndex,
                 likeCountText = likeCount,
                 fullViewCountText = InnerTubeHelpers.normalizeViewCount(fullViews),

@@ -13,7 +13,9 @@ data class VideoItem(
     val viewCountText: String = "",
     val publishedTimeText: String = "",
     val durationText: String = "",
-    val durationSeconds: Long = 0L
+    val durationSeconds: Long = 0L,
+    val playlistId: String? = null,
+    val isPlaylist: Boolean = false
 )
 
 @Immutable
@@ -42,6 +44,7 @@ data class NextQueue(
     val recommendations: List<VideoItem> = emptyList(),
     val recommendationsContinuationToken: String? = null,
     val playlistTitle: String = "",
+    val playlistId: String? = null,
     val currentIndex: Int = 0,
     val likeCountText: String = "",
     val fullViewCountText: String = "",

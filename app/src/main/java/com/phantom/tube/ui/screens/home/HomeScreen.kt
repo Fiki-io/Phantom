@@ -140,8 +140,8 @@ fun HomeScreen(
             isLoadingMore = true
             try {
                 val result = if (selectedCategory == "Semua") {
-                    if (token.startsWith("history_")) {
-                        val nextIdx = token.substringAfter("history_").toIntOrNull() ?: 1
+                    if (token.startsWith("history_") || token.startsWith("smart_")) {
+                        val nextIdx = token.substringAfter("_").toIntOrNull() ?: 1
                         repository.getHomeRecommendations(historyIndex = nextIdx)
                     } else {
                         repository.getHomeRecommendations(continuation = token)

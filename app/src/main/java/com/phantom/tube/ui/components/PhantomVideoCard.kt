@@ -3,6 +3,7 @@ package com.phantom.tube.ui.components
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -17,6 +18,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Icon
@@ -88,8 +90,38 @@ fun PhantomVideoCard(
                 modifier = Modifier.matchParentSize()
             )
 
-            // Durasi video
-            if (video.durationText.isNotBlank()) {
+            // Durasi video atau Badge Playlist
+            if (video.isPlaylist || !video.playlistId.isNullOrBlank()) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(end = 8.dp, bottom = 8.dp)
+                        .background(
+                            color = Color(0xCC000000),
+                            shape = RoundedCornerShape(4.dp)
+                        )
+                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.QueueMusic,
+                            contentDescription = "Playlist",
+                            tint = Color.White,
+                            modifier = Modifier.size(12.dp)
+                        )
+                        Text(
+                            text = video.durationText.ifBlank { "Playlist" },
+                            color = Color.White,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Medium,
+                            letterSpacing = 0.5.sp
+                        )
+                    }
+                }
+            } else if (video.durationText.isNotBlank()) {
                 Box(
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
@@ -174,6 +206,20 @@ fun PhantomVideoCard(
                             .clip(CircleShape),
                         contentScale = ContentScale.Crop
                     )
+                } else if (video.isPlaylist || !video.playlistId.isNullOrBlank()) {
+                    Box(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .background(Color(0xFF272727), CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.PlayArrow,
+                            contentDescription = "Mix",
+                            tint = YouTubeRed,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
                 } else {
                     val initials = video.channelTitle.trim().take(1).uppercase()
                     if (initials.isNotBlank()) {

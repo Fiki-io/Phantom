@@ -365,7 +365,65 @@ object FeedParser {
             )
         }
 
-        // Option 3: Modern lockupViewModel
+        // Option 3: playlistRenderer (Channel & User Playlists)
+        if (json.has("playlistRenderer")) {
+            val pr = json.getJSONObject("playlistRenderer")
+            val playlistId = pr.optString("playlistId")
+            val nav = pr.optJSONObject("navigationEndpoint")
+            val watchEndpoint = nav?.optJSONObject("watchEndpoint")
+            var videoId = watchEndpoint?.optString("videoId") ?: ""
+            if (videoId.isBlank()) {
+                val thumbsStr = (pr.optJSONObject("thumbnails") ?: pr.optJSONArray("thumbnails"))?.toString() ?: ""
+                val vMatch = Regex("""/vi/([a-zA-Z0-9_-]{11})/""").find(thumbsStr)
+                if (vMatch != null) {
+                    videoId = vMatch.groupValues[1]
+                }
+            }
+            val title = InnerTubeHelpers.parseRunsText(pr.optJSONObject("title"))
+            val channel = InnerTubeHelpers.parseRunsText(pr.optJSONObject("longBylineText") ?: pr.optJSONObject("shortBylineText"))
+            val videoCount = pr.optString("videoCount").ifBlank {
+                InnerTubeHelpers.parseRunsText(pr.optJSONObject("videoCountText"))
+            }
+            val thumb = InnerTubeHelpers.extractThumbnail(pr.optJSONObject("thumbnail") ?: pr.optJSONArray("thumbnails")?.optJSONObject(0), videoId)
+            val channelId = pr.optJSONObject("shortBylineText")?.optJSONArray("runs")?.optJSONObject(0)
+                ?.optJSONObject("navigationEndpoint")?.optJSONObject("browseEndpoint")?.optString("browseId") ?: ""
+
+            return VideoItem(
+                id = videoId.ifBlank { "pl_$playlistId" },
+                title = title,
+                channelTitle = channel,
+                channelId = channelId,
+                thumbnailUrl = thumb,
+                durationText = if (videoCount.isNotBlank()) "$videoCount video" else "Playlist",
+                playlistId = playlistId.ifBlank { null },
+                isPlaylist = true
+            )
+        }
+
+        // Option 4: radioRenderer (YouTube Mix)
+        if (json.has("radioRenderer")) {
+            val rr = json.getJSONObject("radioRenderer")
+            val playlistId = rr.optString("playlistId")
+            val nav = rr.optJSONObject("navigationEndpoint")
+            val watchEndpoint = nav?.optJSONObject("watchEndpoint")
+            val videoId = watchEndpoint?.optString("videoId") ?: ""
+            val title = InnerTubeHelpers.parseRunsText(rr.optJSONObject("title"))
+            val channel = InnerTubeHelpers.parseRunsText(rr.optJSONObject("shortBylineText"))
+            val videoCount = InnerTubeHelpers.parseRunsText(rr.optJSONObject("videoCountText"))
+            val thumb = InnerTubeHelpers.extractThumbnail(rr.optJSONObject("thumbnail"), videoId)
+
+            return VideoItem(
+                id = videoId.ifBlank { "rd_$playlistId" },
+                title = title,
+                channelTitle = channel,
+                thumbnailUrl = thumb,
+                durationText = if (videoCount.isNotBlank()) videoCount else "Mix",
+                playlistId = playlistId.ifBlank { null },
+                isPlaylist = true
+            )
+        }
+
+        // Option 5: Modern lockupViewModel
         if (json.has("lockupViewModel")) {
             val lvm = json.getJSONObject("lockupViewModel")
             val onTap = lvm.optJSONObject("rendererContext")
@@ -373,11 +431,37 @@ object FeedParser {
                 ?.optJSONObject("onTap")
                 ?.optJSONObject("innertubeCommand")
             val watchEndpoint = onTap?.optJSONObject("watchEndpoint")
-            val videoId = watchEndpoint?.optString("videoId") ?: ""
-            if (videoId.isBlank()) return null
+            val watchPlaylistEndpoint = onTap?.optJSONObject("watchPlaylistEndpoint")
+            var videoId = watchEndpoint?.optString("videoId") ?: ""
+            if (videoId.isBlank()) {
+                videoId = watchPlaylistEndpoint?.optString("videoId") ?: ""
+            }
+            var playlistId = watchEndpoint?.optString("playlistId") ?: ""
+            if (playlistId.isBlank()) {
+                playlistId = watchPlaylistEndpoint?.optString("playlistId") ?: ""
+            }
 
             val metadata = lvm.optJSONObject("metadata")?.optJSONObject("lockupMetadataViewModel")
             val title = metadata?.optJSONObject("title")?.optString("content") ?: ""
+            val contentType = lvm.optString("contentType")
+            val isPlaylist = contentType == "LOCKUP_CONTENT_TYPE_PLAYLIST" ||
+                    playlistId.isNotBlank() ||
+                    title.startsWith("Mix -", ignoreCase = true)
+
+            if (videoId.isBlank() && isPlaylist) {
+                val thumbSourcesStr = lvm.optJSONObject("contentImage")
+                    ?.optJSONObject("thumbnailViewModel")
+                    ?.optJSONObject("image")
+                    ?.optJSONArray("sources")?.toString() ?: ""
+                val vMatch = Regex("""/vi/([a-zA-Z0-9_-]{11})/""").find(thumbSourcesStr)
+                if (vMatch != null) {
+                    videoId = vMatch.groupValues[1]
+                }
+            }
+            if (videoId.isBlank() && !isPlaylist) return null
+            if (videoId.isBlank() && playlistId.isNotBlank()) {
+                videoId = "pl_$playlistId"
+            }
 
             // channel and view count
             val metaRows = metadata?.optJSONObject("metadata")
@@ -457,6 +541,9 @@ object FeedParser {
                 }
                 if (duration.isNotBlank()) break
             }
+            if (isPlaylist && duration.isBlank()) {
+                duration = "Playlist"
+            }
 
             // Extract channelId from lvm: direct inspection from metadataRows commandRuns, then regex fallback
             var channelId = ""
@@ -502,7 +589,9 @@ object FeedParser {
                 channelAvatarUrl = avatar,
                 durationText = duration,
                 viewCountText = InnerTubeHelpers.normalizeViewCount(views),
-                publishedTimeText = InnerTubeHelpers.normalizePublishedTime(published)
+                publishedTimeText = InnerTubeHelpers.normalizePublishedTime(published),
+                playlistId = playlistId.ifBlank { null },
+                isPlaylist = isPlaylist
             )
         }
 

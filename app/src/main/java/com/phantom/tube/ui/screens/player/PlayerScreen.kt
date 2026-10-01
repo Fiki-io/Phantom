@@ -298,6 +298,7 @@ fun PlayerScreen(
 
     // YouTube Mix Playlist & Session (Preserving all songs in the Mix)
     var mixPlaylist by remember { mutableStateOf<List<VideoItem>>(emptyList()) }
+    var activePlaylistId by remember(video.id) { mutableStateOf(video.playlistId) }
     var currentMixIndex by remember { mutableIntStateOf(0) }
     var recommendedVideos by remember { mutableStateOf<List<VideoItem>>(emptyList()) }
     var recContinuationToken by remember { mutableStateOf<String?>(null) }
@@ -312,7 +313,10 @@ fun PlayerScreen(
     var showDescriptionSheet by remember { mutableStateOf(false) }
     var showCommentsSheet by remember { mutableStateOf(false) }
 
-    LaunchedEffect(video.id) {
+    LaunchedEffect(video.id, video.playlistId) {
+        if (!video.playlistId.isNullOrBlank()) {
+            activePlaylistId = video.playlistId
+        }
         if (video.channelAvatarUrl.isNotBlank()) {
             activeAvatarUrl = video.channelAvatarUrl
         }
@@ -379,7 +383,8 @@ fun PlayerScreen(
                 // At the end of playlist, ask YouTube for continuation of the Mix!
                 scope.launch {
                     isLoadingQueue = true
-                    val nextData = repository.getWatchNext(currentVideo.id, "RD${currentVideo.id}")
+                    val targetPlId = activePlaylistId?.ifBlank { null } ?: "RD${currentVideo.id}"
+                    val nextData = repository.getWatchNext(currentVideo.id, targetPlId)
                     if (nextData != null && nextData.mixPlaylist.isNotEmpty()) {
                         val existingIds = mixPlaylist.map { it.id }.toSet()
                         val freshItems = nextData.mixPlaylist.filter { it.id !in existingIds }
@@ -774,7 +779,11 @@ fun PlayerScreen(
 
         launch {
             isLoadingQueue = true
-            val nextData = repository.getWatchNext(video.id, "RD${video.id}")
+            val targetPlaylistId = video.playlistId?.ifBlank { null }
+                ?: activePlaylistId?.ifBlank { null }
+                ?: "RD${video.id}"
+            activePlaylistId = targetPlaylistId
+            val nextData = repository.getWatchNext(video.id, targetPlaylistId)
             if (nextData != null) {
                 nextQueueData = nextData
                 if (nextData.currentVideo.channelAvatarUrl.isNotBlank()) {
@@ -792,13 +801,13 @@ fun PlayerScreen(
                 canLoadMoreRecs = true
 
                 if (!fromInternal) {
-                    showMixSheet = false
+                    showMixSheet = (video.isPlaylist || !video.playlistId.isNullOrBlank()) && nextData.mixPlaylist.isNotEmpty()
                     mixPlaylist = nextData.mixPlaylist
                     currentMixIndex = if (nextData.mixPlaylist.isNotEmpty()) {
                         val match = nextData.mixPlaylist.indexOfFirst { it.id == video.id }
                         if (match != -1) match else nextData.currentIndex
                     } else 0
-                    mixTitle = nextData.playlistTitle.ifBlank { "Mix" }
+                    mixTitle = nextData.playlistTitle.ifBlank { if (video.isPlaylist) video.title else "Mix" }
                 } else {
                     // Internal navigation: preserve currentMixIndex and prevent duplicate ID jumps
                     if (currentMixIndex !in mixPlaylist.indices || mixPlaylist[currentMixIndex].id != video.id) {

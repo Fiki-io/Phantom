@@ -19,6 +19,10 @@ import com.phantom.tube.data.settings.PhantomPreferences
 import com.phantom.tube.data.sponsorblock.SponsorBlockClient
 import kotlinx.coroutines.flow.Flow
 
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
+import com.phantom.tube.data.innertube.cache.ChannelAvatarCache
+
 class PhantomRepository(
     private val innerTubeClient: InnerTubeClient = InnerTubeClient(),
     private val sponsorBlockClient: SponsorBlockClient = SponsorBlockClient(),
@@ -33,30 +37,13 @@ class PhantomRepository(
         continuation: String? = null
     ): FeedResult {
         // If we have a direct continuation token from YouTube, load next page
-        if (!continuation.isNullOrBlank() && !continuation.startsWith("history_")) {
+        if (!continuation.isNullOrBlank() && !continuation.startsWith("history_") && !continuation.startsWith("smart_")) {
             val pageResult = innerTubeClient.fetchFeedPage(continuation = continuation)
             if (pageResult.videos.isNotEmpty()) {
                 return pageResult
             }
         }
 
-        // Check local watch history for personalized YouTube algorithmic recommendations
-        val recentWatched = watchHistoryDao.getRecentWatched(limit = 10)
-        if (recentWatched.isNotEmpty() && historyIndex < recentWatched.size) {
-            val targetVideo = recentWatched[historyIndex]
-            val nextQueue = innerTubeClient.fetchWatchNext(targetVideo.videoId)
-            val recs = nextQueue?.recommendations ?: emptyList()
-            if (recs.isNotEmpty()) {
-                val nextToken = if (historyIndex + 1 < recentWatched.size) {
-                    "history_${historyIndex + 1}"
-                } else {
-                    null
-                }
-                return FeedResult(videos = recs, continuationToken = nextToken)
-            }
-        }
-
-        // Fallback for new users or end of history (based on selected Content Country):
         val country = preferences?.contentCountry?.value ?: "ID"
         val defaultQuery = when (country) {
             "GLOBAL" -> "trending global"
@@ -66,7 +53,172 @@ class PhantomRepository(
             "GB" -> "trending uk"
             else -> "trending indonesia"
         }
-        return innerTubeClient.fetchFeedPage(query = defaultQuery, continuation = continuation)
+
+        // 1. Check local watch history for smart weighted recommendation
+        val recentWatched = watchHistoryDao.getRecentWatched(limit = 30)
+        if (recentWatched.isEmpty()) {
+            return innerTubeClient.fetchFeedPage(query = defaultQuery, continuation = continuation)
+        }
+
+        // 2. Compute affinity clusters based on channel frequency, recency decay, and watch duration
+        data class AffinityCluster(
+            val key: String,
+            val channelTitle: String,
+            val channelId: String,
+            var score: Double,
+            var watchCount: Int,
+            var bestVideo: WatchHistoryEntity,
+            var latestWatchedAt: Long
+        )
+
+        val clusters = mutableMapOf<String, AffinityCluster>()
+        val totalHistorySize = recentWatched.size.toDouble().coerceAtLeast(1.0)
+
+        recentWatched.forEachIndexed { index, item ->
+            val key = if (item.channelId.isNotBlank()) item.channelId else item.channelTitle.trim().lowercase()
+            // Recency factor: newer items have higher weight (1.0 down to 0.4)
+            val recencyWeight = 1.0 - (index.toDouble() / totalHistorySize) * 0.6
+
+            // Completion weight: if watched >= 50% duration, factor 1.25; if < 10% (quick click), factor 0.35
+            val progressWeight = when {
+                item.durationMs > 0 && item.progressFraction >= 0.5f -> 1.25
+                item.durationMs > 0 && item.progressFraction < 0.10f -> 0.35
+                else -> 1.0
+            }
+
+            val itemScore = recencyWeight * progressWeight
+
+            val existing = clusters[key]
+            if (existing != null) {
+                existing.score += itemScore
+                existing.watchCount += 1
+                if (item.watchedAt > existing.latestWatchedAt) {
+                    existing.latestWatchedAt = item.watchedAt
+                    existing.bestVideo = item
+                }
+            } else {
+                clusters[key] = AffinityCluster(
+                    key = key,
+                    channelTitle = item.channelTitle,
+                    channelId = item.channelId,
+                    score = itemScore,
+                    watchCount = 1,
+                    bestVideo = item,
+                    latestWatchedAt = item.watchedAt
+                )
+            }
+        }
+
+        val sortedClusters = clusters.values.sortedByDescending { it.score }
+        if (sortedClusters.isEmpty()) {
+            return innerTubeClient.fetchFeedPage(query = defaultQuery, continuation = continuation)
+        }
+
+        // If the user scrolled past all available history clusters, fallback to trending
+        if (historyIndex >= sortedClusters.size) {
+            return innerTubeClient.fetchFeedPage(query = defaultQuery, continuation = continuation)
+        }
+
+        // 3. Determine Seed Targets for this page:
+        // Target A: The primary affinity cluster for this page slot
+        val primaryCluster = sortedClusters[historyIndex]
+        val targetA = primaryCluster.bestVideo
+
+        // Target B: Exploration or Secondary cluster
+        val latestVideo = recentWatched.first()
+        val targetB: WatchHistoryEntity? = if (historyIndex == 0) {
+            // On page 0: if latest watched video is from a different channel/topic, blend it as exploration!
+            if (!latestVideo.channelTitle.equals(targetA.channelTitle, ignoreCase = true) &&
+                latestVideo.videoId != targetA.videoId
+            ) {
+                latestVideo
+            } else {
+                // Otherwise pick the #2 affinity cluster if exists
+                sortedClusters.getOrNull(1)?.bestVideo
+            }
+        } else {
+            // On subsequent scroll pages: pick next cluster
+            sortedClusters.getOrNull(historyIndex + 1)?.bestVideo
+        }
+
+        // 4. Fetch recommendations in parallel
+        val (nextQueueA, nextQueueB) = coroutineScope {
+            val jobA = async { innerTubeClient.fetchWatchNext(targetA.videoId) }
+            val jobB = if (targetB != null && targetB.videoId != targetA.videoId) {
+                async { innerTubeClient.fetchWatchNext(targetB.videoId) }
+            } else null
+
+            Pair(jobA.await(), jobB?.await())
+        }
+
+        val listA = nextQueueA?.recommendations ?: emptyList()
+        val listB = nextQueueB?.recommendations ?: emptyList()
+
+        if (listA.isEmpty() && listB.isEmpty()) {
+            return innerTubeClient.fetchFeedPage(query = defaultQuery, continuation = continuation)
+        }
+
+        // Cache extracted avatars
+        listA.forEach { v ->
+            if (v.channelAvatarUrl.isNotBlank()) ChannelAvatarCache.put(v.channelId, v.channelTitle, v.channelAvatarUrl)
+        }
+        listB.forEach { v ->
+            if (v.channelAvatarUrl.isNotBlank()) ChannelAvatarCache.put(v.channelId, v.channelTitle, v.channelAvatarUrl)
+        }
+
+        val blendedVideos = mutableListOf<VideoItem>()
+        val seenIds = mutableSetOf<String>()
+
+        // 5. If this is page 0 and Target A has an official YouTube Mix, feature the Mix Card!
+        if (historyIndex == 0 && nextQueueA != null && nextQueueA.mixPlaylist.isNotEmpty()) {
+            val mixPlaylistId = nextQueueA.playlistId ?: "RD${targetA.videoId}"
+            val mixTitle = nextQueueA.playlistTitle.ifBlank { "Mix - ${targetA.title}" }
+            val mixCard = VideoItem(
+                id = targetA.videoId,
+                title = mixTitle,
+                channelTitle = "${targetA.channelTitle}, NDX A.K.A., dan lainnya",
+                channelId = targetA.channelId,
+                thumbnailUrl = targetA.thumbnailUrl,
+                channelAvatarUrl = nextQueueA.currentVideo.channelAvatarUrl.ifBlank { targetA.channelAvatarUrl },
+                durationText = "Playlist",
+                viewCountText = "${nextQueueA.mixPlaylist.size} video",
+                publishedTimeText = "YouTube Mix",
+                playlistId = mixPlaylistId,
+                isPlaylist = true
+            )
+            blendedVideos.add(mixCard)
+            seenIds.add(mixCard.id)
+        }
+
+        // 6. Smart Interleaving (Weighted Blending: 65% Core Interest, 35% Exploration)
+        var idxA = 0
+        var idxB = 0
+        while (idxA < listA.size || idxB < listB.size) {
+            // Push 2 items from Core Interest (listA)
+            repeat(2) {
+                if (idxA < listA.size) {
+                    val item = listA[idxA++]
+                    if (seenIds.add(item.id)) {
+                        blendedVideos.add(item)
+                    }
+                }
+            }
+            // Push 1 item from Exploration / Secondary (listB)
+            if (idxB < listB.size) {
+                val item = listB[idxB++]
+                if (seenIds.add(item.id)) {
+                    blendedVideos.add(item)
+                }
+            }
+        }
+
+        val nextToken = if (historyIndex + 1 < sortedClusters.size) {
+            "history_${historyIndex + 1}"
+        } else {
+            null
+        }
+
+        return FeedResult(videos = blendedVideos, continuationToken = nextToken)
     }
 
     suspend fun getFeedPage(query: String? = null, continuation: String? = null): FeedResult {
