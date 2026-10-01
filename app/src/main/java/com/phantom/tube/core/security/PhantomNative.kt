@@ -218,15 +218,15 @@ object PhantomNative {
                 )
             } catch (e: UnsatisfiedLinkError) {
                 listOf(
-                    "${YT_SUGGEST}?client=firefox&ds=yt&hl=id&gl=ID&q=$encodedQuery",
                     "${YT_SUGGEST}?client=youtube&ds=yt&hl=id&gl=ID&q=$encodedQuery",
+                    "${YT_SUGGEST}?client=firefox&ds=yt&hl=id&gl=ID&q=$encodedQuery",
                     "https://suggestqueries.google.com/complete/search?client=firefox&ds=yt&hl=id&gl=ID&q=$encodedQuery"
                 )
             }
         } else {
             listOf(
-                "${YT_SUGGEST}?client=firefox&ds=yt&hl=id&gl=ID&q=$encodedQuery",
                 "${YT_SUGGEST}?client=youtube&ds=yt&hl=id&gl=ID&q=$encodedQuery",
+                "${YT_SUGGEST}?client=firefox&ds=yt&hl=id&gl=ID&q=$encodedQuery",
                 "https://suggestqueries.google.com/complete/search?client=firefox&ds=yt&hl=id&gl=ID&q=$encodedQuery"
             )
         }

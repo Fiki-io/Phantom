@@ -1041,9 +1041,9 @@ Java_com_phantom_tube_core_security_PhantomNative_getSuggestUrl(
     char u[1024];
 
     if (index == 0) {
-        snprintf(u, sizeof(u), "https://suggestqueries-clients6.youtube.com/complete/search?client=firefox&ds=yt&hl=id&gl=ID&q=%s", q);
-    } else if (index == 1) {
         snprintf(u, sizeof(u), "https://suggestqueries-clients6.youtube.com/complete/search?client=youtube&ds=yt&hl=id&gl=ID&q=%s", q);
+    } else if (index == 1) {
+        snprintf(u, sizeof(u), "https://suggestqueries-clients6.youtube.com/complete/search?client=firefox&ds=yt&hl=id&gl=ID&q=%s", q);
     } else {
         snprintf(u, sizeof(u), "https://suggestqueries.google.com/complete/search?client=firefox&ds=yt&hl=id&gl=ID&q=%s", q);
     }

@@ -116,7 +116,19 @@ object FeedParser {
     }
 
     fun parseChannelItem(json: JSONObject): SearchChannelItem? {
-        val cr = json.optJSONObject("channelRenderer") ?: return null
+        if (json.has("channelRenderer")) {
+            return parseChannelRenderer(json.optJSONObject("channelRenderer") ?: JSONObject())
+        }
+        if (json.has("officialCardViewModel")) {
+            return parseOfficialCardViewModel(json.optJSONObject("officialCardViewModel") ?: JSONObject())
+        }
+        if (json.has("header") && json.optJSONObject("header")?.has("pageHeaderViewModel") == true) {
+            return parseOfficialCardViewModel(json)
+        }
+        return null
+    }
+
+    private fun parseChannelRenderer(cr: JSONObject): SearchChannelItem? {
         val channelId = cr.optString("channelId").ifBlank {
             cr.optJSONObject("navigationEndpoint")
                 ?.optJSONObject("browseEndpoint")
@@ -185,6 +197,80 @@ object FeedParser {
             videoCountText = videoCount,
             description = description,
             isVerified = isVerified
+        )
+    }
+
+    private fun parseOfficialCardViewModel(card: JSONObject): SearchChannelItem? {
+        val header = card.optJSONObject("header")?.optJSONObject("pageHeaderViewModel") ?: return null
+        val title = header.optJSONObject("title")?.optJSONObject("dynamicTextViewModel")
+            ?.optJSONObject("text")?.optString("content")?.ifBlank { null }
+            ?: return null
+
+        // Avatar image
+        val imgSources = header.optJSONObject("image")?.optJSONObject("contentPreviewImageViewModel")
+            ?.optJSONObject("image")?.optJSONArray("sources")
+        val avatarUrl = imgSources?.optJSONObject(0)?.optString("url", "") ?: ""
+
+        // Browse ID / channelId
+        var channelId = card.optJSONObject("rendererContext")?.optJSONObject("commandContext")
+            ?.optJSONObject("onTap")?.optJSONObject("innertubeCommand")
+            ?.optJSONObject("browseEndpoint")?.optString("browseId", "") ?: ""
+
+        if (channelId.isBlank()) {
+            channelId = header.optJSONObject("rendererContext")?.optJSONObject("commandContext")
+                ?.optJSONObject("onTap")?.optJSONObject("innertubeCommand")
+                ?.optJSONObject("browseEndpoint")?.optString("browseId", "") ?: ""
+        }
+
+        if (channelId.isBlank()) {
+            val actionRows = header.optJSONObject("actions")?.optJSONObject("flexibleActionsViewModel")
+                ?.optJSONArray("actionsRows") ?: JSONArray()
+            for (i in 0 until actionRows.length()) {
+                val row = actionRows.optJSONObject(i)?.optJSONArray("actions") ?: JSONArray()
+                for (j in 0 until row.length()) {
+                    val bCmd = row.optJSONObject(j)?.optJSONObject("buttonViewModel")
+                        ?.optJSONObject("onTap")?.optJSONObject("innertubeCommand")
+                        ?.optJSONObject("browseEndpoint")?.optString("browseId", "") ?: ""
+                    if (bCmd.isNotBlank()) {
+                        channelId = bCmd
+                        break
+                    }
+                }
+                if (channelId.isNotBlank()) break
+            }
+        }
+
+        if (channelId.isBlank()) return null
+
+        // Metadata rows: handle, subscriber count, video count
+        var handle = ""
+        var subscriberCount = ""
+        var videoCount = ""
+        val metadataRows = header.optJSONObject("metadata")?.optJSONObject("contentMetadataViewModel")
+            ?.optJSONArray("metadataRows") ?: JSONArray()
+        for (i in 0 until metadataRows.length()) {
+            val rowParts = metadataRows.optJSONObject(i)?.optJSONArray("metadataParts") ?: JSONArray()
+            for (j in 0 until rowParts.length()) {
+                val txt = rowParts.optJSONObject(j)?.optJSONObject("text")?.optString("content", "") ?: ""
+                if (txt.startsWith("@")) {
+                    handle = txt
+                } else if (txt.contains("subscriber", ignoreCase = true) || txt.contains("langganan", ignoreCase = true) || txt.contains("sub", ignoreCase = true)) {
+                    subscriberCount = txt
+                } else if (txt.contains("video", ignoreCase = true) || txt.contains("vid", ignoreCase = true)) {
+                    videoCount = txt
+                }
+            }
+        }
+
+        return SearchChannelItem(
+            id = channelId,
+            title = title,
+            handle = handle,
+            avatarUrl = avatarUrl,
+            subscriberCountText = subscriberCount,
+            videoCountText = videoCount,
+            description = "",
+            isVerified = true
         )
     }
 

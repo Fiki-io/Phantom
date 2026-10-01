@@ -10,5 +10,5 @@ data class SuggestionItem(
     val channelHandle: String? = null,
     val channelAvatarUrl: String? = null
 ) {
-    val isChannel: Boolean get() = !channelId.isNullOrBlank()
+    val isChannel: Boolean get() = !channelAvatarUrl.isNullOrBlank() || !channelId.isNullOrBlank()
 }

@@ -89,7 +89,7 @@ data class SearchSuggestionItem(
     val channelHandle: String? = null,
     val channelAvatarUrl: String? = null
 ) {
-    val isChannel: Boolean get() = !channelId.isNullOrBlank()
+    val isChannel: Boolean get() = !channelAvatarUrl.isNullOrBlank() || !channelId.isNullOrBlank()
 }
 
 @Composable
@@ -137,8 +137,11 @@ fun SearchScreen(
 
             // 1. Channel suggestion first if returned by YouTube suggest
             detailedSuggestions.filter { it.isChannel }.forEach { ch ->
-                val key = "channel_${ch.channelId}"
+                val key = "channel_${ch.channelId ?: ch.channelTitle ?: ch.query}"
                 if (seen.add(key)) {
+                    seen.add(ch.query.trim().lowercase())
+                    ch.channelTitle?.trim()?.lowercase()?.let { seen.add(it) }
+
                     list.add(
                         SearchSuggestionItem(
                             query = ch.query,
@@ -258,9 +261,7 @@ fun SearchScreen(
             delay(120) // Fast 120ms debounce for responsive typing
             try {
                 val fetched = repository.getDetailedSuggestions(trimmed)
-                if (fetched.isNotEmpty()) {
-                    detailedSuggestions = fetched
-                }
+                detailedSuggestions = fetched
             } catch (e: Exception) {
                 // Keep suggestions if network glitches
             } finally {
@@ -433,14 +434,20 @@ fun SearchScreen(
                                     key = { index, item -> "${item.isHistory}_${item.channelId}_${item.query}_$index" },
                                     contentType = { _, item -> if (item.isChannel) "channel_suggestion" else "query_suggestion" }
                                 ) { _, item ->
-                                    if (item.isChannel && !item.channelId.isNullOrBlank()) {
+                                    if (item.isChannel) {
                                         // Channel suggestion row with circular avatar
                                         Row(
                                             modifier = Modifier
                                                 .fillMaxWidth()
                                                 .clip(RoundedCornerShape(10.dp))
                                                 .clickable {
-                                                    onChannelClick(item.channelId, item.channelTitle ?: item.query)
+                                                    if (!item.channelId.isNullOrBlank()) {
+                                                        onChannelClick(item.channelId, item.channelTitle ?: item.query)
+                                                    } else {
+                                                        val target = item.channelTitle ?: item.query
+                                                        updateSearchInput(target)
+                                                        executeSearch(target)
+                                                    }
                                                 }
                                                 .padding(horizontal = 10.dp, vertical = 8.dp),
                                             verticalAlignment = Alignment.CenterVertically

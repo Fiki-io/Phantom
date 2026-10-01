@@ -9,6 +9,8 @@ object SuggestionParser {
         return parseDetailedSuggestions(jsonString).map { it.query }
     }
 
+    private val ucRegex = Regex("UC[a-zA-Z0-9_-]{22}")
+
     fun parseDetailedSuggestions(jsonString: String): List<SuggestionItem> {
         val suggestions = mutableListOf<SuggestionItem>()
         try {
@@ -44,10 +46,30 @@ object SuggestionParser {
                                     val possibleId = obj.optString("zav")
                                     if (possibleId.isNotBlank() && possibleId.startsWith("UC")) {
                                         chId = possibleId
-                                        chTitle = obj.optString("zao").ifBlank { text }
-                                        chHandle = obj.optString("zaf")
-                                        val rawAvatar = obj.optString("zai")
+                                    } else {
+                                        val zaq = obj.optString("zaq")
+                                        val match = ucRegex.find(zaq)
+                                        if (match != null) {
+                                            chId = match.value
+                                        }
+                                    }
+
+                                    val title = obj.optString("zao")
+                                    if (title.isNotBlank()) {
+                                        chTitle = title
+                                    }
+
+                                    val handle = obj.optString("zaf")
+                                    if (handle.isNotBlank()) {
+                                        chHandle = handle
+                                    }
+
+                                    val rawAvatar = obj.optString("zai")
+                                    if (rawAvatar.isNotBlank()) {
                                         chAvatar = if (rawAvatar.startsWith("//")) "https:$rawAvatar" else rawAvatar
+                                    }
+
+                                    if (!chAvatar.isNullOrBlank() || !chId.isNullOrBlank()) {
                                         break
                                     }
                                 }
@@ -57,7 +79,7 @@ object SuggestionParser {
                                 SuggestionItem(
                                     query = text,
                                     channelId = chId,
-                                    channelTitle = chTitle,
+                                    channelTitle = chTitle ?: text,
                                     channelHandle = chHandle,
                                     channelAvatarUrl = chAvatar
                                 )
