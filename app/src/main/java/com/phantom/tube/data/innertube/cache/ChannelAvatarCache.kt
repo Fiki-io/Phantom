@@ -69,8 +69,9 @@ object ChannelAvatarCache {
             val avatar = InnerTubeHelpers.normalizeUrl(profile?.avatarUrl)
             if (avatar.isNotBlank()) {
                 put(channelId, channelTitle, avatar)
-                if (!profile?.title.isNullOrBlank()) {
-                    put(channelId, profile.title, avatar)
+                val profTitle = profile?.title
+                if (!profTitle.isNullOrBlank()) {
+                    put(channelId, profTitle, avatar)
                 }
                 return@withContext avatar
             }
