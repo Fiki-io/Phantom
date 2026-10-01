@@ -569,11 +569,11 @@ fun SearchScreen(
                     ) {
                         // 1. YouTube-style Channel Card at top of search results
                         if (searchChannels.isNotEmpty()) {
-                            items(
-                                items = searchChannels,
-                                key = { "search_ch_${it.id}" },
-                                contentType = { "channel_card" }
-                            ) { channel ->
+                            itemsIndexed(
+                                items = searchChannels.distinctBy { it.id },
+                                key = { index, ch -> "search_ch_${ch.id}_$index" },
+                                contentType = { _, _ -> "channel_card" }
+                            ) { _, channel ->
                                 SearchChannelCard(
                                     channel = channel,
                                     repository = repository,

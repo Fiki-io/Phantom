@@ -650,9 +650,9 @@ fun ChannelScreen(
                                     // TAB "BERANDA" (Photo 1 & Photo 3)
                                     val featured = chan?.featuredVideo ?: chan?.homeVideos?.firstOrNull() ?: videoTabVideos.firstOrNull()
                                     val homeList = if (chan?.homeVideos?.isNotEmpty() == true) {
-                                        chan.homeVideos.filter { it.id != featured?.id }
+                                        chan.homeVideos.filter { it.id != featured?.id }.distinctBy { it.id }
                                     } else {
-                                        videoTabVideos.filter { it.id != featured?.id }
+                                        videoTabVideos.filter { it.id != featured?.id }.distinctBy { it.id }
                                     }
 
                                     LazyColumn(
@@ -694,7 +694,7 @@ fun ChannelScreen(
                                                 )
                                             }
 
-                                            items(homeList, key = { "home_vid_${it.id}" }) { video ->
+                                            itemsIndexed(homeList, key = { index, video -> "home_vid_${video.id}_$index" }) { _, video ->
                                                 ChannelVideoHorizontalItem(
                                                     video = video,
                                                     onClick = { onVideoClick(video) }
@@ -751,7 +751,7 @@ fun ChannelScreen(
                                         }
 
                                         // Video List (Horizontal Items exactly matching Photo 2)
-                                        items(videoTabVideos, key = { it.id }) { video ->
+                                        itemsIndexed(videoTabVideos, key = { index, video -> "channel_vid_${video.id}_$index" }) { _, video ->
                                             ChannelVideoHorizontalItem(
                                                 video = video,
                                                 onClick = { onVideoClick(video) }

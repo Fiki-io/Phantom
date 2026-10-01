@@ -307,8 +307,8 @@ object ChannelParser {
                 externalLinksText = externalLinksText,
                 isVerified = isVerified,
                 featuredVideo = featuredVideo,
-                homeVideos = homeVideos,
-                videos = videos,
+                homeVideos = homeVideos.distinctBy { it.id },
+                videos = videos.distinctBy { it.id },
                 continuationToken = continuationToken,
                 videoTabParams = videoTabParams,
                 sortChips = sortChips
@@ -353,6 +353,6 @@ object ChannelParser {
         } catch (e: Exception) {
             e.printStackTrace()
         }
-        return FeedResult(videos = items, continuationToken = nextContinuationToken)
+        return FeedResult(videos = items.distinctBy { it.id }, continuationToken = nextContinuationToken)
     }
 }

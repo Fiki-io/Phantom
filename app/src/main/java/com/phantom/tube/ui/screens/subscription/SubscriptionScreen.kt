@@ -269,7 +269,7 @@ fun SubscriptionScreen(
                         }
                     }
                 } else {
-                    itemsIndexed(feedVideos, key = { _, v -> v.id }) { _, video ->
+                    itemsIndexed(feedVideos, key = { index, v -> "sub_vid_${v.id}_$index" }) { _, video ->
                         Box(modifier = Modifier.padding(horizontal = 16.dp)) {
                             PhantomVideoCard(
                                 video = video,
