@@ -31,6 +31,7 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutLinearInEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
@@ -895,8 +896,25 @@ fun PlayerScreen(
         }
     }
 
+    val density = LocalDensity.current
+    val screenHeightPx = with(density) { configuration.screenHeightDp.dp.toPx() }
+
+    val fullSheetProgress = remember { Animatable(0f) }
+
     LaunchedEffect(isMinimized) {
-        dragOffsetY = 0f
+        if (!isMinimized) {
+            fullSheetProgress.snapTo(0f)
+            try {
+                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+            } catch (_: Exception) {}
+            fullSheetProgress.animateTo(
+                targetValue = 1f,
+                animationSpec = IosSpringSpecs.Gentle
+            )
+        } else {
+            fullSheetProgress.snapTo(0f)
+            dragOffsetY = 0f
+        }
     }
 
     val lazyListState = rememberLazyListState()
@@ -921,8 +939,7 @@ fun PlayerScreen(
                         }
                     } else {
                         // Tarik ke bawah di mode portrait untuk memperkecil ke miniplayer
-                        if (dragOffsetY > 220f) {
-                            dragOffsetY = 0f
+                        if (dragOffsetY > 200f) {
                             onMinimize()
                         } else {
                             dragOffsetY = 0f
@@ -1010,11 +1027,15 @@ fun PlayerScreen(
             }
     }
 
+    val sheetOffsetY = if (isFullscreen) 0f else (1f - fullSheetProgress.value) * screenHeightPx
+    val totalOffsetY = sheetOffsetY + animatedDragOffset
     val dragProgress = (animatedDragOffset / 220f).coerceIn(0f, 1f)
+    val openCornerRadius = ((1f - fullSheetProgress.value) * 24f + dragProgress * 20f).dp.coerceAtLeast(0.dp)
+
     val backdropScrimAlpha = if (isFullscreen) {
         (1f - (animatedDragOffset / 120f)).coerceIn(0f, 0.95f)
     } else {
-        (1f - dragProgress).coerceIn(0f, 1f)
+        (fullSheetProgress.value * (1f - dragProgress) * 0.75f).coerceIn(0f, 0.75f)
     }
 
     Box(
@@ -1030,8 +1051,78 @@ fun PlayerScreen(
                 }
         }
     ) {
+        // -1. SOLID SHEET BACKGROUND (Surfaces smoothly upwards under the player and content)
+        if (!isMinimized && !isFullscreen) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer {
+                        translationY = totalOffsetY
+                        shape = RoundedCornerShape(topStart = openCornerRadius, topEnd = openCornerRadius)
+                        clip = openCornerRadius > 0.dp
+                    }
+                    .background(ObsidianDark)
+            )
+        }
+
+        // 0. AMBIENT MODE CINEMATIC GLOW (Eye Comfort & Atmosphere)
+        if (!isMinimized && !isFullscreen) {
+            val ambientAlpha = (fullSheetProgress.value * (1f - dragProgress) * 0.90f).coerceIn(0f, 1f)
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(390.dp)
+                    .statusBarsPadding()
+                    .graphicsLayer {
+                        translationY = totalOffsetY
+                        alpha = ambientAlpha
+                    }
+                    .align(Alignment.TopCenter)
+            ) {
+                if (video.thumbnailUrl.isNotBlank()) {
+                    AsyncImage(
+                        model = video.thumbnailUrl,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .graphicsLayer {
+                                alpha = 0.22f
+                            }
+                    )
+                }
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            Brush.radialGradient(
+                                colors = listOf(
+                                    Color(0x44FF0033),
+                                    Color(0x223EA6FF),
+                                    Color.Transparent
+                                ),
+                                radius = 750f
+                            )
+                        )
+                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            Brush.verticalGradient(
+                                listOf(
+                                    Color.Transparent,
+                                    ObsidianDark.copy(alpha = 0.25f),
+                                    ObsidianDark.copy(alpha = 0.75f),
+                                    ObsidianDark
+                                )
+                            )
+                        )
+                )
+            }
+        }
+
         // 1. THE SINGLE PERSISTENT VIDEO PLAYER BOX (Always at exact same tree slot)
-        val videoCorners = (dragProgress * 16f).dp
         val videoBoxModifier = when {
             isMinimized -> Modifier
                 .size(1.dp)
@@ -1054,17 +1145,15 @@ fun PlayerScreen(
             }
             else -> Modifier
                 .fillMaxWidth()
-                .offset { IntOffset(0, animatedDragOffset.roundToInt()) }
+                .graphicsLayer {
+                    translationY = totalOffsetY
+                    shape = RoundedCornerShape(openCornerRadius)
+                    clip = openCornerRadius > 0.dp
+                    shadowElevation = if (openCornerRadius > 0.dp) 18f else 0f
+                }
                 .statusBarsPadding()
                 .aspectRatio(16f / 9f)
                 .align(Alignment.TopCenter)
-                .clip(RoundedCornerShape(videoCorners))
-                .shadow(
-                    elevation = (dragProgress * 14f).dp,
-                    shape = RoundedCornerShape(videoCorners),
-                    ambientColor = Color(0x66FF0033),
-                    spotColor = Color(0x99000000)
-                )
         }
 
         Box(
@@ -1370,7 +1459,7 @@ fun PlayerScreen(
                                         color = if (isCaptionsEnabled && hasCaptions) YouTubeRed else Color.White.copy(alpha = 0.2f),
                                         shape = RoundedCornerShape(10.dp)
                                     )
-                                    .clickable {
+                                    .iosBounceClick(scaleDown = 0.90f) {
                                         if (!hasCaptions) {
                                             showNotice("Video ini tidak menyediakan teks")
                                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -1503,7 +1592,7 @@ fun PlayerScreen(
                                         color = if (isZoomToFill) Color.White else Color.White.copy(alpha = 0.2f),
                                         shape = RoundedCornerShape(10.dp)
                                     )
-                                    .clickable {
+                                    .iosBounceClick(scaleDown = 0.90f) {
                                         isZoomToFill = !isZoomToFill
                                         showNotice(if (isZoomToFill) "Di-zoom untuk memenuhi" else "Asli")
                                         haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
@@ -1523,7 +1612,7 @@ fun PlayerScreen(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(14.dp))
                                     .background(Color(0xFF272727))
-                                    .clickable {
+                                    .iosBounceClick(scaleDown = 0.90f) {
                                         val nextSpeed = when (playerState.playbackSpeed) {
                                             1.0f -> 1.5f
                                             1.5f -> 2.0f
@@ -1764,11 +1853,11 @@ fun PlayerScreen(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .offset { IntOffset(0, animatedDragOffset.roundToInt()) }
-                    .statusBarsPadding()
                     .graphicsLayer {
+                        translationY = totalOffsetY
                         alpha = contentAlpha
                     }
+                    .statusBarsPadding()
                     .zIndex(1f)
             ) {
                 // Spacer reserving the height of the top 16:9 Video Player Box
@@ -1783,13 +1872,22 @@ fun PlayerScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .then(dragModifier)
-                        .padding(top = 4.dp, bottom = 2.dp),
+                        .padding(top = 6.dp, bottom = 4.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(width = 38.dp, height = 4.dp)
-                            .background(TextMuted.copy(alpha = 0.35f), RoundedCornerShape(2.dp))
+                            .size(width = 44.dp, height = 4.5.dp)
+                            .background(
+                                Brush.horizontalGradient(
+                                    listOf(
+                                        Color.White.copy(alpha = 0.15f),
+                                        Color.White.copy(alpha = 0.35f),
+                                        Color.White.copy(alpha = 0.15f)
+                                    )
+                                ),
+                                RoundedCornerShape(3.dp)
+                            )
                     )
                 }
 
@@ -1876,17 +1974,13 @@ fun PlayerScreen(
                                 verticalAlignment = Alignment.CenterVertically,
                                 modifier = Modifier
                                     .weight(1f)
-                                    .clickable(
-                                        interactionSource = remember { MutableInteractionSource() },
-                                        indication = null,
-                                        onClick = {
-                                            val tId = targetChannelId.ifBlank { targetChannelTitle }
-                                            if (tId.isNotBlank()) {
-                                                onMinimize()
-                                                onChannelClick?.invoke(tId, targetChannelTitle)
-                                            }
+                                    .iosBounceClick(scaleDown = 0.96f) {
+                                        val tId = targetChannelId.ifBlank { targetChannelTitle }
+                                        if (tId.isNotBlank()) {
+                                            onMinimize()
+                                            onChannelClick?.invoke(tId, targetChannelTitle)
                                         }
-                                    )
+                                    }
                             ) {
                                 // Channel Avatar
                                 val currentAvatar = nextQueueData?.currentVideo?.channelAvatarUrl?.ifBlank { activeAvatarUrl } ?: activeAvatarUrl
@@ -1994,6 +2088,7 @@ fun PlayerScreen(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(20.dp))
                                     .background(Color(0xFF272727))
+                                    .iosBounceClick(scaleDown = 0.94f) {}
                                     .padding(horizontal = 12.dp, vertical = 7.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
@@ -2261,8 +2356,8 @@ fun PlayerScreen(
                 },
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
-                    .offset { IntOffset(0, animatedDragOffset.roundToInt()) }
                     .graphicsLayer {
+                        translationY = totalOffsetY
                         alpha = (1f - (animatedDragOffset / 90f) * 1.5f).coerceIn(0f, 1f)
                     }
                     .zIndex(4f)
@@ -2292,12 +2387,12 @@ fun PlayerScreen(
             visible = isMinimized,
             enter = slideInVertically(
                 initialOffsetY = { it },
-                animationSpec = spring(stiffness = Spring.StiffnessMediumLow)
-            ) + fadeIn(),
+                animationSpec = IosSpringSpecs.Gentle
+            ) + fadeIn(animationSpec = tween(220)),
             exit = slideOutVertically(
                 targetOffsetY = { it },
-                animationSpec = spring(stiffness = Spring.StiffnessMediumLow)
-            ) + fadeOut(),
+                animationSpec = IosSpringSpecs.Gentle
+            ) + fadeOut(animationSpec = tween(180)),
             modifier = Modifier
                 .fillMaxWidth()
                 .align(Alignment.BottomCenter)
