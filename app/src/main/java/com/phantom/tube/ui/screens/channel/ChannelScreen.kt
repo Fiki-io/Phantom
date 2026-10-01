@@ -3,7 +3,6 @@ package com.phantom.tube.ui.screens.channel
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -77,7 +76,7 @@ import com.phantom.tube.core.theme.TextMuted
 import com.phantom.tube.core.theme.TextPrimary
 import com.phantom.tube.core.theme.TextSecondary
 import com.phantom.tube.core.theme.YouTubeRed
-import com.phantom.tube.data.innertube.model.ChannelProfile
+import com.phantom.tube.data.model.ChannelProfile
 import com.phantom.tube.data.innertube.parser.InnerTubeHelpers
 import com.phantom.tube.data.model.ChannelSortChip
 import com.phantom.tube.data.model.VideoItem
@@ -88,7 +87,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChannelScreen(
     channelId: String,
@@ -311,6 +310,19 @@ fun ChannelScreen(
                 }
             } else {
                 val chan = profile
+                val featured = chan?.featuredVideo ?: chan?.homeVideos?.firstOrNull() ?: videoTabVideos.firstOrNull()
+                val homeList = remember(chan?.homeVideos, videoTabVideos, featured?.id) {
+                    val combined = mutableListOf<VideoItem>()
+                    if (chan?.homeVideos?.isNotEmpty() == true) {
+                        combined.addAll(chan.homeVideos)
+                    }
+                    if (videoTabVideos.isNotEmpty()) {
+                        val existingIds = combined.map { it.id }.toSet()
+                        combined.addAll(videoTabVideos.filter { it.id !in existingIds })
+                    }
+                    combined.filter { it.id != featured?.id }.distinctBy { it.id }
+                }
+
                 LazyColumn(
                     state = listState,
                     modifier = Modifier
@@ -537,8 +549,8 @@ fun ChannelScreen(
                         }
                     }
 
-                    // 3. TAB ROW (Sticky Header pinned seamlessly to top when scrolled)
-                    stickyHeader(key = "channel_tab_row") {
+                    // 3. TAB ROW (Beranda, Video)
+                    item(key = "channel_tab_row") {
                         ScrollableTabRow(
                             selectedTabIndex = selectedTabIndex,
                             containerColor = ObsidianDark,
@@ -650,7 +662,6 @@ fun ChannelScreen(
                         }
                     } else {
                         // TAB "BERANDA" (Photo 1 & Photo 3)
-                        val featured = chan?.featuredVideo ?: chan?.homeVideos?.firstOrNull() ?: videoTabVideos.firstOrNull()
                         if (featured != null) {
                             // "Untuk Anda" Section
                             item(key = "for_you_header") {
@@ -672,18 +683,6 @@ fun ChannelScreen(
                                     )
                                 }
                             }
-                        }
-
-                        val homeList = remember(chan?.homeVideos, videoTabVideos, featured?.id) {
-                            val combined = mutableListOf<VideoItem>()
-                            if (chan?.homeVideos?.isNotEmpty() == true) {
-                                combined.addAll(chan.homeVideos)
-                            }
-                            if (videoTabVideos.isNotEmpty()) {
-                                val existingIds = combined.map { it.id }.toSet()
-                                combined.addAll(videoTabVideos.filter { it.id !in existingIds })
-                            }
-                            combined.filter { it.id != featured?.id }.distinctBy { it.id }
                         }
 
                         if (homeList.isNotEmpty()) {
