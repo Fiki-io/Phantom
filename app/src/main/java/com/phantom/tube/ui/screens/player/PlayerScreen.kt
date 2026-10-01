@@ -2387,11 +2387,11 @@ fun PlayerScreen(
             visible = isMinimized,
             enter = slideInVertically(
                 initialOffsetY = { it },
-                animationSpec = IosSpringSpecs.Gentle
+                animationSpec = IosSpringSpecs.GentleOffset
             ) + fadeIn(animationSpec = tween(220)),
             exit = slideOutVertically(
                 targetOffsetY = { it },
-                animationSpec = IosSpringSpecs.Gentle
+                animationSpec = IosSpringSpecs.GentleOffset
             ) + fadeOut(animationSpec = tween(180)),
             modifier = Modifier
                 .fillMaxWidth()

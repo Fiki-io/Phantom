@@ -15,6 +15,8 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 
+import androidx.compose.ui.unit.IntOffset
+
 /**
  * Spesifikasi fisika pegas (Spring Physics) khas iOS untuk fluid micro-interactions.
  */
@@ -25,8 +27,14 @@ object IosSpringSpecs {
         stiffness = 380f
     )
 
-    // Pegas halus untuk sliding tab, sheets, dan transisi layar
+    // Pegas halus untuk sliding tab, sheets, dan transisi layar (Float)
     val Gentle = spring<Float>(
+        dampingRatio = 0.82f,
+        stiffness = 320f
+    )
+
+    // Pegas halus untuk transisi offset/posisi (IntOffset)
+    val GentleOffset = spring<IntOffset>(
         dampingRatio = 0.82f,
         stiffness = 320f
     )
