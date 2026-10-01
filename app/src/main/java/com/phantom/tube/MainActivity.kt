@@ -276,6 +276,7 @@ class MainActivity : ComponentActivity() {
                             video = activeVideo!!,
                             repository = repository,
                             isMinimized = isPlayerMinimized,
+                            isBottomNavVisible = (activeChannelId == null && !isSettingsOpen),
                             onMinimize = {
                                 isPlayerMinimized = true
                             },

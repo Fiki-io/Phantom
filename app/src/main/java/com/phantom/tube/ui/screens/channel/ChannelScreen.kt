@@ -3,6 +3,8 @@ package com.phantom.tube.ui.screens.channel
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -38,6 +40,7 @@ import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.NotificationsActive
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -66,9 +69,11 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import coil.compose.AsyncImage
 import com.phantom.tube.core.database.SubscriptionEntity
 import com.phantom.tube.core.theme.ObsidianDark
@@ -81,6 +86,7 @@ import com.phantom.tube.data.innertube.parser.InnerTubeHelpers
 import com.phantom.tube.data.model.ChannelSortChip
 import com.phantom.tube.data.model.VideoItem
 import com.phantom.tube.data.repository.PhantomRepository
+import com.phantom.tube.ui.components.ChannelScreenSkeleton
 import com.phantom.tube.ui.components.PhantomIconButton
 import com.phantom.tube.ui.components.PhantomVideoCard
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -101,6 +107,8 @@ fun ChannelScreen(
     val scope = rememberCoroutineScope()
     var profile by remember { mutableStateOf<ChannelProfile?>(null) }
     var isLoading by remember { mutableStateOf(true) }
+    var isRefreshing by remember { mutableStateOf(false) }
+    var hasError by remember { mutableStateOf(false) }
     var selectedTabIndex by remember { mutableIntStateOf(0) }
     val tabs = listOf("Beranda", "Video")
 
@@ -117,69 +125,90 @@ fun ChannelScreen(
     val isSubscribed by repository.isSubscribed(channelId).collectAsState(initial = false)
 
     // Load channel data
-    fun loadChannelData(sortToken: String? = null) {
+    fun loadChannelData(sortToken: String? = null, isRefresh: Boolean = false) {
         scope.launch {
             if (sortToken != null) {
                 isLoadingMoreVideos = true
-                val contResult = repository.getChannelVideosContinuation(sortToken)
-                val chTitle = profile?.title ?: initialChannelTitle
-                val chAvatar = profile?.avatarUrl ?: ""
-                videoTabVideos = contResult.videos.map {
-                    it.copy(
-                        channelTitle = if (it.channelTitle.isNotBlank()) it.channelTitle else chTitle,
-                        channelAvatarUrl = if (it.channelAvatarUrl.isNotBlank()) it.channelAvatarUrl else chAvatar,
-                        channelId = if (it.channelId.isNotBlank()) it.channelId else channelId
-                    )
-                }
-                videoContinuationToken = contResult.continuationToken
-                isLoadingMoreVideos = false
-            } else {
-                isLoading = true
-                val res = repository.getChannel(channelId)
-                if (res != null) {
-                    profile = res
-                    sortChips = if (res.sortChips.isNotEmpty()) {
-                        res.sortChips
-                    } else {
-                        listOf(
-                            ChannelSortChip("Terbaru", "", isSelected = true),
-                            ChannelSortChip("Populer", ""),
-                            ChannelSortChip("Terlama", "")
+                try {
+                    val contResult = repository.getChannelVideosContinuation(sortToken)
+                    val chTitle = profile?.title ?: initialChannelTitle
+                    val chAvatar = profile?.avatarUrl ?: ""
+                    videoTabVideos = contResult.videos.map {
+                        it.copy(
+                            channelTitle = if (it.channelTitle.isNotBlank()) it.channelTitle else chTitle,
+                            channelAvatarUrl = if (it.channelAvatarUrl.isNotBlank()) it.channelAvatarUrl else chAvatar,
+                            channelId = if (it.channelId.isNotBlank()) it.channelId else channelId
                         )
                     }
+                    videoContinuationToken = contResult.continuationToken
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                } finally {
+                    isLoadingMoreVideos = false
+                }
+            } else {
+                if (isRefresh) {
+                    isRefreshing = true
+                } else if (profile == null) {
+                    isLoading = true
+                }
+                hasError = false
+                try {
+                    val res = repository.getChannel(channelId)
+                    if (res != null) {
+                        profile = res
+                        sortChips = if (res.sortChips.isNotEmpty()) {
+                            res.sortChips
+                        } else {
+                            listOf(
+                                ChannelSortChip("Terbaru", "", isSelected = true),
+                                ChannelSortChip("Populer", ""),
+                                ChannelSortChip("Terlama", "")
+                            )
+                        }
 
-                    // If videos were in main profile response, populate them
-                    if (res.videos.isNotEmpty()) {
-                        videoTabVideos = res.videos
-                        videoContinuationToken = res.continuationToken
-                    }
-                    if (!res.videoTabParams.isNullOrBlank()) {
-                        // Load video tab specifically so full catalog is always available for Beranda and Video tabs
-                        val vTabRes = repository.getChannel(channelId, params = res.videoTabParams)
-                        if (vTabRes != null && vTabRes.videos.isNotEmpty()) {
-                            val chTitle = res.title.ifBlank { initialChannelTitle }
-                            val chAvatar = res.avatarUrl
-                            val mapped = vTabRes.videos.map {
-                                it.copy(
-                                    channelTitle = if (it.channelTitle.isNotBlank()) it.channelTitle else chTitle,
-                                    channelAvatarUrl = if (it.channelAvatarUrl.isNotBlank()) it.channelAvatarUrl else chAvatar,
-                                    channelId = if (it.channelId.isNotBlank()) it.channelId else channelId
-                                )
-                            }
-                            if (videoTabVideos.isEmpty()) {
-                                videoTabVideos = mapped
-                                videoContinuationToken = vTabRes.continuationToken
-                            } else {
-                                val currentIds = videoTabVideos.map { it.id }.toSet()
-                                videoTabVideos = videoTabVideos + mapped.filter { it.id !in currentIds }
-                            }
-                            if (vTabRes.sortChips.isNotEmpty()) {
-                                sortChips = vTabRes.sortChips
+                        // If videos were in main profile response, populate them
+                        if (res.videos.isNotEmpty()) {
+                            videoTabVideos = res.videos
+                            videoContinuationToken = res.continuationToken
+                        }
+                        if (!res.videoTabParams.isNullOrBlank()) {
+                            // Load video tab specifically so full catalog is always available for Beranda and Video tabs
+                            val vTabRes = repository.getChannel(channelId, params = res.videoTabParams)
+                            if (vTabRes != null && vTabRes.videos.isNotEmpty()) {
+                                val chTitle = res.title.ifBlank { initialChannelTitle }
+                                val chAvatar = res.avatarUrl
+                                val mapped = vTabRes.videos.map {
+                                    it.copy(
+                                        channelTitle = if (it.channelTitle.isNotBlank()) it.channelTitle else chTitle,
+                                        channelAvatarUrl = if (it.channelAvatarUrl.isNotBlank()) it.channelAvatarUrl else chAvatar,
+                                        channelId = if (it.channelId.isNotBlank()) it.channelId else channelId
+                                    )
+                                }
+                                if (videoTabVideos.isEmpty()) {
+                                    videoTabVideos = mapped
+                                    videoContinuationToken = vTabRes.continuationToken
+                                } else {
+                                    val currentIds = videoTabVideos.map { it.id }.toSet()
+                                    videoTabVideos = videoTabVideos + mapped.filter { it.id !in currentIds }
+                                }
+                                if (vTabRes.sortChips.isNotEmpty()) {
+                                    sortChips = vTabRes.sortChips
+                                }
                             }
                         }
+                    } else if (profile == null) {
+                        hasError = true
                     }
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                    if (profile == null) {
+                        hasError = true
+                    }
+                } finally {
+                    isLoading = false
+                    isRefreshing = false
                 }
-                isLoading = false
             }
         }
     }
@@ -278,6 +307,14 @@ fun ChannelScreen(
                     modifier = Modifier.weight(1f)
                 )
 
+                IconButton(onClick = { loadChannelData(isRefresh = true) }) {
+                    Icon(
+                        imageVector = Icons.Default.Refresh,
+                        contentDescription = "Muat Ulang",
+                        tint = TextPrimary
+                    )
+                }
+
                 IconButton(onClick = onSearchClick) {
                     Icon(
                         imageVector = Icons.Default.Search,
@@ -295,427 +332,514 @@ fun ChannelScreen(
                 }
             }
 
-            if (isLoading && profile == null) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .weight(1f),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator(
-                        color = YouTubeRed,
-                        modifier = Modifier.size(36.dp),
-                        strokeWidth = 3.dp
-                    )
-                }
-            } else {
-                val chan = profile
-                val featured = chan?.featuredVideo ?: chan?.homeVideos?.firstOrNull() ?: videoTabVideos.firstOrNull()
-                val homeList = remember(chan?.homeVideos, videoTabVideos, featured?.id) {
-                    val combined = mutableListOf<VideoItem>()
-                    if (chan?.homeVideos?.isNotEmpty() == true) {
-                        combined.addAll(chan.homeVideos)
+            when {
+                isLoading && profile == null -> {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .weight(1f)
+                    ) {
+                        ChannelScreenSkeleton()
                     }
-                    if (videoTabVideos.isNotEmpty()) {
-                        val existingIds = combined.map { it.id }.toSet()
-                        combined.addAll(videoTabVideos.filter { it.id !in existingIds })
-                    }
-                    combined.filter { it.id != featured?.id }.distinctBy { it.id }
                 }
-
-                LazyColumn(
-                    state = listState,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .weight(1f),
-                    contentPadding = PaddingValues(bottom = 96.dp)
-                ) {
-                    // 1. BANNER
-                    item(key = "channel_banner") {
-                        if (chan?.bannerUrl?.isNotBlank() == true) {
-                            AsyncImage(
-                                model = chan.bannerUrl,
-                                contentDescription = "Banner ${chan.title}",
-                                contentScale = ContentScale.Crop,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .aspectRatio(16f / 5.5f)
-                                    .background(Color(0xFF1E1E1E))
+                hasError && profile == null -> {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .weight(1f),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier.padding(24.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Refresh,
+                                contentDescription = null,
+                                tint = TextSecondary,
+                                modifier = Modifier.size(48.dp)
                             )
-                        } else {
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text(
+                                text = "Gagal memuat channel",
+                                color = TextPrimary,
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(
+                                text = "Periksa koneksi internet Anda dan coba lagi",
+                                color = TextSecondary,
+                                fontSize = 13.sp,
+                                textAlign = TextAlign.Center
+                            )
+                            Spacer(modifier = Modifier.height(20.dp))
                             Box(
                                 modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(90.dp)
-                                    .background(
-                                        Brush.verticalGradient(
-                                            listOf(Color(0xFF282828), Color(0xFF141414))
-                                        )
-                                    )
-                            )
+                                    .clip(RoundedCornerShape(20.dp))
+                                    .background(Color.White)
+                                    .clickable { loadChannelData() }
+                                    .padding(horizontal = 24.dp, vertical = 10.dp)
+                            ) {
+                                Text(
+                                    text = "Coba Lagi",
+                                    color = Color.Black,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
                         }
                     }
+                }
+                else -> {
+                    val chan = profile
+                    val featured = chan?.featuredVideo ?: chan?.homeVideos?.firstOrNull() ?: videoTabVideos.firstOrNull()
+                    val homeList = remember(chan?.homeVideos, videoTabVideos, featured?.id) {
+                        val combined = mutableListOf<VideoItem>()
+                        if (chan?.homeVideos?.isNotEmpty() == true) {
+                            combined.addAll(chan.homeVideos)
+                        }
+                        if (videoTabVideos.isNotEmpty()) {
+                            val existingIds = combined.map { it.id }.toSet()
+                            combined.addAll(videoTabVideos.filter { it.id !in existingIds })
+                        }
+                        combined.filter { it.id != featured?.id }.distinctBy { it.id }
+                    }
 
-                    // 2. CHANNEL PROFILE INFO & HEADER (Exact match to Photo 3)
-                    item(key = "channel_profile_info") {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 14.dp)
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .weight(1f)
+                    ) {
+                        LazyColumn(
+                            state = listState,
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(bottom = 96.dp)
                         ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                // Large Circular Avatar
-                                AsyncImage(
-                                    model = chan?.avatarUrl,
-                                    contentDescription = chan?.title,
-                                    contentScale = ContentScale.Crop,
-                                    modifier = Modifier
-                                        .size(68.dp)
-                                        .clip(CircleShape)
-                                        .background(Color(0xFF222222))
-                                )
-
-                                Spacer(modifier = Modifier.width(16.dp))
-
-                                Column(modifier = Modifier.weight(1f)) {
-                                    // Title + Official Artist / Verified Badge
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Text(
-                                            text = chan?.title ?: initialChannelTitle,
-                                            color = TextPrimary,
-                                            fontSize = 20.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis
-                                        )
-
-                                        Spacer(modifier = Modifier.width(6.dp))
-
-                                        Icon(
-                                            imageVector = Icons.Default.MusicNote,
-                                            contentDescription = "Official Artist Channel",
-                                            tint = TextSecondary,
-                                            modifier = Modifier.size(17.dp)
-                                        )
-                                    }
-
-                                    Spacer(modifier = Modifier.height(3.dp))
-
-                                    // Handle
-                                    if (chan?.handle?.isNotBlank() == true) {
-                                        Text(
-                                            text = chan.handle,
-                                            color = TextSecondary,
-                                            fontSize = 12.sp,
-                                            fontWeight = FontWeight.Medium
-                                        )
-                                    }
-
-                                    // Subscribers & Videos count
-                                    val statsText = buildString {
-                                        if (chan?.subscriberCountText?.isNotBlank() == true) {
-                                            append(chan.subscriberCountText)
-                                        }
-                                        if (chan?.videoCountText?.isNotBlank() == true) {
-                                            if (isNotEmpty()) append(" • ")
-                                            append(chan.videoCountText)
-                                        }
-                                    }
-
-                                    if (statsText.isNotBlank()) {
-                                        Spacer(modifier = Modifier.height(2.dp))
-                                        Text(
-                                            text = statsText,
-                                            color = TextSecondary,
-                                            fontSize = 12.sp
-                                        )
-                                    }
+                            // 1. BANNER
+                            item(key = "channel_banner") {
+                                if (chan?.bannerUrl?.isNotBlank() == true) {
+                                    AsyncImage(
+                                        model = chan.bannerUrl,
+                                        contentDescription = "Banner ${chan.title}",
+                                        contentScale = ContentScale.Crop,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .aspectRatio(16f / 5.5f)
+                                            .background(Color(0xFF1E1E1E))
+                                    )
+                                } else {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(90.dp)
+                                            .background(
+                                                Brush.verticalGradient(
+                                                    listOf(Color(0xFF282828), Color(0xFF141414))
+                                                )
+                                            )
+                                    )
                                 }
                             }
 
-                            // Description Preview (Cp official ...selengkapnya)
-                            if (chan?.description?.isNotBlank() == true) {
-                                Spacer(modifier = Modifier.height(10.dp))
-                                Row(
+                            // 2. CHANNEL PROFILE INFO & HEADER (Exact match to Photo 3)
+                            item(key = "channel_profile_info") {
+                                Column(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .clickable(
-                                            interactionSource = remember { MutableInteractionSource() },
-                                            indication = null,
-                                            onClick = { showDescriptionSheet = true }
-                                        ),
-                                    verticalAlignment = Alignment.CenterVertically
+                                        .padding(horizontal = 16.dp, vertical = 14.dp)
                                 ) {
-                                    Text(
-                                        text = chan.description.trim().take(70),
-                                        color = TextSecondary,
-                                        fontSize = 12.sp,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis,
-                                        modifier = Modifier.weight(1f, fill = false)
-                                    )
-                                    Text(
-                                        text = " ...selengkapnya",
-                                        color = TextPrimary,
-                                        fontSize = 12.sp,
-                                        fontWeight = FontWeight.SemiBold
-                                    )
-                                }
-                            }
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        // Large Circular Avatar
+                                        AsyncImage(
+                                            model = chan?.avatarUrl,
+                                            contentDescription = chan?.title,
+                                            contentScale = ContentScale.Crop,
+                                            modifier = Modifier
+                                                .size(68.dp)
+                                                .clip(CircleShape)
+                                                .background(Color(0xFF222222))
+                                        )
 
-                            // External Links
-                            if (chan?.externalLinksText?.isNotBlank() == true) {
-                                Spacer(modifier = Modifier.height(6.dp))
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Link,
-                                        contentDescription = null,
-                                        tint = TextSecondary,
-                                        modifier = Modifier.size(14.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text(
-                                        text = chan.externalLinksText,
-                                        color = TextSecondary,
-                                        fontSize = 12.sp,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                }
-                            }
+                                        Spacer(modifier = Modifier.width(16.dp))
 
-                            Spacer(modifier = Modifier.height(14.dp))
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            // Title + Official Artist / Verified Badge
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Text(
+                                                    text = chan?.title ?: initialChannelTitle,
+                                                    color = TextPrimary,
+                                                    fontSize = 20.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
 
-                            // Big SUBSCRIBE Button (Exact Match to Photo 3)
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(40.dp)
-                                    .clip(RoundedCornerShape(20.dp))
-                                    .background(
-                                        if (isSubscribed) Color(0xFF272727) else Color.White
-                                    )
-                                    .clickable {
-                                        scope.launch {
-                                            if (isSubscribed) {
-                                                repository.unsubscribe(channelId)
-                                            } else {
-                                                repository.subscribe(
-                                                    SubscriptionEntity(
-                                                        channelId = channelId,
-                                                        channelTitle = chan?.title ?: initialChannelTitle,
-                                                        channelHandle = chan?.handle ?: "",
-                                                        channelAvatarUrl = chan?.avatarUrl ?: "",
-                                                        subscriberCountText = chan?.subscriberCountText ?: ""
-                                                    )
+                                                Spacer(modifier = Modifier.width(6.dp))
+
+                                                Icon(
+                                                    imageVector = Icons.Default.MusicNote,
+                                                    contentDescription = "Official Artist Channel",
+                                                    tint = TextSecondary,
+                                                    modifier = Modifier.size(17.dp)
+                                                )
+                                            }
+
+                                            Spacer(modifier = Modifier.height(3.dp))
+
+                                            // Handle
+                                            if (chan?.handle?.isNotBlank() == true) {
+                                                Text(
+                                                    text = chan.handle,
+                                                    color = TextSecondary,
+                                                    fontSize = 12.sp,
+                                                    fontWeight = FontWeight.Medium
+                                                )
+                                            }
+
+                                            // Subscribers & Videos count
+                                            val statsText = buildString {
+                                                if (chan?.subscriberCountText?.isNotBlank() == true) {
+                                                    append(chan.subscriberCountText)
+                                                }
+                                                if (chan?.videoCountText?.isNotBlank() == true) {
+                                                    if (isNotEmpty()) append(" • ")
+                                                    append(chan.videoCountText)
+                                                }
+                                            }
+
+                                            if (statsText.isNotBlank()) {
+                                                Spacer(modifier = Modifier.height(2.dp))
+                                                Text(
+                                                    text = statsText,
+                                                    color = TextSecondary,
+                                                    fontSize = 12.sp
                                                 )
                                             }
                                         }
-                                    },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    if (isSubscribed) {
-                                        Icon(
-                                            imageVector = Icons.Default.NotificationsActive,
-                                            contentDescription = null,
-                                            tint = Color.White,
-                                            modifier = Modifier.size(16.dp)
-                                        )
-                                        Spacer(modifier = Modifier.width(6.dp))
-                                        Text(
-                                            text = "Disubscribe",
-                                            color = Color.White,
-                                            fontSize = 14.sp,
-                                            fontWeight = FontWeight.SemiBold
-                                        )
-                                    } else {
-                                        Text(
-                                            text = "Subscribe",
-                                            color = Color.Black,
-                                            fontSize = 14.sp,
-                                            fontWeight = FontWeight.Bold
-                                        )
                                     }
-                                }
-                            }
-                        }
-                    }
 
-                    // 3. TAB ROW (Beranda, Video)
-                    item(key = "channel_tab_row") {
-                        ScrollableTabRow(
-                            selectedTabIndex = selectedTabIndex,
-                            containerColor = ObsidianDark,
-                            contentColor = TextPrimary,
-                            edgePadding = 16.dp,
-                            indicator = { tabPositions ->
-                                if (selectedTabIndex < tabPositions.size) {
+                                    // Description Preview (Cp official ...selengkapnya)
+                                    if (chan?.description?.isNotBlank() == true) {
+                                        Spacer(modifier = Modifier.height(10.dp))
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .clickable(
+                                                    interactionSource = remember { MutableInteractionSource() },
+                                                    indication = null,
+                                                    onClick = { showDescriptionSheet = true }
+                                                ),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(
+                                                text = chan.description.trim().take(70),
+                                                color = TextSecondary,
+                                                fontSize = 12.sp,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis,
+                                                modifier = Modifier.weight(1f, fill = false)
+                                            )
+                                            Text(
+                                                text = " ...selengkapnya",
+                                                color = TextPrimary,
+                                                fontSize = 12.sp,
+                                                fontWeight = FontWeight.SemiBold
+                                            )
+                                        }
+                                    }
+
+                                    // External Links
+                                    if (chan?.externalLinksText?.isNotBlank() == true) {
+                                        Spacer(modifier = Modifier.height(6.dp))
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Link,
+                                                contentDescription = null,
+                                                tint = TextSecondary,
+                                                modifier = Modifier.size(14.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Text(
+                                                text = chan.externalLinksText,
+                                                color = TextSecondary,
+                                                fontSize = 12.sp,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                        }
+                                    }
+
+                                    Spacer(modifier = Modifier.height(14.dp))
+
+                                    // Big SUBSCRIBE Button (Exact Match to Photo 3)
                                     Box(
                                         modifier = Modifier
-                                            .tabIndicatorOffset(tabPositions[selectedTabIndex])
                                             .fillMaxWidth()
-                                            .height(2.5.dp)
-                                            .clip(RoundedCornerShape(topStart = 2.dp, topEnd = 2.dp))
-                                            .background(Color.White)
-                                    )
-                                }
-                            },
-                            divider = {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(0.5.dp)
-                                        .background(Color(0x22FFFFFF))
-                                )
-                            }
-                        ) {
-                            tabs.forEachIndexed { index, title ->
-                                Tab(
-                                    selected = selectedTabIndex == index,
-                                    onClick = { selectedTabIndex = index },
-                                    text = {
-                                        Text(
-                                            text = title,
-                                            color = if (selectedTabIndex == index) TextPrimary else TextSecondary,
-                                            fontSize = 14.sp,
-                                            fontWeight = if (selectedTabIndex == index) FontWeight.Bold else FontWeight.Medium
-                                        )
-                                    }
-                                )
-                            }
-                        }
-                    }
-
-                    // 4. TAB CONTENTS
-                    if (selectedTabIndex == 1) {
-                        // TAB "VIDEO" (Photo 2)
-                        // Sort Chips: Terbaru, Populer, Terlama
-                        item(key = "video_sort_chips") {
-                            LazyRow(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 10.dp),
-                                contentPadding = PaddingValues(horizontal = 16.dp),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                items(sortChips) { chip ->
-                                    val isSelected = selectedSortChip == chip.title
-                                    Box(
-                                        modifier = Modifier
-                                            .clip(RoundedCornerShape(8.dp))
+                                            .height(40.dp)
+                                            .clip(RoundedCornerShape(20.dp))
                                             .background(
-                                                if (isSelected) Color.White else Color(0xFF272727)
+                                                if (isSubscribed) Color(0xFF272727) else Color.White
                                             )
                                             .clickable {
-                                                selectedSortChip = chip.title
-                                                if (chip.continuationToken.isNotBlank()) {
-                                                    loadChannelData(sortToken = chip.continuationToken)
-                                                    scope.launch {
-                                                        listState.animateScrollToItem(2)
+                                                scope.launch {
+                                                    if (isSubscribed) {
+                                                        repository.unsubscribe(channelId)
+                                                    } else {
+                                                        repository.subscribe(
+                                                            SubscriptionEntity(
+                                                                channelId = channelId,
+                                                                channelTitle = chan?.title ?: initialChannelTitle,
+                                                                channelHandle = chan?.handle ?: "",
+                                                                channelAvatarUrl = chan?.avatarUrl ?: "",
+                                                                subscriberCountText = chan?.subscriberCountText ?: ""
+                                                            )
+                                                        )
                                                     }
                                                 }
-                                            }
-                                            .padding(horizontal = 14.dp, vertical = 6.dp)
+                                            },
+                                        contentAlignment = Alignment.Center
                                     ) {
-                                        Text(
-                                            text = chip.title,
-                                            color = if (isSelected) Color.Black else TextPrimary,
-                                            fontSize = 13.sp,
-                                            fontWeight = FontWeight.Medium
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            if (isSubscribed) {
+                                                Icon(
+                                                    imageVector = Icons.Default.NotificationsActive,
+                                                    contentDescription = null,
+                                                    tint = Color.White,
+                                                    modifier = Modifier.size(16.dp)
+                                                )
+                                                Spacer(modifier = Modifier.width(6.dp))
+                                                Text(
+                                                    text = "Disubscribe",
+                                                    color = Color.White,
+                                                    fontSize = 14.sp,
+                                                    fontWeight = FontWeight.SemiBold
+                                                )
+                                            } else {
+                                                Text(
+                                                    text = "Subscribe",
+                                                    color = Color.Black,
+                                                    fontSize = 14.sp,
+                                                    fontWeight = FontWeight.Bold
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            // 3. TAB ROW (Beranda, Video)
+                            item(key = "channel_tab_row") {
+                                ScrollableTabRow(
+                                    selectedTabIndex = selectedTabIndex,
+                                    containerColor = ObsidianDark,
+                                    contentColor = TextPrimary,
+                                    edgePadding = 16.dp,
+                                    indicator = { tabPositions ->
+                                        if (selectedTabIndex < tabPositions.size) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .tabIndicatorOffset(tabPositions[selectedTabIndex])
+                                                    .fillMaxWidth()
+                                                    .height(2.5.dp)
+                                                    .clip(RoundedCornerShape(topStart = 2.dp, topEnd = 2.dp))
+                                                    .background(Color.White)
+                                            )
+                                        }
+                                    },
+                                    divider = {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .height(0.5.dp)
+                                                .background(Color(0x22FFFFFF))
                                         )
+                                    }
+                                ) {
+                                    tabs.forEachIndexed { index, title ->
+                                        Tab(
+                                            selected = selectedTabIndex == index,
+                                            onClick = { selectedTabIndex = index },
+                                            text = {
+                                                Text(
+                                                    text = title,
+                                                    color = if (selectedTabIndex == index) TextPrimary else TextSecondary,
+                                                    fontSize = 14.sp,
+                                                    fontWeight = if (selectedTabIndex == index) FontWeight.Bold else FontWeight.Medium
+                                                )
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+
+                            // 4. TAB CONTENTS
+                            if (selectedTabIndex == 1) {
+                                // TAB "VIDEO" (Photo 2)
+                                // Sort Chips: Terbaru, Populer, Terlama
+                                item(key = "video_sort_chips") {
+                                    LazyRow(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(vertical = 10.dp),
+                                        contentPadding = PaddingValues(horizontal = 16.dp),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        items(sortChips) { chip ->
+                                            val isSelected = selectedSortChip == chip.title
+                                            Box(
+                                                modifier = Modifier
+                                                    .clip(RoundedCornerShape(8.dp))
+                                                    .background(
+                                                        if (isSelected) Color.White else Color(0xFF272727)
+                                                    )
+                                                    .clickable {
+                                                        selectedSortChip = chip.title
+                                                        if (chip.continuationToken.isNotBlank()) {
+                                                            loadChannelData(sortToken = chip.continuationToken)
+                                                            scope.launch {
+                                                                listState.animateScrollToItem(2)
+                                                            }
+                                                        }
+                                                    }
+                                                    .padding(horizontal = 14.dp, vertical = 6.dp)
+                                            ) {
+                                                Text(
+                                                    text = chip.title,
+                                                    color = if (isSelected) Color.Black else TextPrimary,
+                                                    fontSize = 13.sp,
+                                                    fontWeight = FontWeight.Medium
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+
+                                // Video List (Horizontal Items exactly matching Photo 2)
+                                itemsIndexed(videoTabVideos, key = { index, video -> "channel_vid_${video.id}_$index" }) { _, video ->
+                                    ChannelVideoHorizontalItem(
+                                        video = video,
+                                        onClick = { onVideoClick(video) }
+                                    )
+                                }
+
+                                if (isLoadingMoreVideos) {
+                                    item(key = "loading_more_videos") {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(16.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            CircularProgressIndicator(
+                                                color = YouTubeRed,
+                                                modifier = Modifier.size(24.dp),
+                                                strokeWidth = 2.5.dp
+                                            )
+                                        }
+                                    }
+                                }
+                            } else {
+                                // TAB "BERANDA" (Photo 1 & Photo 3)
+                                if (featured != null) {
+                                    // "Untuk Anda" Section
+                                    item(key = "for_you_header") {
+                                        Text(
+                                            text = "Untuk Anda",
+                                            color = TextPrimary,
+                                            fontSize = 17.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
+                                        )
+                                    }
+
+                                    // Featured video (Full width card matching official YouTube UI)
+                                    item(key = "featured_for_you_video_${featured.id}") {
+                                        Box(modifier = Modifier.padding(horizontal = 16.dp)) {
+                                            PhantomVideoCard(
+                                                video = featured,
+                                                onClick = { onVideoClick(featured) }
+                                            )
+                                        }
+                                    }
+                                }
+
+                                if (homeList.isNotEmpty()) {
+                                    item(key = "recent_releases_header") {
+                                        Text(
+                                            text = "Video Terbaru",
+                                            color = TextPrimary,
+                                            fontSize = 17.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)
+                                        )
+                                    }
+
+                                    itemsIndexed(homeList, key = { index, video -> "home_vid_${video.id}_$index" }) { _, video ->
+                                        ChannelVideoHorizontalItem(
+                                            video = video,
+                                            onClick = { onVideoClick(video) }
+                                        )
+                                    }
+                                }
+
+                                if (isLoadingMoreVideos) {
+                                    item(key = "home_loading_more_videos") {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(16.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            CircularProgressIndicator(
+                                                color = YouTubeRed,
+                                                modifier = Modifier.size(24.dp),
+                                                strokeWidth = 2.5.dp
+                                            )
+                                        }
                                     }
                                 }
                             }
                         }
 
-                        // Video List (Horizontal Items exactly matching Photo 2)
-                        itemsIndexed(videoTabVideos, key = { index, video -> "channel_vid_${video.id}_$index" }) { _, video ->
-                            ChannelVideoHorizontalItem(
-                                video = video,
-                                onClick = { onVideoClick(video) }
-                            )
-                        }
-
-                        if (isLoadingMoreVideos) {
-                            item(key = "loading_more_videos") {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(16.dp),
-                                    contentAlignment = Alignment.Center
+                        // Floating animated refresh status pill
+                        AnimatedVisibility(
+                            visible = isRefreshing,
+                            enter = fadeIn() + slideInVertically(initialOffsetY = { -it }),
+                            exit = fadeOut() + slideOutVertically(targetOffsetY = { -it }),
+                            modifier = Modifier
+                                .align(Alignment.TopCenter)
+                                .padding(top = 10.dp)
+                                .zIndex(10f)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(20.dp))
+                                    .background(Color(0xE61E1E1E))
+                                    .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(20.dp))
+                                    .padding(horizontal = 14.dp, vertical = 7.dp)
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     CircularProgressIndicator(
                                         color = YouTubeRed,
-                                        modifier = Modifier.size(24.dp),
-                                        strokeWidth = 2.5.dp
+                                        modifier = Modifier.size(14.dp),
+                                        strokeWidth = 2.dp
                                     )
-                                }
-                            }
-                        }
-                    } else {
-                        // TAB "BERANDA" (Photo 1 & Photo 3)
-                        if (featured != null) {
-                            // "Untuk Anda" Section
-                            item(key = "for_you_header") {
-                                Text(
-                                    text = "Untuk Anda",
-                                    color = TextPrimary,
-                                    fontSize = 17.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
-                                )
-                            }
-
-                            // Featured video (Full width card matching official YouTube UI)
-                            item(key = "featured_for_you_video_${featured.id}") {
-                                Box(modifier = Modifier.padding(horizontal = 16.dp)) {
-                                    PhantomVideoCard(
-                                        video = featured,
-                                        onClick = { onVideoClick(featured) }
-                                    )
-                                }
-                            }
-                        }
-
-                        if (homeList.isNotEmpty()) {
-                            item(key = "recent_releases_header") {
-                                Text(
-                                    text = "Video Terbaru",
-                                    color = TextPrimary,
-                                    fontSize = 17.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)
-                                )
-                            }
-
-                            itemsIndexed(homeList, key = { index, video -> "home_vid_${video.id}_$index" }) { _, video ->
-                                ChannelVideoHorizontalItem(
-                                    video = video,
-                                    onClick = { onVideoClick(video) }
-                                )
-                            }
-                        }
-
-                        if (isLoadingMoreVideos) {
-                            item(key = "home_loading_more_videos") {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(16.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    CircularProgressIndicator(
-                                        color = YouTubeRed,
-                                        modifier = Modifier.size(24.dp),
-                                        strokeWidth = 2.5.dp
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = "Memperbarui channel...",
+                                        color = TextPrimary,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Medium
                                     )
                                 }
                             }

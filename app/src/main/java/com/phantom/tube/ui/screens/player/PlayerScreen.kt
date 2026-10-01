@@ -218,6 +218,7 @@ fun PlayerScreen(
     video: VideoItem,
     repository: PhantomRepository,
     isMinimized: Boolean = false,
+    isBottomNavVisible: Boolean = true,
     onMinimize: () -> Unit = {},
     onExpand: () -> Unit = {},
     onClose: () -> Unit = {},
@@ -2395,7 +2396,7 @@ fun PlayerScreen(
                 .fillMaxWidth()
                 .align(Alignment.BottomCenter)
                 .navigationBarsPadding()
-                .padding(bottom = 76.dp)
+                .padding(bottom = if (isBottomNavVisible) 76.dp else 12.dp)
                 .zIndex(20f)
         ) {
             PhantomMiniPlayer(

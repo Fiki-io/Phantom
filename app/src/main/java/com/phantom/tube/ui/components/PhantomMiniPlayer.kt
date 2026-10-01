@@ -1,9 +1,11 @@
 package com.phantom.tube.ui.components
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -25,12 +27,16 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
@@ -43,9 +49,11 @@ import com.phantom.tube.core.theme.TextSecondary
 import com.phantom.tube.core.theme.YouTubeRed
 import com.phantom.tube.core.theme.YouTubeSurface
 import com.phantom.tube.data.model.VideoItem
+import kotlinx.coroutines.launch
+import kotlin.math.abs
 
 /**
- * Bar miniplayer melayang di atas dock navigasi.
+ * Bar miniplayer melayang di atas dock navigasi dengan gesture swipe interaktif.
  */
 @Composable
 fun PhantomMiniPlayer(
@@ -59,23 +67,82 @@ fun PhantomMiniPlayer(
     onClose: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val coroutineScope = rememberCoroutineScope()
+    val offsetX = remember { Animatable(0f) }
+    val offsetY = remember { Animatable(0f) }
+
+    val dismissThresholdX = 160f
+    val dismissThresholdY = 80f
+
+    // Reset offset jika video berganti
+    LaunchedEffect(video.id) {
+        offsetX.snapTo(0f)
+        offsetY.snapTo(0f)
+    }
+
+    val currentAbsX = abs(offsetX.value)
+    val dismissAlpha = (1f - (currentAbsX / 360f) - (offsetY.value / 250f)).coerceIn(0.15f, 1f)
+
     Box(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 12.dp, vertical = 4.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .background(YouTubeSurface)
-            .border(1.dp, Color(0x24FFFFFF), RoundedCornerShape(12.dp))
-            .pointerInput(Unit) {
-                detectVerticalDragGestures(
-                    onVerticalDrag = { change, dragAmount ->
-                        if (dragAmount < -12f) {
+            .graphicsLayer {
+                translationX = offsetX.value
+                translationY = offsetY.value
+                alpha = dismissAlpha
+            }
+            .pointerInput(video.id) {
+                detectDragGestures(
+                    onDragStart = { },
+                    onDrag = { change, dragAmount ->
+                        if (dragAmount.y < -15f && offsetY.value <= 0f && abs(offsetX.value) < 30f) {
                             change.consume()
                             onExpand()
+                        } else {
+                            change.consume()
+                            coroutineScope.launch {
+                                offsetX.snapTo(offsetX.value + dragAmount.x)
+                                if (dragAmount.y > 0 || offsetY.value > 0) {
+                                    offsetY.snapTo((offsetY.value + dragAmount.y).coerceAtLeast(0f))
+                                }
+                            }
+                        }
+                    },
+                    onDragEnd = {
+                        coroutineScope.launch {
+                            when {
+                                abs(offsetX.value) > dismissThresholdX -> {
+                                    val targetX = if (offsetX.value > 0) 1000f else -1000f
+                                    offsetX.animateTo(targetX, tween(200))
+                                    onClose()
+                                }
+                                offsetY.value > dismissThresholdY -> {
+                                    offsetY.animateTo(600f, tween(200))
+                                    onClose()
+                                }
+                                else -> {
+                                    launch {
+                                        offsetX.animateTo(0f, IosSpringSpecs.Bouncy)
+                                    }
+                                    launch {
+                                        offsetY.animateTo(0f, IosSpringSpecs.Bouncy)
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    onDragCancel = {
+                        coroutineScope.launch {
+                            launch { offsetX.animateTo(0f, IosSpringSpecs.Bouncy) }
+                            launch { offsetY.animateTo(0f, IosSpringSpecs.Bouncy) }
                         }
                     }
                 )
             }
+            .clip(RoundedCornerShape(12.dp))
+            .background(YouTubeSurface)
+            .border(1.dp, Color(0x24FFFFFF), RoundedCornerShape(12.dp))
             .clickable(onClick = onExpand)
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
