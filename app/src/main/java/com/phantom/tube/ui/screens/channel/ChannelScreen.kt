@@ -165,20 +165,27 @@ fun ChannelScreen(
                     if (res.videos.isNotEmpty()) {
                         videoTabVideos = res.videos
                         videoContinuationToken = res.continuationToken
-                    } else if (!res.videoTabParams.isNullOrBlank()) {
-                        // Load video tab specifically
+                    }
+                    if (!res.videoTabParams.isNullOrBlank()) {
+                        // Load video tab specifically so full catalog is always available for Beranda and Video tabs
                         val vTabRes = repository.getChannel(channelId, params = res.videoTabParams)
                         if (vTabRes != null && vTabRes.videos.isNotEmpty()) {
                             val chTitle = res.title.ifBlank { initialChannelTitle }
                             val chAvatar = res.avatarUrl
-                            videoTabVideos = vTabRes.videos.map {
+                            val mapped = vTabRes.videos.map {
                                 it.copy(
                                     channelTitle = if (it.channelTitle.isNotBlank()) it.channelTitle else chTitle,
                                     channelAvatarUrl = if (it.channelAvatarUrl.isNotBlank()) it.channelAvatarUrl else chAvatar,
                                     channelId = if (it.channelId.isNotBlank()) it.channelId else channelId
                                 )
                             }
-                            videoContinuationToken = vTabRes.continuationToken
+                            if (videoTabVideos.isEmpty()) {
+                                videoTabVideos = mapped
+                                videoContinuationToken = vTabRes.continuationToken
+                            } else {
+                                val currentIds = videoTabVideos.map { it.id }.toSet()
+                                videoTabVideos = videoTabVideos + mapped.filter { it.id !in currentIds }
+                            }
                             if (vTabRes.sortChips.isNotEmpty()) {
                                 sortChips = vTabRes.sortChips
                             }
@@ -243,6 +250,15 @@ fun ChannelScreen(
                     headerOffsetPx = newOffset
                     return Offset(0f, consumed)
                 }
+                // When dragging down and active list is already at the top, immediately expand header
+                val activeList = if (pagerState.currentPage == 0) homeListState else videoListState
+                val isAtTop = activeList.firstVisibleItemIndex == 0 && activeList.firstVisibleItemScrollOffset == 0
+                if (delta > 0 && headerHeightPx > 0f && isAtTop && headerOffsetPx < 0f) {
+                    val newOffset = (headerOffsetPx + delta).coerceIn(-headerHeightPx, 0f)
+                    val consumed = newOffset - headerOffsetPx
+                    headerOffsetPx = newOffset
+                    return Offset(0f, consumed)
+                }
                 return Offset.Zero
             }
 
@@ -257,6 +273,23 @@ fun ChannelScreen(
                 return Offset.Zero
             }
         }
+    }
+
+    // Pagination for channel videos on scroll in Home (Beranda) tab
+    LaunchedEffect(homeListState, videoContinuationToken, isLoadingMoreVideos) {
+        snapshotFlow {
+            val layoutInfo = homeListState.layoutInfo
+            val total = layoutInfo.totalItemsCount
+            val last = layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
+            total > 0 && last >= total - 4
+        }
+            .distinctUntilChanged()
+            .filter { it }
+            .collect {
+                if (!videoContinuationToken.isNullOrBlank() && !isLoadingMoreVideos) {
+                    loadMoreVideos()
+                }
+            }
     }
 
     // Pagination for channel videos on scroll in Video tab
@@ -649,10 +682,16 @@ fun ChannelScreen(
                                 0 -> {
                                     // TAB "BERANDA" (Photo 1 & Photo 3)
                                     val featured = chan?.featuredVideo ?: chan?.homeVideos?.firstOrNull() ?: videoTabVideos.firstOrNull()
-                                    val homeList = if (chan?.homeVideos?.isNotEmpty() == true) {
-                                        chan.homeVideos.filter { it.id != featured?.id }.distinctBy { it.id }
-                                    } else {
-                                        videoTabVideos.filter { it.id != featured?.id }.distinctBy { it.id }
+                                    val homeList = remember(chan?.homeVideos, videoTabVideos, featured?.id) {
+                                        val combined = mutableListOf<VideoItem>()
+                                        if (chan?.homeVideos?.isNotEmpty() == true) {
+                                            combined.addAll(chan.homeVideos)
+                                        }
+                                        if (videoTabVideos.isNotEmpty()) {
+                                            val existingIds = combined.map { it.id }.toSet()
+                                            combined.addAll(videoTabVideos.filter { it.id !in existingIds })
+                                        }
+                                        combined.filter { it.id != featured?.id }.distinctBy { it.id }
                                     }
 
                                     LazyColumn(
@@ -699,6 +738,23 @@ fun ChannelScreen(
                                                     video = video,
                                                     onClick = { onVideoClick(video) }
                                                 )
+                                            }
+                                        }
+
+                                        if (isLoadingMoreVideos) {
+                                            item(key = "home_loading_more_videos") {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .padding(16.dp),
+                                                    contentAlignment = Alignment.Center
+                                                ) {
+                                                    CircularProgressIndicator(
+                                                        color = YouTubeRed,
+                                                        modifier = Modifier.size(24.dp),
+                                                        strokeWidth = 2.5.dp
+                                                    )
+                                                }
                                             }
                                         }
                                     }
