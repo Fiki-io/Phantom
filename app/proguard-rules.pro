@@ -28,9 +28,33 @@
 # Coroutines
 -dontwarn kotlinx.coroutines.**
 
-# 3. Obfuscation Hardening against AI & Decompilation
-# Flattens all internal classes into root package so architecture is hidden
+# 3. Obfuscation & Deep Bytecode Optimization
 -repackageclasses ''
 -allowaccessmodification
 -renamesourcefileattribute ''
-# Strip debug line numbers and filenames for smaller dex and maximum AI anti-decompilation
+-optimizationpasses 5
+-overloadaggressively
+
+# Strip debug line numbers, source file names, and unneeded attributes
+-dontkeepattributes SourceFile,LineNumberTable,EnclosingMethod,InnerClasses,Deprecated
+
+# Strip Kotlin metadata annotations (saves significant DEX bytecode size)
+-dontkeepclassmembers class * {
+    @kotlin.Metadata <fields>;
+}
+
+# Eliminate Kotlin null check assertions in release bytecode
+-assumenosideeffects class kotlin.jvm.internal.Intrinsics {
+    public static void checkNotNullParameter(...);
+    public static void checkNotNull(...);
+    public static void checkExpressionValueIsNotNull(...);
+    public static void checkNotNullExpressionValue(...);
+    public static void checkReturnedValueIsNotNull(...);
+    public static void checkFieldIsNotNull(...);
+    public static void throwNpe(...);
+    public static void throwJavaNpe(...);
+    public static void throwUninitializedPropertyAccessException(...);
+    public static void throwAssert(...);
+    public static void throwIllegalArgument(...);
+    public static void throwIllegalState(...);
+}

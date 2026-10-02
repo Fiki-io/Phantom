@@ -96,8 +96,12 @@ android {
                 "META-INF/DEPENDENCIES",
                 "META-INF/LICENSE*",
                 "META-INF/NOTICE*",
+                "META-INF/*.version",
+                "META-INF/INDEX.LIST",
+                "META-INF/*.txt",
                 "**/*.version",
-                "DebugProbesKt.bin"
+                "DebugProbesKt.bin",
+                "kotlin/**"
             )
         }
     }
@@ -149,8 +153,6 @@ dependencies {
 
     // Media & MediaSession
     implementation("androidx.media:media:1.7.0")
-    implementation("androidx.media3:media3-session:1.3.1")
-    implementation("androidx.media3:media3-common:1.3.1")
 
     // Testing
     testImplementation("junit:junit:4.13.2")
