@@ -1,6 +1,7 @@
 package com.phantom.tube.ui.components
 
 import android.app.Activity
+import com.phantom.tube.core.util.findActivity
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -72,7 +73,7 @@ fun UpdateDialog(
         if (isCancellable) {
             onDismiss()
         } else {
-            (context as? Activity)?.finishAffinity()
+            context.findActivity()?.finishAffinity()
         }
     }
 

@@ -117,7 +117,7 @@ fun HomeScreen(
                     repository.getFeedPage(query = categoryToQuery(category, contentCountry))
                 }
                 videos = result.videos
-                continuationToken = result.continuationToken
+                continuationToken = result.continuationToken ?: if (result.videos.isNotEmpty()) "feed_start" else null
                 hasError = result.videos.isEmpty()
                 if (isRefresh) {
                     listState.scrollToItem(0)
@@ -143,8 +143,10 @@ fun HomeScreen(
                     if (token.startsWith("history_") || token.startsWith("smart_")) {
                         val nextIdx = token.substringAfter("_").toIntOrNull() ?: 1
                         repository.getHomeRecommendations(historyIndex = nextIdx)
+                    } else if (token == "feed_start") {
+                        repository.getFeedPage(query = categoryToQuery("Semua", contentCountry))
                     } else {
-                        repository.getHomeRecommendations(continuation = token)
+                        repository.getFeedPage(continuation = token)
                     }
                 } else {
                     repository.getFeedPage(continuation = token)
@@ -155,7 +157,7 @@ fun HomeScreen(
                     val newVideos = result.videos.filterNot { v -> v.id in existingIds }
                     videos = videos + newVideos
                 }
-                continuationToken = result.continuationToken
+                continuationToken = result.continuationToken ?: if (result.videos.isNotEmpty()) "feed_start" else null
             } catch (e: Exception) {
                 e.printStackTrace()
             } finally {
@@ -168,21 +170,33 @@ fun HomeScreen(
         loadFeed(selectedCategory)
     }
 
-    // Automatic infinite scroll engine: monitors scroll state efficiently
-    LaunchedEffect(listState, continuationToken, isLoadingMore, isLoading, isRefreshing) {
+    // Automatic infinite scroll engine: monitors scroll state and triggers seamlessly
+    LaunchedEffect(listState) {
         snapshotFlow {
             val layoutInfo = listState.layoutInfo
             val total = layoutInfo.totalItemsCount
             val last = layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
-            total > 0 && last >= total - 3
+            total to last
         }
             .distinctUntilChanged()
-            .filter { it }
-            .collect {
-                if (continuationToken != null && !isLoadingMore && !isLoading && !isRefreshing) {
-                    loadMore()
+            .collect { (total, last) ->
+                if (total > 0 && last >= total - 4) {
+                    if (continuationToken != null && !isLoadingMore && !isLoading && !isRefreshing) {
+                        loadMore()
+                    }
                 }
             }
+    }
+
+    LaunchedEffect(continuationToken, isLoadingMore) {
+        if (!isLoadingMore && !isLoading && !isRefreshing && continuationToken != null) {
+            val layoutInfo = listState.layoutInfo
+            val total = layoutInfo.totalItemsCount
+            val last = layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
+            if (total > 0 && last >= total - 4) {
+                loadMore()
+            }
+        }
     }
 
     Column(

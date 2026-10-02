@@ -43,12 +43,23 @@ object FeedParser {
                     }
                 }
 
-                // Check videos and channels in itemSectionRenderer
+                // Check videos, channels, and continuation in itemSectionRenderer
                 val itemSection = sec.optJSONObject("itemSectionRenderer")
                 if (itemSection != null) {
                     val contentsArray = itemSection.optJSONArray("contents") ?: JSONArray()
                     for (j in 0 until contentsArray.length()) {
                         val rawItem = contentsArray.optJSONObject(j) ?: continue
+                        val cItem = rawItem.optJSONObject("continuationItemRenderer")
+                        if (cItem != null) {
+                            val token = cItem
+                                .optJSONObject("continuationEndpoint")
+                                ?.optJSONObject("continuationCommand")
+                                ?.optString("token")
+                            if (!token.isNullOrBlank()) {
+                                continuationToken = token
+                            }
+                            continue
+                        }
                         val ch = parseChannelItem(rawItem)
                         if (ch != null) {
                             channels.add(ch)
@@ -59,11 +70,28 @@ object FeedParser {
                 }
             }
 
+            // Fallback: check sectionListRenderer.continuations
+            if (continuationToken.isNullOrBlank()) {
+                val continuations = sectionList?.optJSONArray("continuations")
+                if (continuations != null) {
+                    for (ci in 0 until continuations.length()) {
+                        val cObj = continuations.optJSONObject(ci) ?: continue
+                        val token = cObj.optJSONObject("nextContinuationData")?.optString("continuation")
+                            ?: cObj.optJSONObject("reloadContinuationData")?.optString("continuation")
+                        if (!token.isNullOrBlank()) {
+                            continuationToken = token
+                            break
+                        }
+                    }
+                }
+            }
+
             // 2. Continuation page format: onResponseReceivedCommands
             val commands = root.optJSONArray("onResponseReceivedCommands") ?: JSONArray()
             for (i in 0 until commands.length()) {
                 val cmd = commands.optJSONObject(i) ?: continue
-                val appendAction = cmd.optJSONObject("appendContinuationItemsAction") ?: continue
+                val appendAction = cmd.optJSONObject("appendContinuationItemsAction")
+                    ?: cmd.optJSONObject("reloadContinuationItemsCommand") ?: continue
                 val continuationItems = appendAction.optJSONArray("continuationItems") ?: JSONArray()
 
                 for (j in 0 until continuationItems.length()) {

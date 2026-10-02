@@ -1,6 +1,7 @@
 package com.phantom.tube.core.theme
 
 import android.app.Activity
+import com.phantom.tube.core.util.findActivity
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
@@ -32,7 +33,7 @@ fun PhantomTheme(
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
-            val window = (view.context as? Activity)?.window
+            val window = (view.context.findActivity())?.window
             if (window != null) {
                 window.statusBarColor = ObsidianDark.toArgb()
                 window.navigationBarColor = ObsidianDark.toArgb()

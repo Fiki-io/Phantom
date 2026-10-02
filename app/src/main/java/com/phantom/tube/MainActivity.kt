@@ -89,8 +89,12 @@ class MainActivity : ComponentActivity() {
             val baseContext = LocalContext.current
             val currentConfig = LocalConfiguration.current
 
+            val hostActivity = this@MainActivity
             val localizedContext = remember(appLanguage, baseContext) {
-                LocaleHelper.applyLocale(baseContext, appLanguage)
+                val configContext = LocaleHelper.applyLocale(baseContext, appLanguage)
+                object : android.content.ContextWrapper(configContext) {
+                    override fun getBaseContext(): android.content.Context = hostActivity
+                }
             }
             val localizedConfig = remember(appLanguage, currentConfig) {
                 android.content.res.Configuration(currentConfig).apply {

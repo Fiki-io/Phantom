@@ -233,7 +233,7 @@ class PhantomRepository(
         val nextToken = if (historyIndex + 1 < sortedClusters.size) {
             "history_${historyIndex + 1}"
         } else {
-            null
+            "feed_start"
         }
 
         return FeedResult(videos = blendedVideos, continuationToken = nextToken)

@@ -18,6 +18,7 @@ import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import com.phantom.tube.core.util.findActivity
 import com.phantom.tube.player.service.PhantomMediaService
 import com.phantom.tube.data.innertube.parser.InnerTubeHelpers
 import com.phantom.tube.ui.screens.player.components.FloatingMixBar
@@ -250,8 +251,9 @@ fun PlayerScreen(
         if (isDeviceLandscape && !isFullscreen) {
             isFullscreen = true
         } else if (!isDeviceLandscape && isFullscreen) {
-            val activity = context as? Activity
-            if (activity?.requestedOrientation == ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE) {
+            val activity = context.findActivity()
+            if (activity?.requestedOrientation == ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE ||
+                activity?.requestedOrientation == ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE) {
                 activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
             }
             isFullscreen = false
@@ -260,7 +262,7 @@ fun PlayerScreen(
 
     // Hide status bar & navigation bar in landscape / fullscreen (Immersive Sticky Mode)
     DisposableEffect(isFullscreen, isMinimized) {
-        val activity = context as? Activity
+        val activity = context.findActivity()
         val window = activity?.window
         if (window != null) {
             val insetsController = WindowCompat.getInsetsController(window, window.decorView)
@@ -743,7 +745,7 @@ fun PlayerScreen(
             e.printStackTrace()
         }
 
-        val activity = context as? Activity
+        val activity = context.findActivity()
         activity?.window?.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
         onDispose {
@@ -776,7 +778,7 @@ fun PlayerScreen(
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_STOP) {
                 val isBgAllowed = repository.preferences?.backgroundPlaybackEnabled?.value ?: true
-                val activity = context as? Activity
+                val activity = context.findActivity()
                 val inPip = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
                     activity?.isInPictureInPictureMode == true
                 } else false
@@ -910,7 +912,7 @@ fun PlayerScreen(
     }
 
     val exitFullscreenToPortrait = {
-        val activity = context as? Activity
+        val activity = context.findActivity()
         if (activity != null) {
             activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
             activity.window.decorView.postDelayed({
@@ -1867,7 +1869,7 @@ fun PlayerScreen(
                                     if (isFullscreen) {
                                         exitFullscreenToPortrait()
                                     } else {
-                                        val activity = context as? Activity
+                                        val activity = context.findActivity()
                                         activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
                                         isFullscreen = true
                                     }
