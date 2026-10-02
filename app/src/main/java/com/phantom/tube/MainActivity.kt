@@ -57,15 +57,18 @@ import kotlinx.coroutines.launch
 import com.phantom.tube.ui.screens.channel.ChannelScreen
 import com.phantom.tube.ui.screens.player.PlayerScreen
 import com.phantom.tube.ui.screens.search.SearchScreen
+import android.annotation.SuppressLint
 import com.phantom.tube.ui.screens.settings.SettingsScreen
 import com.phantom.tube.ui.screens.subscription.SubscriptionScreen
 
+@SuppressLint("InvalidFragmentVersionForActivityResult")
 class MainActivity : ComponentActivity() {
 
     private var isInPipMode by mutableStateOf(false)
     private var activeVideo by mutableStateOf<VideoItem?>(null)
     private var isPlayerMinimized by mutableStateOf(false)
 
+    @SuppressLint("InvalidFragmentVersionForActivityResult")
     private val notificationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { _ ->
