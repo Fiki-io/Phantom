@@ -151,13 +151,15 @@ fun PhantomGhostSurface(
                 settings.apply {
                     javaScriptEnabled = true
                     domStorageEnabled = true
-                    databaseEnabled = true
+                    databaseEnabled = false
                     mediaPlaybackRequiresUserGesture = false
                     cacheMode = WebSettings.LOAD_NO_CACHE
                     mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
                     allowFileAccess = false
                     allowContentAccess = false
-                    offscreenPreRaster = true
+                    offscreenPreRaster = false
+                    setGeolocationEnabled(false)
+                    setNeedInitialFocus(false)
 
                     // Clean Chrome User-Agent
                     userAgentString = com.phantom.tube.core.security.PhantomNative.getUserAgent()
@@ -214,6 +216,10 @@ object PhantomRenderEngine {
         get() = customHttpClient ?: defaultHttpClient
 
     private val cssCache = java.util.concurrent.ConcurrentHashMap<String, ByteArray>()
+
+    fun clearCache() {
+        cssCache.clear()
+    }
 
     val CSS_RULES: String get() = com.phantom.tube.core.security.PhantomNative.getCssRules()
 

@@ -1,8 +1,11 @@
 package com.phantom.tube
 
 import android.app.Application
+import android.content.ComponentCallbacks2
+import android.graphics.Bitmap
 import coil.ImageLoader
 import coil.ImageLoaderFactory
+import coil.imageLoader
 import coil.disk.DiskCache
 import coil.memory.MemoryCache
 import com.phantom.tube.core.crash.PhantomCrashHandler
@@ -87,9 +90,10 @@ class PhantomApp : Application(), ImageLoaderFactory {
     override fun newImageLoader(): ImageLoader {
         return ImageLoader.Builder(this)
             .okHttpClient(sharedHttpClient)
+            .bitmapConfig(Bitmap.Config.RGB_565)
             .memoryCache {
                 MemoryCache.Builder(this)
-                    .maxSizePercent(0.25)
+                    .maxSizePercent(0.12)
                     .build()
             }
             .diskCache {
@@ -102,5 +106,25 @@ class PhantomApp : Application(), ImageLoaderFactory {
             .allowHardware(true)        // Direct GPU rendering of bitmap textures
             .crossfade(150)             // Fast and smooth crossfade
             .build()
+    }
+
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        if (level >= ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW || level >= ComponentCallbacks2.TRIM_MEMORY_UI_HIDDEN) {
+            try {
+                this.imageLoader.memoryCache?.clear()
+                com.phantom.tube.player.PhantomRenderEngine.clearCache()
+            } catch (_: Exception) {
+            }
+        }
+    }
+
+    override fun onLowMemory() {
+        super.onLowMemory()
+        try {
+            this.imageLoader.memoryCache?.clear()
+            com.phantom.tube.player.PhantomRenderEngine.clearCache()
+        } catch (_: Exception) {
+        }
     }
 }
