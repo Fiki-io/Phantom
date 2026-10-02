@@ -40,6 +40,7 @@ class PhantomMediaService : Service() {
     private var isPlaying: Boolean = false
 
     private var currentDurationMs: Long = 0L
+    private var currentPositionMs: Long = 0L
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private var currentBitmap: Bitmap? = null
@@ -125,13 +126,17 @@ class PhantomMediaService : Service() {
         channel: String,
         durationMs: Long = 0L,
         playing: Boolean,
-        thumbnailUrl: String = ""
+        thumbnailUrl: String = "",
+        currentPositionMs: Long = -1L
     ) {
         currentTitle = title
         currentChannel = channel
         isPlaying = playing
         if (durationMs > 0L) {
             currentDurationMs = durationMs
+        }
+        if (currentPositionMs >= 0L) {
+            this.currentPositionMs = currentPositionMs
         }
 
         if (thumbnailUrl.isNotBlank() && thumbnailUrl != currentThumbnailUrl) {
@@ -140,21 +145,25 @@ class PhantomMediaService : Service() {
             loadThumbnail(thumbnailUrl)
         } else {
             applyMetadata(currentBitmap)
-            updatePlaybackState(playing)
+            updatePlaybackState(playing, this.currentPositionMs)
             startForegroundCompat(buildNotification())
         }
     }
 
-    fun updateDuration(durationMs: Long) {
+    fun updateDuration(durationMs: Long, currentPositionMs: Long = -1L) {
+        if (currentPositionMs >= 0L) {
+            this.currentPositionMs = currentPositionMs
+        }
         if (durationMs > 0L && durationMs != currentDurationMs) {
             currentDurationMs = durationMs
             applyMetadata(currentBitmap)
+            updatePlaybackState(isPlaying, this.currentPositionMs)
         }
     }
 
     private fun loadThumbnail(url: String) {
         applyMetadata(null)
-        updatePlaybackState(isPlaying)
+        updatePlaybackState(isPlaying, this.currentPositionMs)
         startForegroundCompat(buildNotification())
 
         serviceScope.launch(Dispatchers.IO) {
@@ -195,8 +204,11 @@ class PhantomMediaService : Service() {
         mediaSession?.setMetadata(metadataBuilder.build())
     }
 
-    fun updatePlaybackState(playing: Boolean, currentPositionMs: Long = 0L) {
+    fun updatePlaybackState(playing: Boolean, currentPositionMs: Long = -1L) {
         isPlaying = playing
+        if (currentPositionMs >= 0L) {
+            this.currentPositionMs = currentPositionMs
+        }
         if (playing) {
             acquireWakeLock()
         } else {
@@ -204,6 +216,7 @@ class PhantomMediaService : Service() {
         }
 
         val state = if (playing) PlaybackStateCompat.STATE_PLAYING else PlaybackStateCompat.STATE_PAUSED
+        val playbackSpeed = if (playing) 1.0f else 0.0f
         val playbackState = PlaybackStateCompat.Builder()
             .setActions(
                 PlaybackStateCompat.ACTION_PLAY or
@@ -212,7 +225,7 @@ class PhantomMediaService : Service() {
                 PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS or
                 PlaybackStateCompat.ACTION_SEEK_TO
             )
-            .setState(state, currentPositionMs, 1.0f)
+            .setState(state, this.currentPositionMs, playbackSpeed)
             .build()
         mediaSession?.setPlaybackState(playbackState)
 

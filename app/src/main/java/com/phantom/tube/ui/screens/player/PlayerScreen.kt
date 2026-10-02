@@ -295,6 +295,8 @@ fun PlayerScreen(
     val skippedSegmentUuids = remember(video.id) { mutableSetOf<String>() }
     val undoneSegmentUuids = remember(video.id) { mutableSetOf<String>() }
     var appliedDefaultsVideoId by remember { mutableStateOf<String?>(null) }
+    var hasSyncedMediaSessionInitialPosition by remember(video.id) { mutableStateOf(false) }
+    var lastSyncedMediaSessionSec by remember(video.id) { mutableFloatStateOf(0f) }
 
     // YouTube Mix Playlist & Session (Preserving all songs in the Mix)
     var mixPlaylist by remember { mutableStateOf<List<VideoItem>>(emptyList()) }
@@ -565,7 +567,17 @@ fun PlayerScreen(
                 )
 
                 if (wasZeroDuration) {
-                    mediaService?.updateDuration((duration * 1000).toLong())
+                    mediaService?.updateDuration((duration * 1000).toLong(), (current * 1000).toLong())
+                }
+
+                // Synchronize Media Notification position immediately on start and periodically
+                if (!hasSyncedMediaSessionInitialPosition && current > 0.5f) {
+                    hasSyncedMediaSessionInitialPosition = true
+                    lastSyncedMediaSessionSec = current
+                    mediaService?.updatePlaybackState(playerState.isPlaying, (current * 1000).toLong())
+                } else if (kotlin.math.abs(current - lastSyncedMediaSessionSec) >= 5f) {
+                    lastSyncedMediaSessionSec = current
+                    mediaService?.updatePlaybackState(playerState.isPlaying, (current * 1000).toLong())
                 }
 
                 // Throttled watch history recording (every 5 seconds instead of 4 times/sec)
@@ -581,7 +593,7 @@ fun PlayerScreen(
                     }
                 }
 
-                // Check SponsorBlock segments (UUID tracking & valid outro bounds)
+                // Check SponsorBlock segments (UUID tracking, strict intro/outro validation, and outro watch reset)
                 val prefs = repository.preferences
                 val sbEnabled = prefs?.sponsorBlockEnabled?.value ?: true
                 if (sbEnabled && duration > 0f && current < duration) {
@@ -604,12 +616,32 @@ fun PlayerScreen(
                         if (isCatAllowed) {
                             val uuid = if (seg.uuid.isNotBlank()) seg.uuid else "${seg.category}_${seg.startSecond}_${seg.endSecond}"
                             if (uuid !in skippedSegmentUuids && uuid !in undoneSegmentUuids) {
-                                // Outro is only valid if video is past half duration and current is past half duration
+                                // 1. Strict segment length & bounds verification
+                                val isValidLength = seg.endSecond > (seg.startSecond + 0.5f) && seg.startSecond >= 0f
+                                
+                                // 2. Outro safety check:
+                                // Outro cannot start in the beginning or middle of the video.
+                                // Must be in the last 35% of video, video >= 20s, start >= 15s, and current playback already >= 60% of video
                                 val isOutroValid = if (seg.category == "outro") {
-                                    seg.startSecond >= (duration * 0.5f) && current >= (duration * 0.5f)
+                                    duration >= 20f &&
+                                    seg.startSecond >= (duration * 0.65f) &&
+                                    seg.startSecond >= 15f &&
+                                    current >= (duration * 0.60f)
                                 } else true
 
-                                if (isOutroValid && current >= seg.startSecond && current < (seg.endSecond - 0.5f)) {
+                                // 3. Intro safety check:
+                                // Intro cannot start late in the video (must be within first 40% of duration and first 5 minutes)
+                                val isIntroValid = if (seg.category == "intro") {
+                                    seg.startSecond < (duration * 0.40f) &&
+                                    seg.startSecond < 300f &&
+                                    seg.endSecond <= (duration * 0.55f)
+                                } else true
+
+                                // 4. Prevent skipping excessive proportion of video
+                                val isNotEntireVideo = (seg.endSecond - seg.startSecond) < (duration * 0.85f)
+
+                                if (isValidLength && isOutroValid && isIntroValid && isNotEntireVideo &&
+                                    current >= seg.startSecond && current < (seg.endSecond - 0.5f)) {
                                     skippedSegmentUuids.add(uuid)
                                     lastSkippedFromSec = current
                                     lastTargetSkipEndSec = seg.endSecond
@@ -617,11 +649,21 @@ fun PlayerScreen(
                                     lastSkippedCategory = seg.category
                                     if (autoSkip) {
                                         controller.seekTo(seg.endSecond)
+                                        playerState = playerState.copy(currentTimeSec = seg.endSecond)
+                                        mediaService?.updatePlaybackState(playerState.isPlaying, (seg.endSecond * 1000).toLong())
                                     }
                                     showSponsorPill = true
                                     scope.launch {
                                         delay(4000)
                                         showSponsorPill = false
+                                    }
+
+                                    // If OUTRO is skipped, reset watch history position so reopening video starts at 0:00!
+                                    if (seg.category == "outro") {
+                                        val activeVid = currentVideo
+                                        scope.launch {
+                                            repository.resetWatchPosition(activeVid.id)
+                                        }
                                     }
                                 }
                             }
@@ -674,7 +716,10 @@ fun PlayerScreen(
                     onNextAction = { playNext() }
                     onPreviousAction = { playPrevious() }
                     onSeekAction = { posMs ->
-                        controller.seekTo(posMs / 1000f)
+                        val sec = posMs / 1000f
+                        controller.seekTo(sec)
+                        playerState = playerState.copy(currentTimeSec = sec)
+                        updatePlaybackState(playerState.isPlaying, posMs)
                     }
                 }
                 mediaService = service
@@ -763,6 +808,7 @@ fun PlayerScreen(
         }
 
         val lastPos = repository.getLastPosition(video.id)
+        playerState = playerState.copy(currentTimeSec = lastPos / 1000f)
         controller.loadVideo(video.id, lastPos / 1000f)
 
         mediaService?.updateMediaInfo(
@@ -770,7 +816,8 @@ fun PlayerScreen(
             channel = video.channelTitle,
             durationMs = 0L,
             playing = true,
-            thumbnailUrl = video.thumbnailUrl
+            thumbnailUrl = video.thumbnailUrl,
+            currentPositionMs = lastPos
         )
 
         launch {
@@ -792,9 +839,10 @@ fun PlayerScreen(
                 mediaService?.updateMediaInfo(
                     title = nextData.currentVideo.title.ifBlank { video.title },
                     channel = nextData.currentVideo.channelTitle.ifBlank { video.channelTitle },
-                    durationMs = 0L,
-                    playing = true,
-                    thumbnailUrl = nextData.currentVideo.thumbnailUrl.ifBlank { video.thumbnailUrl }
+                    durationMs = (playerState.durationSec * 1000).toLong(),
+                    playing = playerState.isPlaying,
+                    thumbnailUrl = nextData.currentVideo.thumbnailUrl.ifBlank { video.thumbnailUrl },
+                    currentPositionMs = (playerState.currentTimeSec * 1000).toLong()
                 )
                 recommendedVideos = nextData.recommendations
                 recContinuationToken = nextData.recommendationsContinuationToken
@@ -1266,6 +1314,8 @@ fun PlayerScreen(
                                     seekAnimationSide = SeekFeedbackDirection.REWIND
                                     val newTime = (playerState.currentTimeSec - delta.toFloat()).coerceAtLeast(0f)
                                     controller.seekTo(newTime)
+                                    playerState = playerState.copy(currentTimeSec = newTime)
+                                    mediaService?.updatePlaybackState(playerState.isPlaying, (newTime * 1000).toLong())
                                 } else {
                                     seekAccumulatedSeconds = if (seekAnimationSide == SeekFeedbackDirection.FORWARD) {
                                         seekAccumulatedSeconds + delta
@@ -1275,6 +1325,8 @@ fun PlayerScreen(
                                     seekAnimationSide = SeekFeedbackDirection.FORWARD
                                     val newTime = (playerState.currentTimeSec + delta.toFloat()).coerceAtMost(playerState.durationSec)
                                     controller.seekTo(newTime)
+                                    playerState = playerState.copy(currentTimeSec = newTime)
+                                    mediaService?.updatePlaybackState(playerState.isPlaying, (newTime * 1000).toLong())
                                 }
                             }
                         )
@@ -1397,6 +1449,14 @@ fun PlayerScreen(
                 isManualMode = isManualSkipMode,
                 onSkip = {
                     controller.seekTo(lastTargetSkipEndSec)
+                    playerState = playerState.copy(currentTimeSec = lastTargetSkipEndSec)
+                    mediaService?.updatePlaybackState(playerState.isPlaying, (lastTargetSkipEndSec * 1000).toLong())
+                    if (lastSkippedCategory == "outro") {
+                        val activeVid = currentVideo
+                        scope.launch {
+                            repository.resetWatchPosition(activeVid.id)
+                        }
+                    }
                     showSponsorPill = false
                 },
                 modifier = Modifier
@@ -1405,6 +1465,8 @@ fun PlayerScreen(
                 onUndo = {
                     undoneSegmentUuids.addAll(skippedSegmentUuids)
                     controller.seekTo(lastSkippedFromSec)
+                    playerState = playerState.copy(currentTimeSec = lastSkippedFromSec)
+                    mediaService?.updatePlaybackState(playerState.isPlaying, (lastSkippedFromSec * 1000).toLong())
                     showSponsorPill = false
                 }
             )
@@ -1678,6 +1740,8 @@ fun PlayerScreen(
                             onClick = {
                                 val newTime = (playerState.currentTimeSec - 10f).coerceAtLeast(0f)
                                 controller.seekTo(newTime)
+                                playerState = playerState.copy(currentTimeSec = newTime)
+                                mediaService?.updatePlaybackState(playerState.isPlaying, (newTime * 1000).toLong())
                             }
                         )
 
@@ -1703,6 +1767,8 @@ fun PlayerScreen(
                             onClick = {
                                 val newTime = (playerState.currentTimeSec + 10f).coerceAtMost(playerState.durationSec)
                                 controller.seekTo(newTime)
+                                playerState = playerState.copy(currentTimeSec = newTime)
+                                mediaService?.updatePlaybackState(playerState.isPlaying, (newTime * 1000).toLong())
                             }
                         )
 
@@ -1770,6 +1836,8 @@ fun PlayerScreen(
                             onSeek = { fraction ->
                                 val targetSec = fraction * playerState.durationSec
                                 controller.seekTo(targetSec)
+                                playerState = playerState.copy(currentTimeSec = targetSec)
+                                mediaService?.updatePlaybackState(playerState.isPlaying, (targetSec * 1000).toLong())
                                 if (wasPlayingBeforeScrub) {
                                     controller.play()
                                 }
