@@ -41,7 +41,7 @@ object PhantomNative {
     private external fun getSearchUrl(): String
     private external fun getNextUrl(): String
     private external fun getBrowseUrl(): String
-    private external fun getSuggestUrl(index: Int, query: String): String
+    private external fun getSuggestUrl(index: Int, query: String, hl: String, gl: String): String
     private external fun getUpdateUrl(): String
     private external fun verifyAppSecurity(context: Context): Boolean
     private external fun applyVersionControl(currentCode: Int, minCode: Int, forceUpdate: Boolean): Boolean
@@ -208,26 +208,26 @@ object PhantomNative {
         }
     }
 
-    fun getSuggestEndpoints(encodedQuery: String): List<String> {
+    fun getSuggestEndpoints(encodedQuery: String, hl: String = "id", gl: String = "ID"): List<String> {
         return if (isNativeLoaded) {
             try {
                 listOf(
-                    getSuggestUrl(0, encodedQuery),
-                    getSuggestUrl(1, encodedQuery),
-                    getSuggestUrl(2, encodedQuery)
+                    getSuggestUrl(0, encodedQuery, hl, gl),
+                    getSuggestUrl(1, encodedQuery, hl, gl),
+                    getSuggestUrl(2, encodedQuery, hl, gl)
                 )
             } catch (e: UnsatisfiedLinkError) {
                 listOf(
-                    "${YT_SUGGEST}?client=youtube&ds=yt&hl=id&gl=ID&q=$encodedQuery",
-                    "${YT_SUGGEST}?client=firefox&ds=yt&hl=id&gl=ID&q=$encodedQuery",
-                    "https://suggestqueries.google.com/complete/search?client=firefox&ds=yt&hl=id&gl=ID&q=$encodedQuery"
+                    "${YT_SUGGEST}?client=youtube&ds=yt&hl=$hl&gl=$gl&q=$encodedQuery",
+                    "${YT_SUGGEST}?client=firefox&ds=yt&hl=$hl&gl=$gl&q=$encodedQuery",
+                    "https://suggestqueries.google.com/complete/search?client=firefox&ds=yt&hl=$hl&gl=$gl&q=$encodedQuery"
                 )
             }
         } else {
             listOf(
-                "${YT_SUGGEST}?client=youtube&ds=yt&hl=id&gl=ID&q=$encodedQuery",
-                "${YT_SUGGEST}?client=firefox&ds=yt&hl=id&gl=ID&q=$encodedQuery",
-                "https://suggestqueries.google.com/complete/search?client=firefox&ds=yt&hl=id&gl=ID&q=$encodedQuery"
+                "${YT_SUGGEST}?client=youtube&ds=yt&hl=$hl&gl=$gl&q=$encodedQuery",
+                "${YT_SUGGEST}?client=firefox&ds=yt&hl=$hl&gl=$gl&q=$encodedQuery",
+                "https://suggestqueries.google.com/complete/search?client=firefox&ds=yt&hl=$hl&gl=$gl&q=$encodedQuery"
             )
         }
     }

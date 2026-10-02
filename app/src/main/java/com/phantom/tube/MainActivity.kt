@@ -33,6 +33,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.collectAsState
+import com.phantom.tube.core.util.LocaleHelper
 import com.phantom.tube.core.theme.ObsidianDark
 import com.phantom.tube.core.theme.PhantomTheme
 import com.phantom.tube.data.model.VideoItem
@@ -76,7 +81,25 @@ class MainActivity : ComponentActivity() {
         val repository = app.repository
 
         setContent {
-            PhantomTheme {
+            val preferences = app.preferences
+            val appLanguage by (preferences?.appLanguage ?: kotlinx.coroutines.flow.MutableStateFlow("id")).collectAsState()
+            val baseContext = LocalContext.current
+            val currentConfig = LocalConfiguration.current
+
+            val localizedContext = remember(appLanguage, baseContext) {
+                LocaleHelper.applyLocale(baseContext, appLanguage)
+            }
+            val localizedConfig = remember(appLanguage, currentConfig) {
+                android.content.res.Configuration(currentConfig).apply {
+                    setLocale(LocaleHelper.getLocale(appLanguage))
+                }
+            }
+
+            CompositionLocalProvider(
+                LocalContext provides localizedContext,
+                LocalConfiguration provides localizedConfig
+            ) {
+                PhantomTheme {
                 var currentTab by remember { mutableStateOf(NavTab.HOME) }
                 var activeChannelId by remember { mutableStateOf<String?>(null) }
                 var activeChannelTitle by remember { mutableStateOf("") }
@@ -342,6 +365,7 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
     }
 
     private fun requestNotificationPermission() {

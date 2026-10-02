@@ -38,6 +38,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import androidx.compose.ui.res.stringResource
+import com.phantom.tube.R
 import com.phantom.tube.core.theme.ObsidianDark
 import com.phantom.tube.core.theme.TextMuted
 import com.phantom.tube.core.theme.TextPrimary
@@ -81,7 +83,7 @@ fun HistoryScreen(
                 )
                 Spacer(modifier = Modifier.width(10.dp))
                 Text(
-                    text = "Riwayat",
+                    text = stringResource(R.string.nav_history),
                     color = TextPrimary,
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold
@@ -91,7 +93,7 @@ fun HistoryScreen(
             if (historyList.isNotEmpty()) {
                 PhantomIconButton(
                     icon = Icons.Default.DeleteSweep,
-                    contentDescription = "Hapus Riwayat",
+                    contentDescription = stringResource(R.string.library_clear_history),
                     size = 36.dp,
                     iconSize = 20.dp,
                     onClick = {
@@ -115,7 +117,7 @@ fun HistoryScreen(
                     )
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
-                        text = "Belum ada riwayat tontonan",
+                        text = stringResource(R.string.empty_history),
                         color = TextMuted,
                         fontSize = 14.sp
                     )

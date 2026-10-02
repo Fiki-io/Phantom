@@ -64,6 +64,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import androidx.compose.ui.res.stringResource
+import com.phantom.tube.R
 import com.phantom.tube.core.theme.ObsidianDark
 import com.phantom.tube.core.theme.TextMuted
 import com.phantom.tube.core.theme.TextPrimary
@@ -343,7 +345,7 @@ fun SearchScreen(
                         decorationBox = { innerTextField ->
                             if (searchQuery.isEmpty()) {
                                 Text(
-                                    text = "Cari video atau musik...",
+                                    text = stringResource(R.string.search_hint),
                                     color = TextMuted,
                                     fontSize = 14.sp
                                 )
@@ -666,14 +668,14 @@ fun SearchScreen(
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
-                                    text = "Riwayat Penelusuran",
+                                    text = stringResource(R.string.search_history_title),
                                     color = TextSecondary,
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.SemiBold
                                 )
                             }
                             Text(
-                                text = "Hapus semua",
+                                text = stringResource(R.string.search_history_clear),
                                 color = YouTubeRed,
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Medium,
@@ -763,7 +765,7 @@ fun SearchScreen(
                             )
                             Spacer(modifier = Modifier.height(12.dp))
                             Text(
-                                text = "Telusuri video",
+                                text = stringResource(R.string.empty_search),
                                 color = TextMuted,
                                 fontSize = 13.sp
                             )

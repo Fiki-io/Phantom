@@ -32,6 +32,11 @@ class PhantomRepository(
     private val subscriptionDao: SubscriptionDao,
     val preferences: PhantomPreferences? = null
 ) {
+    init {
+        innerTubeClient.regionCodeProvider = {
+            preferences?.contentCountry?.value ?: "ID"
+        }
+    }
     suspend fun getHomeRecommendations(
         historyIndex: Int = 0,
         continuation: String? = null
@@ -173,13 +178,26 @@ class PhantomRepository(
         if (historyIndex == 0 && nextQueueA != null && nextQueueA.mixPlaylist.isNotEmpty()) {
             val mixPlaylistId = nextQueueA.playlistId ?: "RD${targetA.videoId}"
             val mixTitle = nextQueueA.playlistTitle.ifBlank { "Mix - ${targetA.title}" }
+            val otherArtists = nextQueueA.mixPlaylist
+                .map { it.channelTitle }
+                .filter { it.isNotBlank() && !it.equals(targetA.channelTitle, ignoreCase = true) }
+                .distinct()
+                .take(2)
+            val mixSubtitle = if (otherArtists.isNotEmpty()) {
+                "${targetA.channelTitle}, ${otherArtists.joinToString(", ")}, dan lainnya"
+            } else {
+                targetA.channelTitle
+            }
+            val resolvedAvatar = nextQueueA.currentVideo.channelAvatarUrl.ifBlank {
+                ChannelAvatarCache.get(targetA.channelId, targetA.channelTitle) ?: ""
+            }
             val mixCard = VideoItem(
                 id = targetA.videoId,
                 title = mixTitle,
-                channelTitle = "${targetA.channelTitle}, NDX A.K.A., dan lainnya",
+                channelTitle = mixSubtitle,
                 channelId = targetA.channelId,
                 thumbnailUrl = targetA.thumbnailUrl,
-                channelAvatarUrl = nextQueueA.currentVideo.channelAvatarUrl.ifBlank { targetA.channelAvatarUrl },
+                channelAvatarUrl = resolvedAvatar,
                 durationText = "Playlist",
                 viewCountText = "${nextQueueA.mixPlaylist.size} video",
                 publishedTimeText = "YouTube Mix",

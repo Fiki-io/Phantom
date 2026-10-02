@@ -51,13 +51,15 @@ import com.phantom.tube.core.theme.BubbleDockBorder
 import com.phantom.tube.core.theme.TextPrimary
 import com.phantom.tube.core.theme.TextSecondary
 import com.phantom.tube.core.theme.YouTubeRed
+import androidx.compose.ui.res.stringResource
+import com.phantom.tube.R
 import kotlin.math.roundToInt
 
-enum class NavTab(val title: String, val icon: ImageVector) {
-    HOME("Beranda", Icons.Default.Home),
-    SEARCH("Cari", Icons.Default.Search),
-    HISTORY("Riwayat", Icons.Default.History),
-    SUBSCRIPTION("Subscription", Icons.Default.Subscriptions)
+enum class NavTab(val titleRes: Int, val icon: ImageVector) {
+    HOME(R.string.nav_home, Icons.Default.Home),
+    SEARCH(R.string.nav_search, Icons.Default.Search),
+    HISTORY(R.string.nav_history, Icons.Default.History),
+    SUBSCRIPTION(R.string.nav_library, Icons.Default.Subscriptions)
 }
 
 /**
@@ -194,14 +196,15 @@ fun BubbleBottomNav(
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.Center
                         ) {
+                            val title = stringResource(tab.titleRes)
                             Icon(
                                 imageVector = tab.icon,
-                                contentDescription = tab.title,
+                                contentDescription = title,
                                 tint = iconColor,
                                 modifier = Modifier.size(22.dp)
                             )
                             Text(
-                                text = tab.title,
+                                text = title,
                                 color = textColor,
                                 fontSize = 10.sp,
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,

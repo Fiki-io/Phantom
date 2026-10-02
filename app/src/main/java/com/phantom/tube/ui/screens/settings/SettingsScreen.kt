@@ -13,7 +13,10 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import com.phantom.tube.R
+import com.phantom.tube.core.util.LocaleHelper
+import com.phantom.tube.core.util.RegionHelper
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -44,12 +47,15 @@ import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.PauseCircleOutline
 import androidx.compose.material.icons.filled.PictureInPicture
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.SurroundSound
 import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Switch
@@ -85,16 +91,7 @@ import com.phantom.tube.data.settings.PhantomPreferences
 import com.phantom.tube.ui.components.PhantomIconButton
 import kotlinx.coroutines.launch
 
-private data class RegionOption(val code: String, val name: String, val flag: String)
-
-private val REGION_OPTIONS = listOf(
-    RegionOption("ID", "Indonesia", "🇮🇩"),
-    RegionOption("GLOBAL", "Global / Internasional", "🌐"),
-    RegionOption("US", "Amerika Serikat", "🇺🇸"),
-    RegionOption("JP", "Jepang", "🇯🇵"),
-    RegionOption("KR", "Korea Selatan", "🇰🇷"),
-    RegionOption("GB", "Inggris (UK)", "🇬🇧")
-)
+private val REGION_OPTIONS = RegionHelper.SUPPORTED_REGIONS
 
 private data class QualityOption(val code: String, val label: String)
 
@@ -150,6 +147,7 @@ fun SettingsScreen(
     val skipIntro by preferences.skipIntro.collectAsState()
     val skipOutro by preferences.skipOutro.collectAsState()
 
+    val appLanguage by preferences.appLanguage.collectAsState()
     val contentCountry by preferences.contentCountry.collectAsState()
     val pauseWatchHistory by preferences.pauseWatchHistory.collectAsState()
 
@@ -160,12 +158,14 @@ fun SettingsScreen(
     }
 
     // Dialog states
+    var showLanguageDialog by remember { mutableStateOf(false) }
     var showQualityDialog by remember { mutableStateOf(false) }
     var showSpeedDialog by remember { mutableStateOf(false) }
     var showRegionDialog by remember { mutableStateOf(false) }
     var showClearWatchHistoryDialog by remember { mutableStateOf(false) }
     var showClearSearchHistoryDialog by remember { mutableStateOf(false) }
     var showClearCacheDialog by remember { mutableStateOf(false) }
+    var showFeedbackDialog by remember { mutableStateOf(false) }
 
     Column(
         modifier = modifier
@@ -191,7 +191,7 @@ fun SettingsScreen(
             Spacer(modifier = Modifier.width(8.dp))
 
             Text(
-                text = "Pengaturan",
+                text = stringResource(R.string.settings_title),
                 color = TextPrimary,
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold
@@ -206,24 +206,53 @@ fun SettingsScreen(
                 .padding(horizontal = 16.dp, vertical = 8.dp)
         ) {
 
+            // 0. BAHASA & TAMPILAN
+            SettingsSectionHeader(title = stringResource(R.string.settings_section_general))
+
+            SettingsCard {
+                val currentLang = LocaleHelper.SUPPORTED_LANGUAGES.firstOrNull { it.code == appLanguage }
+                val currentLangLabel = if (currentLang != null) "${currentLang.flag} ${currentLang.displayName}" else appLanguage
+
+                SettingsItemClickable(
+                    icon = Icons.Default.Language,
+                    title = stringResource(R.string.settings_app_language),
+                    subtitle = currentLangLabel,
+                    onClick = { showLanguageDialog = true }
+                )
+
+                SettingsDivider()
+
+                val currentRegion = REGION_OPTIONS.firstOrNull { it.code == contentCountry }
+                val regionLabel = if (currentRegion != null) "${currentRegion.flag} ${currentRegion.name}" else contentCountry
+
+                SettingsItemClickable(
+                    icon = Icons.Default.Language,
+                    title = stringResource(R.string.settings_content_region),
+                    subtitle = regionLabel,
+                    onClick = { showRegionDialog = true }
+                )
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
             // 1. PEMUTARAN & KUALITAS VIDEO
-            SettingsSectionHeader(title = "Pemutaran & Video")
+            SettingsSectionHeader(title = stringResource(R.string.settings_section_playback))
 
             SettingsCard {
                 val currentQualityLabel = QUALITY_OPTIONS.firstOrNull { it.code == defaultQuality }?.label ?: defaultQuality
                 SettingsItemClickable(
                     icon = Icons.Default.HighQuality,
-                    title = "Kualitas Default Video",
+                    title = stringResource(R.string.settings_default_quality),
                     subtitle = currentQualityLabel,
                     onClick = { showQualityDialog = true }
                 )
 
                 SettingsDivider()
 
-                val currentSpeedLabel = if (defaultSpeed == 1.0f) "1.0x (Normal)" else "${defaultSpeed}x"
+                val currentSpeedLabel = if (defaultSpeed == 1.0f) "1.0x" else "${defaultSpeed}x"
                 SettingsItemClickable(
                     icon = Icons.Default.Speed,
-                    title = "Kecepatan Putar Default",
+                    title = stringResource(R.string.settings_default_speed),
                     subtitle = currentSpeedLabel,
                     onClick = { showSpeedDialog = true }
                 )
@@ -232,8 +261,8 @@ fun SettingsScreen(
 
                 SettingsItemSwitch(
                     icon = Icons.Default.SurroundSound,
-                    title = "Putar di Latar Belakang",
-                    subtitle = "Audio terus berputar saat aplikasi diminimalkan atau layar mati",
+                    title = stringResource(R.string.settings_bg_playback),
+                    subtitle = stringResource(R.string.settings_bg_playback_desc),
                     checked = bgPlayback,
                     onCheckedChange = { preferences.setBackgroundPlaybackEnabled(it) }
                 )
@@ -242,8 +271,8 @@ fun SettingsScreen(
 
                 SettingsItemSwitch(
                     icon = Icons.Default.PictureInPicture,
-                    title = "PiP Otomatis",
-                    subtitle = "Buka Picture-in-Picture secara otomatis saat menekan tombol Home",
+                    title = stringResource(R.string.settings_auto_pip),
+                    subtitle = stringResource(R.string.settings_auto_pip_desc),
                     checked = autoPip,
                     onCheckedChange = { preferences.setAutoPipEnabled(it) }
                 )
@@ -252,13 +281,13 @@ fun SettingsScreen(
             Spacer(modifier = Modifier.height(20.dp))
 
             // 2. SPONSORBLOCK
-            SettingsSectionHeader(title = "SponsorBlock (Lewati Segmen)")
+            SettingsSectionHeader(title = stringResource(R.string.settings_section_sponsorblock))
 
             SettingsCard {
                 SettingsItemSwitch(
                     icon = Icons.Default.Security,
-                    title = "Aktifkan SponsorBlock",
-                    subtitle = "Melewati iklan berbayar, promosi diri, dan intro secara pintar",
+                    title = stringResource(R.string.settings_sponsorblock_enable),
+                    subtitle = stringResource(R.string.settings_sponsorblock_desc),
                     checked = sbEnabled,
                     onCheckedChange = { preferences.setSponsorBlockEnabled(it) }
                 )
@@ -286,31 +315,31 @@ fun SettingsScreen(
                         )
 
                         SettingsSubItemSwitch(
-                            title = "Sponsor / Iklan Sponsor",
+                            title = stringResource(R.string.settings_skip_sponsor),
                             checked = skipSponsor,
                             onCheckedChange = { preferences.setSkipSponsor(it) }
                         )
 
                         SettingsSubItemSwitch(
-                            title = "Promosi Pribadi (Self-Promo)",
+                            title = stringResource(R.string.settings_skip_selfpromo),
                             checked = skipSelfPromo,
                             onCheckedChange = { preferences.setSkipSelfPromo(it) }
                         )
 
                         SettingsSubItemSwitch(
-                            title = "Interaksi (Pengingat Like & Subscribe)",
+                            title = stringResource(R.string.settings_skip_interaction),
                             checked = skipInteraction,
                             onCheckedChange = { preferences.setSkipInteraction(it) }
                         )
 
                         SettingsSubItemSwitch(
-                            title = "Intro / Cuplikan Pembuka",
+                            title = stringResource(R.string.settings_skip_intro),
                             checked = skipIntro,
                             onCheckedChange = { preferences.setSkipIntro(it) }
                         )
 
                         SettingsSubItemSwitch(
-                            title = "Outro / Kartu Akhir",
+                            title = stringResource(R.string.settings_skip_outro),
                             checked = skipOutro,
                             onCheckedChange = { preferences.setSkipOutro(it) }
                         )
@@ -320,30 +349,14 @@ fun SettingsScreen(
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // 3. KONTEN & WILAYAH
-            SettingsSectionHeader(title = "Konten & Wilayah")
-
-            SettingsCard {
-                val currentRegion = REGION_OPTIONS.firstOrNull { it.code == contentCountry }
-                val regionLabel = if (currentRegion != null) "${currentRegion.flag} ${currentRegion.name}" else contentCountry
-                SettingsItemClickable(
-                    icon = Icons.Default.Language,
-                    title = "Wilayah Rekomendasi & Trending",
-                    subtitle = regionLabel,
-                    onClick = { showRegionDialog = true }
-                )
-            }
-
-            Spacer(modifier = Modifier.height(20.dp))
-
-            // 4. PRIVASI & PENYIMPANAN
-            SettingsSectionHeader(title = "Privasi & Penyimpanan")
+            // 3. PRIVASI & PENYIMPANAN
+            SettingsSectionHeader(title = stringResource(R.string.settings_section_privacy))
 
             SettingsCard {
                 SettingsItemSwitch(
                     icon = Icons.Default.PauseCircleOutline,
-                    title = "Jeda Riwayat Tontonan",
-                    subtitle = "Video baru yang ditonton tidak akan disimpan ke riwayat lokal",
+                    title = stringResource(R.string.settings_pause_history),
+                    subtitle = stringResource(R.string.settings_pause_history_desc),
                     checked = pauseWatchHistory,
                     onCheckedChange = { preferences.setPauseWatchHistory(it) }
                 )
@@ -352,8 +365,8 @@ fun SettingsScreen(
 
                 SettingsItemClickable(
                     icon = Icons.Default.History,
-                    title = "Hapus Riwayat Tontonan",
-                    subtitle = "Bersihkan seluruh video yang pernah ditonton",
+                    title = stringResource(R.string.settings_clear_watch_history),
+                    subtitle = stringResource(R.string.dialog_confirm_clear_history),
                     onClick = { showClearWatchHistoryDialog = true }
                 )
 
@@ -361,8 +374,8 @@ fun SettingsScreen(
 
                 SettingsItemClickable(
                     icon = Icons.Default.DeleteOutline,
-                    title = "Hapus Riwayat Pencarian",
-                    subtitle = "Bersihkan semua rekaman kata kunci pencarian",
+                    title = stringResource(R.string.settings_clear_search_history),
+                    subtitle = stringResource(R.string.dialog_confirm_clear_search),
                     onClick = { showClearSearchHistoryDialog = true }
                 )
 
@@ -371,16 +384,16 @@ fun SettingsScreen(
                 val formattedCache = formatFileSize(cacheSizeBytes)
                 SettingsItemClickable(
                     icon = Icons.Default.CleaningServices,
-                    title = "Bersihkan Cache Aplikasi",
-                    subtitle = "Ukuran cache saat ini: $formattedCache",
+                    title = stringResource(R.string.settings_clear_cache),
+                    subtitle = "${stringResource(R.string.settings_cache_size)}: $formattedCache",
                     onClick = { showClearCacheDialog = true }
                 )
             }
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // 5. TENTANG PHANTOM
-            SettingsSectionHeader(title = "Tentang Aplikasi")
+            // 4. TENTANG PHANTOM
+            SettingsSectionHeader(title = stringResource(R.string.settings_section_about))
 
             SettingsCard {
                 Row(
@@ -441,6 +454,15 @@ fun SettingsScreen(
                     title = "Periksa Pembaruan",
                     subtitle = "Periksa versi terbaru aplikasi",
                     onClick = onCheckUpdateClick
+                )
+
+                SettingsDivider()
+
+                SettingsItemClickable(
+                    icon = Icons.Default.Email,
+                    title = stringResource(R.string.settings_feedback),
+                    subtitle = stringResource(R.string.settings_feedback_desc),
+                    onClick = { showFeedbackDialog = true }
                 )
             }
 
@@ -547,6 +569,60 @@ fun SettingsScreen(
         )
     }
 
+    // 0. Language Picker Dialog
+    if (showLanguageDialog) {
+        AlertDialog(
+            onDismissRequest = { showLanguageDialog = false },
+            title = {
+                Text(
+                    text = stringResource(R.string.settings_app_language),
+                    color = TextPrimary,
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                    LocaleHelper.SUPPORTED_LANGUAGES.forEach { lang ->
+                        val isSelected = lang.code == appLanguage
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable {
+                                    preferences.setAppLanguage(lang.code)
+                                    showLanguageDialog = false
+                                }
+                                .padding(vertical = 10.dp, horizontal = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = isSelected,
+                                onClick = {
+                                    preferences.setAppLanguage(lang.code)
+                                    showLanguageDialog = false
+                                },
+                                colors = RadioButtonDefaults.colors(selectedColor = YouTubeRed)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "${lang.flag}  ${lang.displayName}",
+                                color = if (isSelected) YouTubeRed else TextPrimary,
+                                fontSize = 14.sp,
+                                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showLanguageDialog = false }) {
+                    Text(stringResource(R.string.dialog_cancel), color = YouTubeRed)
+                }
+            },
+            containerColor = YouTubeSurface
+        )
+    }
+
     // 3. Region Picker Dialog
     if (showRegionDialog) {
         AlertDialog(
@@ -587,7 +663,7 @@ fun SettingsScreen(
             },
             confirmButton = {
                 TextButton(onClick = { showRegionDialog = false }) {
-                    Text("Tutup", color = YouTubeRed)
+                    Text(stringResource(R.string.dialog_cancel), color = YouTubeRed)
                 }
             },
             containerColor = YouTubeSurface
@@ -598,10 +674,10 @@ fun SettingsScreen(
     if (showClearWatchHistoryDialog) {
         AlertDialog(
             onDismissRequest = { showClearWatchHistoryDialog = false },
-            title = { Text(text = "Hapus Riwayat Tontonan?", color = TextPrimary, fontWeight = FontWeight.Bold) },
+            title = { Text(text = stringResource(R.string.dialog_confirm_clear_history), color = TextPrimary, fontWeight = FontWeight.Bold) },
             text = {
                 Text(
-                    text = "Semua riwayat video yang pernah Anda tonton akan dihapus dari penyimpanan lokal.",
+                    text = stringResource(R.string.dialog_confirm_clear_history),
                     color = TextSecondary,
                     fontSize = 13.sp
                 )
@@ -611,17 +687,17 @@ fun SettingsScreen(
                     onClick = {
                         scope.launch {
                             repository.clearWatchHistory()
-                            Toast.makeText(context, "Riwayat tontonan berhasil dibersihkan", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, context.getString(R.string.toast_history_cleared), Toast.LENGTH_SHORT).show()
                             showClearWatchHistoryDialog = false
                         }
                     }
                 ) {
-                    Text("Hapus", color = YouTubeRed, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.dialog_delete), color = YouTubeRed, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showClearWatchHistoryDialog = false }) {
-                    Text("Batal", color = TextSecondary)
+                    Text(stringResource(R.string.dialog_cancel), color = TextSecondary)
                 }
             },
             containerColor = YouTubeSurface
@@ -632,10 +708,10 @@ fun SettingsScreen(
     if (showClearSearchHistoryDialog) {
         AlertDialog(
             onDismissRequest = { showClearSearchHistoryDialog = false },
-            title = { Text(text = "Hapus Riwayat Pencarian?", color = TextPrimary, fontWeight = FontWeight.Bold) },
+            title = { Text(text = stringResource(R.string.dialog_confirm_clear_search), color = TextPrimary, fontWeight = FontWeight.Bold) },
             text = {
                 Text(
-                    text = "Semua saran kata kunci pencarian yang tersimpan akan dihapus.",
+                    text = stringResource(R.string.dialog_confirm_clear_search),
                     color = TextSecondary,
                     fontSize = 13.sp
                 )
@@ -645,17 +721,17 @@ fun SettingsScreen(
                     onClick = {
                         scope.launch {
                             repository.clearSearchHistory()
-                            Toast.makeText(context, "Riwayat pencarian berhasil dibersihkan", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, context.getString(R.string.toast_history_cleared), Toast.LENGTH_SHORT).show()
                             showClearSearchHistoryDialog = false
                         }
                     }
                 ) {
-                    Text("Hapus", color = YouTubeRed, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.dialog_delete), color = YouTubeRed, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showClearSearchHistoryDialog = false }) {
-                    Text("Batal", color = TextSecondary)
+                    Text(stringResource(R.string.dialog_cancel), color = TextSecondary)
                 }
             },
             containerColor = YouTubeSurface
@@ -666,10 +742,10 @@ fun SettingsScreen(
     if (showClearCacheDialog) {
         AlertDialog(
             onDismissRequest = { showClearCacheDialog = false },
-            title = { Text(text = "Bersihkan Cache?", color = TextPrimary, fontWeight = FontWeight.Bold) },
+            title = { Text(text = stringResource(R.string.dialog_confirm_clear_cache), color = TextPrimary, fontWeight = FontWeight.Bold) },
             text = {
                 Text(
-                    text = "Menghapus thumbnail dan memori cache sementara (${formatFileSize(cacheSizeBytes)}). Aplikasi akan mengunduh ulang gambar sesuai kebutuhan.",
+                    text = stringResource(R.string.dialog_confirm_clear_cache),
                     color = TextSecondary,
                     fontSize = 13.sp
                 )
@@ -679,16 +755,167 @@ fun SettingsScreen(
                     onClick = {
                         preferences.clearAppCache(context)
                         cacheSizeBytes = preferences.getCacheSizeBytes(context)
-                        Toast.makeText(context, "Cache aplikasi berhasil dibersihkan", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, context.getString(R.string.toast_cache_cleared), Toast.LENGTH_SHORT).show()
                         showClearCacheDialog = false
                     }
                 ) {
-                    Text("Bersihkan", color = YouTubeRed, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.dialog_clean), color = YouTubeRed, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showClearCacheDialog = false }) {
-                    Text("Batal", color = TextSecondary)
+                    Text(stringResource(R.string.dialog_cancel), color = TextSecondary)
+                }
+            },
+            containerColor = YouTubeSurface
+        )
+    }
+
+    // 7. Feedback & Bug Report Dialog
+    if (showFeedbackDialog) {
+        var feedbackCategory by remember { mutableStateOf(0) } // 0: Bug, 1: Feature, 2: General
+        var messageText by remember { mutableStateOf("") }
+
+        AlertDialog(
+            onDismissRequest = { showFeedbackDialog = false },
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.Email,
+                        contentDescription = null,
+                        tint = YouTubeRed,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text(
+                        text = stringResource(R.string.feedback_dialog_title),
+                        color = TextPrimary,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 17.sp
+                    )
+                }
+            },
+            text = {
+                Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                    // Type Selector Chips
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        val types = listOf(
+                            stringResource(R.string.feedback_type_bug),
+                            stringResource(R.string.feedback_type_feature),
+                            stringResource(R.string.feedback_type_general)
+                        )
+                        types.forEachIndexed { index, title ->
+                            val isSelected = feedbackCategory == index
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(if (isSelected) YouTubeRed else ObsidianDark)
+                                    .clickable { feedbackCategory = index }
+                                    .padding(vertical = 8.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = title,
+                                    color = if (isSelected) Color.White else TextSecondary,
+                                    fontSize = 11.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                    maxLines = 1
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    OutlinedTextField(
+                        value = messageText,
+                        onValueChange = { messageText = it },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(130.dp),
+                        placeholder = {
+                            Text(
+                                text = stringResource(R.string.feedback_message_hint),
+                                color = TextMuted,
+                                fontSize = 13.sp
+                            )
+                        },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = TextPrimary,
+                            unfocusedTextColor = TextPrimary,
+                            cursorColor = YouTubeRed,
+                            focusedBorderColor = YouTubeRed,
+                            unfocusedBorderColor = YouTubeSurface
+                        ),
+                        shape = RoundedCornerShape(10.dp)
+                    )
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    // Technical Info Note
+                    Text(
+                        text = "ℹ️ ${stringResource(R.string.feedback_device_info_note)}\n(Phantom v$appVersionName • Android ${Build.VERSION.RELEASE} • ${Build.MANUFACTURER} ${Build.MODEL})",
+                        color = TextMuted,
+                        fontSize = 11.sp,
+                        lineHeight = 15.sp
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val catLabel = when (feedbackCategory) {
+                            0 -> "Laporan Bug"
+                            1 -> "Permintaan Fitur"
+                            else -> "Masukan Umum"
+                        }
+                        val subject = "[Phantom] $catLabel"
+                        val emailBody = buildString {
+                            appendLine(messageText.ifBlank { "Halo Developer Phantom," })
+                            appendLine()
+                            appendLine("==============================")
+                            appendLine("INFORMASI PERANGKAT & APLIKASI")
+                            appendLine("==============================")
+                            appendLine("Versi Phantom: v$appVersionName")
+                            appendLine("Perangkat: ${Build.MANUFACTURER} ${Build.MODEL} (${Build.DEVICE})")
+                            appendLine("Versi Android: ${Build.VERSION.RELEASE} (SDK ${Build.VERSION.SDK_INT})")
+                            appendLine("Bahasa Aplikasi: $appLanguage")
+                            appendLine("Wilayah Konten: $contentCountry")
+                            appendLine("Tanggal: ${java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale.getDefault()).format(java.util.Date())}")
+                        }
+
+                        val emailIntent = Intent(Intent.ACTION_SENDTO).apply {
+                            data = Uri.parse("mailto:totoyu379@gmail.com")
+                            putExtra(Intent.EXTRA_EMAIL, arrayOf("totoyu379@gmail.com"))
+                            putExtra(Intent.EXTRA_SUBJECT, subject)
+                            putExtra(Intent.EXTRA_TEXT, emailBody)
+                        }
+
+                        try {
+                            context.startActivity(Intent.createChooser(emailIntent, "Kirim masukan via..."))
+                            showFeedbackDialog = false
+                        } catch (e: Exception) {
+                            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager
+                            clipboard?.setPrimaryClip(android.content.ClipData.newPlainText("Developer Email", "totoyu379@gmail.com"))
+                            Toast.makeText(context, context.getString(R.string.feedback_no_email_app), Toast.LENGTH_LONG).show()
+                            showFeedbackDialog = false
+                        }
+                    }
+                ) {
+                    Text(
+                        text = stringResource(R.string.feedback_send_button),
+                        color = YouTubeRed,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showFeedbackDialog = false }) {
+                    Text(text = stringResource(R.string.dialog_cancel), color = TextSecondary)
                 }
             },
             containerColor = YouTubeSurface

@@ -23,7 +23,18 @@ class InnerTubeClient(
     private val jsonMediaType = "application/json; charset=utf-8".toMediaType()
     private val userAgent = com.phantom.tube.core.security.PhantomNative.getDesktopUserAgent()
 
-    private fun createClientContext(hl: String = "id", gl: String = "ID"): JSONObject {
+    var regionCodeProvider: (() -> String)? = null
+
+    private fun createClientContext(): JSONObject {
+        val region = regionCodeProvider?.invoke() ?: "ID"
+        val (hl, gl) = when (region.uppercase()) {
+            "US" -> "en" to "US"
+            "JP" -> "ja" to "JP"
+            "KR" -> "ko" to "KR"
+            "GB" -> "en-GB" to "GB"
+            "GLOBAL" -> "en" to "US"
+            else -> "id" to "ID"
+        }
         val client = JSONObject().apply {
             put("clientName", "WEB")
             put("clientVersion", "2.20240901.00.00")
@@ -223,8 +234,17 @@ class InnerTubeClient(
         val trimmed = query.trim()
         if (trimmed.isBlank()) return@withContext emptyList()
         try {
+            val region = regionCodeProvider?.invoke() ?: "ID"
+            val (hl, gl) = when (region.uppercase()) {
+                "US" -> "en" to "US"
+                "JP" -> "ja" to "JP"
+                "KR" -> "ko" to "KR"
+                "GB" -> "en-GB" to "GB"
+                "GLOBAL" -> "en" to "US"
+                else -> "id" to "ID"
+            }
             val encoded = java.net.URLEncoder.encode(trimmed, "UTF-8")
-            val endpoints = com.phantom.tube.core.security.PhantomNative.getSuggestEndpoints(encoded)
+            val endpoints = com.phantom.tube.core.security.PhantomNative.getSuggestEndpoints(encoded, hl, gl)
 
             for (url in endpoints) {
                 try {

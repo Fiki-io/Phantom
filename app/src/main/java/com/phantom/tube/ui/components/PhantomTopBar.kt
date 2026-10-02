@@ -29,6 +29,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -107,7 +108,7 @@ fun PhantomTopBar(
                 if (onSettingsClick != null) {
                     PhantomIconButton(
                         icon = Icons.Default.Settings,
-                        contentDescription = "Pengaturan",
+                        contentDescription = stringResource(R.string.nav_settings),
                         size = 38.dp,
                         iconSize = 20.dp,
                         onClick = onSettingsClick
@@ -116,7 +117,7 @@ fun PhantomTopBar(
 
                 PhantomIconButton(
                     icon = Icons.Default.Search,
-                    contentDescription = "Cari",
+                    contentDescription = stringResource(R.string.nav_search),
                     size = 38.dp,
                     iconSize = 22.dp,
                     onClick = onSearchClick
@@ -135,8 +136,19 @@ fun PhantomTopBar(
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             categories.forEach { cat ->
+                val localizedCat = when (cat) {
+                    "Semua" -> stringResource(R.string.cat_all)
+                    "Trending" -> stringResource(R.string.cat_trending)
+                    "Musik" -> stringResource(R.string.cat_music)
+                    "Gaming" -> stringResource(R.string.cat_gaming)
+                    "Berita" -> stringResource(R.string.cat_news)
+                    "Podcast" -> stringResource(R.string.cat_podcast)
+                    "Teknologi" -> stringResource(R.string.cat_tech)
+                    "Animasi" -> stringResource(R.string.cat_animation)
+                    else -> cat
+                }
                 PhantomChip(
-                    text = cat,
+                    text = localizedCat,
                     isSelected = cat == selectedCategory,
                     onClick = { onCategorySelected(cat) }
                 )

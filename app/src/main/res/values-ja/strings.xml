@@ -1,0 +1,132 @@
+<resources>
+    <string name="app_name">Phantom</string>
+
+    <!-- Navigation -->
+    <string name="nav_home">ホーム</string>
+    <string name="nav_search">検索</string>
+    <string name="nav_library">ライブラリ</string>
+    <string name="nav_history">履歴</string>
+    <string name="nav_settings">設定</string>
+
+    <!-- Categories -->
+    <string name="cat_all">すべて</string>
+    <string name="cat_trending">急上昇</string>
+    <string name="cat_music">音楽</string>
+    <string name="cat_gaming">ゲーム</string>
+    <string name="cat_news">ニュース</string>
+    <string name="cat_podcast">ポッドキャスト</string>
+    <string name="cat_tech">テクノロジー</string>
+    <string name="cat_animation">アニメ</string>
+
+    <!-- Search -->
+    <string name="search_hint">動画、チャンネル、音楽を検索...</string>
+    <string name="search_history_title">検索履歴</string>
+    <string name="search_history_clear">すべて消去</string>
+    <string name="search_channel_badge">チャンネル</string>
+    <string name="search_subscribers">人の登録者</string>
+    <string name="search_no_results">検索結果が見つかりませんでした</string>
+    <string name="empty_search">キーワードを入力して動画を検索</string>
+
+    <!-- Player & Video -->
+    <string name="player_quality">画質</string>
+    <string name="player_speed">再生速度</string>
+    <string name="player_auto_play">自動再生</string>
+    <string name="player_comments">コメント</string>
+    <string name="player_no_comments">コメントはありません</string>
+    <string name="player_description">説明</string>
+    <string name="player_share">共有</string>
+    <string name="player_copy_link">リンクをコピー</string>
+    <string name="player_save">保存</string>
+    <string name="player_saved">ライブラリに保存しました</string>
+    <string name="player_removed">ライブラリから削除しました</string>
+    <string name="player_up_next">次の動画</string>
+    <string name="up_next">次の動画</string>
+    <string name="player_sponsor_skip">スポンサー区間をスキップしました</string>
+    <string name="sponsor_skipped">スポンサー区間をスキップしました</string>
+    <string name="undo">元に戻す</string>
+    <string name="player_pip">ピクチャー イン ピクチャー</string>
+
+    <!-- Channel -->
+    <string name="channel_subscribe">チャンネル登録</string>
+    <string name="channel_subscribed">登録済み</string>
+    <string name="channel_videos">動画</string>
+    <string name="channel_shorts">ショート</string>
+    <string name="channel_about">概要</string>
+    <string name="channel_no_videos">このチャンネルには動画がありません</string>
+
+    <!-- Library -->
+    <string name="library_title">ライブラリ</string>
+    <string name="library_favorites">高く評価した動画</string>
+    <string name="library_history">再生履歴</string>
+    <string name="library_subscriptions">登録チャンネル</string>
+    <string name="library_empty_fav">保存されたお気に入りの動画はありません</string>
+    <string name="library_empty_history">再生履歴はありません</string>
+    <string name="empty_history">再生履歴はありません</string>
+    <string name="library_empty_subs">登録したチャンネルはありません</string>
+    <string name="library_clear_history">履歴を消去</string>
+
+    <!-- Settings General -->
+    <string name="settings_title">設定</string>
+    <string name="settings_section_general">一般と表示</string>
+    <string name="settings_app_language">アプリの言語</string>
+    <string name="settings_app_language_desc">アプリの表示言語を選択します</string>
+    <string name="settings_content_region">コンテンツ地域</string>
+    <string name="settings_content_region_desc">国別の急上昇やフィードを設定します</string>
+
+    <!-- Settings Playback -->
+    <string name="settings_section_playback">再生と画質</string>
+    <string name="settings_default_quality">デフォルトの画質</string>
+    <string name="settings_default_speed">デフォルトの再生速度</string>
+    <string name="settings_bg_playback">バックグラウンド再生</string>
+    <string name="settings_bg_playback_desc">画面オフやアプリ最小化時も音声を再生します</string>
+    <string name="settings_auto_pip">自動PiP（小窓表示）</string>
+    <string name="settings_auto_pip_desc">ホームボタンを押すと自動的に小窓表示にします</string>
+
+    <!-- Settings SponsorBlock -->
+    <string name="settings_section_sponsorblock">SponsorBlock</string>
+    <string name="settings_sponsorblock_enable">SponsorBlockを有効化</string>
+    <string name="settings_sponsorblock_desc">動画内のスポンサー区間を自動でスキップします</string>
+    <string name="settings_skip_sponsor">スポンサー区間</string>
+    <string name="settings_skip_selfpromo">自己宣伝</string>
+    <string name="settings_skip_interaction">高評価・登録のお願い</string>
+    <string name="settings_skip_intro">イントロ・オープニング</string>
+    <string name="settings_skip_outro">アウトロ・エンディング</string>
+
+    <!-- Settings Privacy -->
+    <string name="settings_section_privacy">プライバシーとストレージ</string>
+    <string name="settings_pause_history">再生履歴を一時停止</string>
+    <string name="settings_pause_history_desc">新しい動画を履歴に保存しません</string>
+    <string name="settings_clear_watch_history">再生履歴を消去</string>
+    <string name="settings_clear_search_history">検索履歴を消去</string>
+    <string name="settings_clear_cache">キャッシュを削除</string>
+    <string name="settings_cache_size">現在のキャッシュサイズ</string>
+
+    <!-- Settings About -->
+    <string name="settings_section_about">このアプリについて</string>
+    <string name="settings_app_version">Phantom バージョン</string>
+    <string name="settings_check_update">アップデートを確認</string>
+    <string name="settings_github">公式GitHubリポジトリ</string>
+
+    <!-- Dialogs & Actions -->
+    <string name="dialog_cancel">キャンセル</string>
+    <string name="dialog_delete">削除</string>
+    <string name="dialog_clean">削除する</string>
+    <string name="dialog_confirm_clear_history">すべての再生履歴を消去しますか？</string>
+    <string name="dialog_confirm_clear_search">すべての検索履歴を消去しますか？</string>
+    <string name="dialog_confirm_clear_cache">すべてのアプリキャッシュを削除しますか？</string>
+    <string name="toast_cache_cleared">キャッシュを削除しました</string>
+    <string name="toast_history_cleared">履歴を消去しました</string>
+    <string name="toast_link_copied">リンクをクリップボードにコピーしました</string>
+
+    <!-- Feedback -->
+    <string name="settings_feedback">フィードバック・不具合報告</string>
+    <string name="settings_feedback_desc">ご意見や不具合の報告、機能リクエストを開発者に送信</string>
+    <string name="feedback_dialog_title">開発者へフィードバックを送信</string>
+    <string name="feedback_type_bug">不具合報告</string>
+    <string name="feedback_type_feature">機能リクエスト</string>
+    <string name="feedback_type_general">一般的なご意見</string>
+    <string name="feedback_message_hint">ご意見や発生した不具合の詳細を入力してください...</string>
+    <string name="feedback_device_info_note">問題解決を円滑にするため、端末の技術情報が自動で添付されます。</string>
+    <string name="feedback_send_button">メールで送信</string>
+    <string name="feedback_no_email_app">メールアプリが見つかりません。開発者のメールアドレスをコピーしました: totoyu379@gmail.com</string>
+</resources>

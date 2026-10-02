@@ -1,0 +1,132 @@
+<resources>
+    <string name="app_name">Phantom</string>
+
+    <!-- Navigation -->
+    <string name="nav_home">Главная</string>
+    <string name="nav_search">Поиск</string>
+    <string name="nav_library">Библиотека</string>
+    <string name="nav_history">История</string>
+    <string name="nav_settings">Настройки</string>
+
+    <!-- Categories -->
+    <string name="cat_all">Все</string>
+    <string name="cat_trending">В тренде</string>
+    <string name="cat_music">Музыка</string>
+    <string name="cat_gaming">Видеоигры</string>
+    <string name="cat_news">Новости</string>
+    <string name="cat_podcast">Подкасты</string>
+    <string name="cat_tech">Технологии</string>
+    <string name="cat_animation">Анимация</string>
+
+    <!-- Search -->
+    <string name="search_hint">Поиск видео, каналов или музыки...</string>
+    <string name="search_history_title">История поиска</string>
+    <string name="search_history_clear">Очистить все</string>
+    <string name="search_channel_badge">Канал</string>
+    <string name="search_subscribers">подписчиков</string>
+    <string name="search_no_results">Ничего не найдено</string>
+    <string name="empty_search">Введите запрос для поиска видео</string>
+
+    <!-- Player & Video -->
+    <string name="player_quality">Качество видео</string>
+    <string name="player_speed">Скорость воспроизведения</string>
+    <string name="player_auto_play">Автовоспроизведение</string>
+    <string name="player_comments">Комментарии</string>
+    <string name="player_no_comments">Пока нет комментариев</string>
+    <string name="player_description">Описание</string>
+    <string name="player_share">Поделиться</string>
+    <string name="player_copy_link">Копировать ссылку</string>
+    <string name="player_save">Сохранить</string>
+    <string name="player_saved">Сохранено в библиотеку</string>
+    <string name="player_removed">Удалено из библиотеки</string>
+    <string name="player_up_next">Следующее видео</string>
+    <string name="up_next">Следующее видео</string>
+    <string name="player_sponsor_skip">Спонсорский сегмент пропущен</string>
+    <string name="sponsor_skipped">Спонсорский сегмент пропущен</string>
+    <string name="undo">Отменить</string>
+    <string name="player_pip">Картинка в картинке</string>
+
+    <!-- Channel -->
+    <string name="channel_subscribe">Подписаться</string>
+    <string name="channel_subscribed">Вы подписаны</string>
+    <string name="channel_videos">Видео</string>
+    <string name="channel_shorts">Shorts</string>
+    <string name="channel_about">О канале</string>
+    <string name="channel_no_videos">На этом канале пока нет видео</string>
+
+    <!-- Library -->
+    <string name="library_title">Библиотека</string>
+    <string name="library_favorites">Понравившиеся</string>
+    <string name="library_history">История просмотра</string>
+    <string name="library_subscriptions">Подписки</string>
+    <string name="library_empty_fav">Нет сохраненных избранных видео</string>
+    <string name="library_empty_history">История просмотра пуста</string>
+    <string name="empty_history">История просмотра пуста</string>
+    <string name="library_empty_subs">Вы пока не подписались ни на один канал</string>
+    <string name="library_clear_history">Очистить историю</string>
+
+    <!-- Settings General -->
+    <string name="settings_title">Настройки</string>
+    <string name="settings_section_general">Общие и экран</string>
+    <string name="settings_app_language">Язык приложения</string>
+    <string name="settings_app_language_desc">Выберите язык интерфейса приложения</string>
+    <string name="settings_content_region">Регион контента</string>
+    <string name="settings_content_region_desc">Настройка трендов и рекомендаций по странам</string>
+
+    <!-- Settings Playback -->
+    <string name="settings_section_playback">Воспроизведение и качество</string>
+    <string name="settings_default_quality">Качество видео по умолчанию</string>
+    <string name="settings_default_speed">Скорость воспроизведения по умолчанию</string>
+    <string name="settings_bg_playback">Фоновое воспроизведение</string>
+    <string name="settings_bg_playback_desc">Воспроизводить звук при выключенном экране или сворачивании</string>
+    <string name="settings_auto_pip">Автоматический PiP</string>
+    <string name="settings_auto_pip_desc">Переход в режим плавающего окна при нажатии кнопки Домой</string>
+
+    <!-- Settings SponsorBlock -->
+    <string name="settings_section_sponsorblock">SponsorBlock</string>
+    <string name="settings_sponsorblock_enable">Включить SponsorBlock</string>
+    <string name="settings_sponsorblock_desc">Автоматически пропускать встроенную рекламу в видео</string>
+    <string name="settings_skip_sponsor">Спонсорские сегменты</string>
+    <string name="settings_skip_selfpromo">Самореклама</string>
+    <string name="settings_skip_interaction">Напоминания подписаться</string>
+    <string name="settings_skip_intro">Интро / Заставка</string>
+    <string name="settings_skip_outro">Аутро / Титры</string>
+
+    <!-- Settings Privacy -->
+    <string name="settings_section_privacy">Конфиденциальность и память</string>
+    <string name="settings_pause_history">Приостановить историю просмотра</string>
+    <string name="settings_pause_history_desc">Не сохранять новые видео в историю</string>
+    <string name="settings_clear_watch_history">Очистить историю просмотра</string>
+    <string name="settings_clear_search_history">Очистить историю поиска</string>
+    <string name="settings_clear_cache">Очистить кэш приложения</string>
+    <string name="settings_cache_size">Текущий размер кэша</string>
+
+    <!-- Settings About -->
+    <string name="settings_section_about">О приложении Phantom</string>
+    <string name="settings_app_version">Версия Phantom</string>
+    <string name="settings_check_update">Проверить обновления</string>
+    <string name="settings_github">Официальный репозиторий GitHub</string>
+
+    <!-- Dialogs & Actions -->
+    <string name="dialog_cancel">Отмена</string>
+    <string name="dialog_delete">Удалить</string>
+    <string name="dialog_clean">Очистить</string>
+    <string name="dialog_confirm_clear_history">Очистить всю историю просмотра?</string>
+    <string name="dialog_confirm_clear_search">Очистить всю историю поиска?</string>
+    <string name="dialog_confirm_clear_cache">Очистить файлы кэша приложения?</string>
+    <string name="toast_cache_cleared">Кэш успешно очищен</string>
+    <string name="toast_history_cleared">История успешно очищена</string>
+    <string name="toast_link_copied">Ссылка скопирована в буфер обмена</string>
+
+    <!-- Feedback -->
+    <string name="settings_feedback">Отправить отзыв и сообщить об ошибке</string>
+    <string name="settings_feedback_desc">Отправьте предложения, отчеты об ошибках или запросы разработчику</string>
+    <string name="feedback_dialog_title">Отправить отзыв разработчику</string>
+    <string name="feedback_type_bug">Отчет об ошибке</string>
+    <string name="feedback_type_feature">Запрос функции</string>
+    <string name="feedback_type_general">Общий отзыв</string>
+    <string name="feedback_message_hint">Подробно опишите ваши предложения или возникшую проблему...</string>
+    <string name="feedback_device_info_note">Техническая информация об устройстве будет прикреплена автоматически.</string>
+    <string name="feedback_send_button">Отправить по почте</string>
+    <string name="feedback_no_email_app">Почтовый клиент не найден. Email разработчика скопирован в буфер: totoyu379@gmail.com</string>
+</resources>

@@ -56,7 +56,11 @@ data class NextQueue(
     val commentsContinuationToken: String? = null,
     val topComment: VideoComment? = null
 ) {
-    val upNext: List<VideoItem> get() = if (currentIndex < mixPlaylist.lastIndex) mixPlaylist.subList(currentIndex + 1, mixPlaylist.size) else emptyList()
+    val upNext: List<VideoItem> get() = if (mixPlaylist.isNotEmpty() && currentIndex < mixPlaylist.lastIndex) {
+        mixPlaylist.subList(currentIndex + 1, mixPlaylist.size)
+    } else {
+        recommendations
+    }
     val mixQueue: List<VideoItem> get() = upNext
 }
 

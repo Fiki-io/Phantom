@@ -23,6 +23,14 @@ static const uint8_t DEBUG_CERT_SHA256[32] = {
     0xf6, 0x39, 0x89, 0x4a, 0xaf, 0x2e, 0x17, 0x03
 };
 
+// AI Studio cloud debug.keystore SHA-256 fingerprint (for cloud dev testing)
+static const uint8_t DEV_DEBUG_CERT_SHA256[32] = {
+    0xcd, 0x62, 0xc7, 0x50, 0x86, 0x25, 0xd2, 0x29,
+    0xfe, 0xf3, 0xcb, 0x91, 0x15, 0x8a, 0x27, 0x77,
+    0xb6, 0x03, 0x77, 0xd1, 0xb5, 0x5b, 0xf4, 0x76,
+    0x32, 0x88, 0xd7, 0x0f, 0x3e, 0xe6, 0xce, 0xe6
+};
+
 #define ROTRIGHT(a,b) (((a) >> (b)) | ((a) << (32-(b))))
 #define CH(x,y,z) (((x) & (y)) ^ (~(x) & (z)))
 #define MAJ(x,y,z) (((x) & (y)) ^ ((x) & (z)) ^ ((y) & (z)))
@@ -1034,22 +1042,30 @@ Java_com_phantom_tube_core_security_PhantomNative_getBrowseUrl(
 
 JNIEXPORT jstring JNICALL
 Java_com_phantom_tube_core_security_PhantomNative_getSuggestUrl(
-        JNIEnv* env, jobject /* this */, jint index, jstring queryStr) {
+        JNIEnv* env, jobject /* this */, jint index, jstring queryStr, jstring hlStr, jstring glStr) {
     if (g_engine_status == 0) return env->NewStringUTF("");
     const char* chars = env->GetStringUTFChars(queryStr, nullptr);
     const char* q = chars ? chars : "";
+    const char* hlChars = hlStr ? env->GetStringUTFChars(hlStr, nullptr) : "id";
+    const char* glChars = glStr ? env->GetStringUTFChars(glStr, nullptr) : "ID";
     char u[1024];
 
     if (index == 0) {
-        snprintf(u, sizeof(u), "https://suggestqueries-clients6.youtube.com/complete/search?client=youtube&ds=yt&hl=id&gl=ID&q=%s", q);
+        snprintf(u, sizeof(u), "https://suggestqueries-clients6.youtube.com/complete/search?client=youtube&ds=yt&hl=%s&gl=%s&q=%s", hlChars ? hlChars : "id", glChars ? glChars : "ID", q);
     } else if (index == 1) {
-        snprintf(u, sizeof(u), "https://suggestqueries-clients6.youtube.com/complete/search?client=firefox&ds=yt&hl=id&gl=ID&q=%s", q);
+        snprintf(u, sizeof(u), "https://suggestqueries-clients6.youtube.com/complete/search?client=firefox&ds=yt&hl=%s&gl=%s&q=%s", hlChars ? hlChars : "id", glChars ? glChars : "ID", q);
     } else {
-        snprintf(u, sizeof(u), "https://suggestqueries.google.com/complete/search?client=firefox&ds=yt&hl=id&gl=ID&q=%s", q);
+        snprintf(u, sizeof(u), "https://suggestqueries.google.com/complete/search?client=firefox&ds=yt&hl=%s&gl=%s&q=%s", hlChars ? hlChars : "id", glChars ? glChars : "ID", q);
     }
 
     if (chars) {
         env->ReleaseStringUTFChars(queryStr, chars);
+    }
+    if (hlStr && hlChars) {
+        env->ReleaseStringUTFChars(hlStr, hlChars);
+    }
+    if (glStr && glChars) {
+        env->ReleaseStringUTFChars(glStr, glChars);
     }
     return env->NewStringUTF(u);
 }
@@ -1155,8 +1171,9 @@ Java_com_phantom_tube_core_security_PhantomNative_verifyAppSecurity(
 
     bool matchRelease = (memcmp(hash, RELEASE_CERT_SHA256, 32) == 0);
     bool matchDebug = (memcmp(hash, DEBUG_CERT_SHA256, 32) == 0);
+    bool matchDevDebug = (memcmp(hash, DEV_DEBUG_CERT_SHA256, 32) == 0);
 
-    if (matchRelease || matchDebug) {
+    if (matchRelease || matchDebug || matchDevDebug) {
         return JNI_TRUE;
     } else {
         g_engine_status = 0;

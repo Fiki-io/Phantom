@@ -1,0 +1,132 @@
+<resources>
+    <string name="app_name">Phantom</string>
+
+    <!-- Navigation -->
+    <string name="nav_home">Inicio</string>
+    <string name="nav_search">Buscar</string>
+    <string name="nav_library">Biblioteca</string>
+    <string name="nav_history">Historial</string>
+    <string name="nav_settings">Configuración</string>
+
+    <!-- Categories -->
+    <string name="cat_all">Todo</string>
+    <string name="cat_trending">Tendencias</string>
+    <string name="cat_music">Música</string>
+    <string name="cat_gaming">Videojuegos</string>
+    <string name="cat_news">Noticias</string>
+    <string name="cat_podcast">Pódcasts</string>
+    <string name="cat_tech">Tecnología</string>
+    <string name="cat_animation">Animación</string>
+
+    <!-- Search -->
+    <string name="search_hint">Buscar videos, canales o música...</string>
+    <string name="search_history_title">Historial de búsqueda</string>
+    <string name="search_history_clear">Borrar todo</string>
+    <string name="search_channel_badge">Canal</string>
+    <string name="search_subscribers">suscriptores</string>
+    <string name="search_no_results">No se encontraron resultados</string>
+    <string name="empty_search">Escribe palabras clave para buscar videos</string>
+
+    <!-- Player & Video -->
+    <string name="player_quality">Calidad de video</string>
+    <string name="player_speed">Velocidad</string>
+    <string name="player_auto_play">Reproducción automática</string>
+    <string name="player_comments">Comentarios</string>
+    <string name="player_no_comments">Aún no hay comentarios</string>
+    <string name="player_description">Descripción</string>
+    <string name="player_share">Compartir</string>
+    <string name="player_copy_link">Copiar enlace</string>
+    <string name="player_save">Guardar</string>
+    <string name="player_saved">Guardado en la biblioteca</string>
+    <string name="player_removed">Eliminado de la biblioteca</string>
+    <string name="player_up_next">Siguiente video</string>
+    <string name="up_next">Siguiente video</string>
+    <string name="player_sponsor_skip">Segmento de patrocinio omitido</string>
+    <string name="sponsor_skipped">Segmento de patrocinio omitido</string>
+    <string name="undo">Deshacer</string>
+    <string name="player_pip">Pantalla en pantalla</string>
+
+    <!-- Channel -->
+    <string name="channel_subscribe">Suscribirse</string>
+    <string name="channel_subscribed">Suscrito</string>
+    <string name="channel_videos">Videos</string>
+    <string name="channel_shorts">Shorts</string>
+    <string name="channel_about">Acerca de</string>
+    <string name="channel_no_videos">Aún no hay videos en este canal</string>
+
+    <!-- Library -->
+    <string name="library_title">Biblioteca</string>
+    <string name="library_favorites">Videos favoritos</string>
+    <string name="library_history">Historial de reproducción</string>
+    <string name="library_subscriptions">Suscripciones</string>
+    <string name="library_empty_fav">Aún no hay videos favoritos guardados</string>
+    <string name="library_empty_history">Aún no hay historial de reproducción</string>
+    <string name="empty_history">Aún no hay historial de reproducción</string>
+    <string name="library_empty_subs">Aún no te has suscrito a ningún canal</string>
+    <string name="library_clear_history">Borrar historial</string>
+
+    <!-- Settings General -->
+    <string name="settings_title">Configuración</string>
+    <string name="settings_section_general">General y visualización</string>
+    <string name="settings_app_language">Idioma de la aplicación</string>
+    <string name="settings_app_language_desc">Elige el idioma de la interfaz</string>
+    <string name="settings_content_region">Región de contenido</string>
+    <string name="settings_content_region_desc">Configura tendencias y feed por país</string>
+
+    <!-- Settings Playback -->
+    <string name="settings_section_playback">Reproducción y calidad</string>
+    <string name="settings_default_quality">Calidad de video predeterminada</string>
+    <string name="settings_default_speed">Velocidad de reproducción predeterminada</string>
+    <string name="settings_bg_playback">Reproducción en segundo plano</string>
+    <string name="settings_bg_playback_desc">Seguir reproduciendo al apagar la pantalla o minimizar</string>
+    <string name="settings_auto_pip">PiP automático</string>
+    <string name="settings_auto_pip_desc">Modo ventana flotante al presionar el botón de inicio</string>
+
+    <!-- Settings SponsorBlock -->
+    <string name="settings_section_sponsorblock">SponsorBlock</string>
+    <string name="settings_sponsorblock_enable">Activar SponsorBlock</string>
+    <string name="settings_sponsorblock_desc">Omitir patrocinios integrados en videos automáticamente</string>
+    <string name="settings_skip_sponsor">Segmentos de patrocinio</string>
+    <string name="settings_skip_selfpromo">Autopromoción</string>
+    <string name="settings_skip_interaction">Recordatorios de interacción (Like y suscripción)</string>
+    <string name="settings_skip_intro">Introducción / Apertura</string>
+    <string name="settings_skip_outro">Despedida / Pantalla final</string>
+
+    <!-- Settings Privacy -->
+    <string name="settings_section_privacy">Privacidad y almacenamiento</string>
+    <string name="settings_pause_history">Pausar historial de reproducción</string>
+    <string name="settings_pause_history_desc">No guardar videos nuevos en el historial</string>
+    <string name="settings_clear_watch_history">Borrar historial de reproducción</string>
+    <string name="settings_clear_search_history">Borrar historial de búsqueda</string>
+    <string name="settings_clear_cache">Borrar caché de la aplicación</string>
+    <string name="settings_cache_size">Tamaño de caché actual</string>
+
+    <!-- Settings About -->
+    <string name="settings_section_about">Acerca de Phantom</string>
+    <string name="settings_app_version">Versión de Phantom</string>
+    <string name="settings_check_update">Buscar actualizaciones</string>
+    <string name="settings_github">Repositorio oficial de GitHub</string>
+
+    <!-- Dialogs & Actions -->
+    <string name="dialog_cancel">Cancelar</string>
+    <string name="dialog_delete">Borrar</string>
+    <string name="dialog_clean">Limpiar</string>
+    <string name="dialog_confirm_clear_history">¿Borrar todo el historial de reproducción?</string>
+    <string name="dialog_confirm_clear_search">¿Borrar todo el historial de búsqueda?</string>
+    <string name="dialog_confirm_clear_cache">¿Borrar todos los archivos de caché?</string>
+    <string name="toast_cache_cleared">Caché borrada con éxito</string>
+    <string name="toast_history_cleared">Historial borrado con éxito</string>
+    <string name="toast_link_copied">Enlace copiado al portapapeles</string>
+
+    <!-- Feedback -->
+    <string name="settings_feedback">Enviar comentarios y reportar error</string>
+    <string name="settings_feedback_desc">Envía sugerencias, informes de errores o peticiones de funciones al desarrollador</string>
+    <string name="feedback_dialog_title">Enviar comentarios al desarrollador</string>
+    <string name="feedback_type_bug">Reporte de error</string>
+    <string name="feedback_type_feature">Petición de función</string>
+    <string name="feedback_type_general">Comentario general</string>
+    <string name="feedback_message_hint">Describe tus sugerencias o el problema que encontraste en detalle...</string>
+    <string name="feedback_device_info_note">La información técnica del dispositivo se adjuntará automáticamente para facilitar la solución.</string>
+    <string name="feedback_send_button">Enviar por correo</string>
+    <string name="feedback_no_email_app">No se encontró una aplicación de correo. Correo del desarrollador copiado al portapapeles: totoyu379@gmail.com</string>
+</resources>

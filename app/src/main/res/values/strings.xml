@@ -1,12 +1,132 @@
 <resources>
     <string name="app_name">Phantom</string>
-    <string name="home_title">Beranda</string>
-    <string name="search_hint">Cari video atau musik...</string>
-    <string name="history_title">Riwayat</string>
-    <string name="library_title">Koleksi</string>
+
+    <!-- Navigation -->
+    <string name="nav_home">Beranda</string>
+    <string name="nav_search">Cari</string>
+    <string name="nav_library">Koleksi</string>
+    <string name="nav_history">Riwayat</string>
+    <string name="nav_settings">Pengaturan</string>
+
+    <!-- Categories -->
+    <string name="cat_all">Semua</string>
+    <string name="cat_trending">Trending</string>
+    <string name="cat_music">Musik</string>
+    <string name="cat_gaming">Gaming</string>
+    <string name="cat_news">Berita</string>
+    <string name="cat_podcast">Podcast</string>
+    <string name="cat_tech">Teknologi</string>
+    <string name="cat_animation">Animasi</string>
+
+    <!-- Search -->
+    <string name="search_hint">Cari video, channel, atau musik...</string>
+    <string name="search_history_title">Riwayat Pencarian</string>
+    <string name="search_history_clear">Hapus Semua</string>
+    <string name="search_channel_badge">Channel</string>
+    <string name="search_subscribers">subscriber</string>
+    <string name="search_no_results">Tidak ada hasil ditemukan</string>
+    <string name="empty_search">Ketik kata kunci untuk mencari video</string>
+
+    <!-- Player & Video -->
+    <string name="player_quality">Kualitas Video</string>
+    <string name="player_speed">Kecepatan</string>
+    <string name="player_auto_play">Putar Otomatis</string>
+    <string name="player_comments">Komentar</string>
+    <string name="player_no_comments">Belum ada komentar</string>
+    <string name="player_description">Deskripsi</string>
+    <string name="player_share">Bagikan</string>
+    <string name="player_copy_link">Salin Tautan</string>
+    <string name="player_save">Simpan</string>
+    <string name="player_saved">Disimpan ke Koleksi</string>
+    <string name="player_removed">Dihapus dari Koleksi</string>
+    <string name="player_up_next">Video Berikutnya</string>
+    <string name="up_next">Video Berikutnya</string>
+    <string name="player_sponsor_skip">Bagian sponsor dilewati</string>
     <string name="sponsor_skipped">Bagian sponsor dilewati</string>
     <string name="undo">Batalkan</string>
-    <string name="up_next">Video Berikutnya</string>
+    <string name="player_pip">Picture-in-Picture</string>
+
+    <!-- Channel -->
+    <string name="channel_subscribe">Langganan</string>
+    <string name="channel_subscribed">Berlangganan</string>
+    <string name="channel_videos">Video</string>
+    <string name="channel_shorts">Shorts</string>
+    <string name="channel_about">Tentang</string>
+    <string name="channel_no_videos">Belum ada video di channel ini</string>
+
+    <!-- Library -->
+    <string name="library_title">Koleksi</string>
+    <string name="library_favorites">Video Disukai</string>
+    <string name="library_history">Riwayat Tontonan</string>
+    <string name="library_subscriptions">Langganan</string>
+    <string name="library_empty_fav">Belum ada video favorit yang disimpan</string>
+    <string name="library_empty_history">Belum ada riwayat tontonan</string>
     <string name="empty_history">Belum ada riwayat tontonan</string>
-    <string name="empty_search">Ketik kata kunci untuk mencari video</string>
+    <string name="library_empty_subs">Belum berlangganan ke channel apa pun</string>
+    <string name="library_clear_history">Kosongkan Riwayat</string>
+
+    <!-- Settings General -->
+    <string name="settings_title">Pengaturan</string>
+    <string name="settings_section_general">Umum &amp; Tampilan</string>
+    <string name="settings_app_language">Bahasa Aplikasi</string>
+    <string name="settings_app_language_desc">Pilih bahasa tampilan antarmuka</string>
+    <string name="settings_content_region">Wilayah Konten</string>
+    <string name="settings_content_region_desc">Mengatur trending dan feed sesuai negara</string>
+
+    <!-- Settings Playback -->
+    <string name="settings_section_playback">Pemutaran &amp; Kualitas</string>
+    <string name="settings_default_quality">Kualitas Video Default</string>
+    <string name="settings_default_speed">Kecepatan Pemutaran Default</string>
+    <string name="settings_bg_playback">Putar di Latar Belakang</string>
+    <string name="settings_bg_playback_desc">Tetap putar saat layar mati atau aplikasi diminimalkan</string>
+    <string name="settings_auto_pip">Otomatis PiP (Picture-in-Picture)</string>
+    <string name="settings_auto_pip_desc">Masuk mode jendela melayang saat menekan tombol Home</string>
+
+    <!-- Settings SponsorBlock -->
+    <string name="settings_section_sponsorblock">SponsorBlock</string>
+    <string name="settings_sponsorblock_enable">Aktifkan SponsorBlock</string>
+    <string name="settings_sponsorblock_desc">Lewati sponsor terintegrasi dalam video secara otomatis</string>
+    <string name="settings_skip_sponsor">Segmen Sponsor</string>
+    <string name="settings_skip_selfpromo">Promosi Sendiri (Self-Promotion)</string>
+    <string name="settings_skip_interaction">Pengingat Interaksi (Like &amp; Sub)</string>
+    <string name="settings_skip_intro">Intro / Pembuka Video</string>
+    <string name="settings_skip_outro">Outro / Penutup Video</string>
+
+    <!-- Settings Privacy -->
+    <string name="settings_section_privacy">Privasi &amp; Penyimpanan</string>
+    <string name="settings_pause_history">Jeda Riwayat Tontonan</string>
+    <string name="settings_pause_history_desc">Jangan simpan video yang ditonton ke riwayat</string>
+    <string name="settings_clear_watch_history">Hapus Riwayat Tontonan</string>
+    <string name="settings_clear_search_history">Hapus Riwayat Pencarian</string>
+    <string name="settings_clear_cache">Bersihkan Cache Aplikasi</string>
+    <string name="settings_cache_size">Ukuran cache saat ini</string>
+
+    <!-- Settings About -->
+    <string name="settings_section_about">Tentang Aplikasi</string>
+    <string name="settings_app_version">Versi Phantom</string>
+    <string name="settings_check_update">Periksa Pembaruan</string>
+    <string name="settings_github">Repositori GitHub Resmi</string>
+
+    <!-- Dialogs & Actions -->
+    <string name="dialog_cancel">Batal</string>
+    <string name="dialog_delete">Hapus</string>
+    <string name="dialog_clean">Bersihkan</string>
+    <string name="dialog_confirm_clear_history">Hapus semua riwayat tontonan?</string>
+    <string name="dialog_confirm_clear_search">Hapus semua riwayat pencarian?</string>
+    <string name="dialog_confirm_clear_cache">Bersihkan seluruh cache aplikasi?</string>
+    <string name="toast_cache_cleared">Cache berhasil dibersihkan</string>
+    <string name="toast_history_cleared">Riwayat berhasil dihapus</string>
+    <string name="toast_link_copied">Tautan disalin ke papan klip</string>
+
+    <!-- Feedback -->
+    <string name="settings_feedback">Kirim Masukan &amp; Bug</string>
+    <string name="settings_feedback_desc">Kirim saran, laporan kendala, atau permintaan fitur langsung ke developer</string>
+    <string name="feedback_dialog_title">Kirim Masukan ke Pengembang</string>
+    <string name="feedback_type_bug">Bug / Kendala</string>
+    <string name="feedback_type_feature">Permintaan Fitur</string>
+    <string name="feedback_type_general">Masukan Umum</string>
+    <string name="feedback_message_hint">Jelaskan masukan atau kendala yang Anda alami secara rinci...</string>
+    <string name="feedback_device_info_note">Info teknis perangkat akan otomatis dilampirkan untuk mempermudah perbaikan.</string>
+    <string name="feedback_send_button">Kirim via Email</string>
+    <string name="feedback_no_email_app">Tidak ada aplikasi email ditemukan. Email pengembang disalin ke papan klip: totoyu379@gmail.com</string>
 </resources>

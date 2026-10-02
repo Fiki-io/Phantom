@@ -121,12 +121,34 @@ class PhantomPreferences(context: Context) {
     }
 
     // ==========================================
-    // 3. WILAYAH & KONTEN (REGION)
+    // 3. BAHASA & WILAYAH (LANGUAGE & REGION)
     // ==========================================
 
-    private val _contentCountry = MutableStateFlow(
-        prefs.getString(KEY_CONTENT_COUNTRY, "ID") ?: "ID"
-    )
+    private val initialLanguage: String = if (prefs.contains(KEY_APP_LANGUAGE)) {
+        prefs.getString(KEY_APP_LANGUAGE, "en") ?: "en"
+    } else {
+        val detected = com.phantom.tube.core.util.LocaleHelper.resolveDefaultLanguage()
+        prefs.edit().putString(KEY_APP_LANGUAGE, detected).apply()
+        detected
+    }
+
+    private val _appLanguage = MutableStateFlow(initialLanguage)
+    val appLanguage: StateFlow<String> = _appLanguage.asStateFlow()
+
+    fun setAppLanguage(langCode: String) {
+        _appLanguage.value = langCode
+        prefs.edit().putString(KEY_APP_LANGUAGE, langCode).apply()
+    }
+
+    private val initialCountry: String = if (prefs.contains(KEY_CONTENT_COUNTRY)) {
+        prefs.getString(KEY_CONTENT_COUNTRY, "GLOBAL") ?: "GLOBAL"
+    } else {
+        val detected = com.phantom.tube.core.util.RegionHelper.resolveDefaultCountry()
+        prefs.edit().putString(KEY_CONTENT_COUNTRY, detected).apply()
+        detected
+    }
+
+    private val _contentCountry = MutableStateFlow(initialCountry)
     val contentCountry: StateFlow<String> = _contentCountry.asStateFlow()
 
     fun setContentCountry(countryCode: String) {
@@ -199,6 +221,7 @@ class PhantomPreferences(context: Context) {
         private const val KEY_SKIP_INTRO = "pref_skip_intro"
         private const val KEY_SKIP_OUTRO = "pref_skip_outro"
 
+        private const val KEY_APP_LANGUAGE = "pref_app_language"
         private const val KEY_CONTENT_COUNTRY = "pref_content_country"
         private const val KEY_PAUSE_WATCH_HISTORY = "pref_pause_watch_history"
     }
