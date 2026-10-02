@@ -268,7 +268,7 @@ fun PlayerMixSheet(
                 mixSheetOffsetY = (mixSheetOffsetY + dragAmount).coerceAtLeast(0f)
             },
             onDragEnd = {
-                if (mixSheetOffsetY > 140f) {
+                if (mixSheetOffsetY > 80f) {
                     onDismiss()
                 } else {
                     mixSheetOffsetY = 0f

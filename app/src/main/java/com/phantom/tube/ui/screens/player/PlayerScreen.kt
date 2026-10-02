@@ -921,7 +921,9 @@ fun PlayerScreen(
     }
 
     BackHandler(enabled = !isMinimized) {
-        if (showDescriptionSheet) {
+        if (showMixSheet) {
+            showMixSheet = false
+        } else if (showDescriptionSheet) {
             showDescriptionSheet = false
         } else if (showCommentsSheet) {
             showCommentsSheet = false
@@ -929,8 +931,6 @@ fun PlayerScreen(
             showSettingsSheet = false
         } else if (isFullscreen) {
             exitFullscreenToPortrait()
-        } else if (showMixSheet) {
-            showMixSheet = false
         } else {
             onBackClick()
         }
@@ -977,6 +977,10 @@ fun PlayerScreen(
         } else {
             fullSheetProgress.snapTo(0f)
             dragOffsetY = 0f
+            showMixSheet = false
+            showDescriptionSheet = false
+            showCommentsSheet = false
+            showSettingsSheet = false
         }
     }
 
@@ -989,6 +993,12 @@ fun PlayerScreen(
                     if (dragAmount > 0f || dragOffsetY > 0f) {
                         change.consume()
                         dragOffsetY = (dragOffsetY + dragAmount).coerceAtLeast(0f)
+                        if (dragOffsetY > 15f) {
+                            showMixSheet = false
+                            showDescriptionSheet = false
+                            showCommentsSheet = false
+                            showSettingsSheet = false
+                        }
                     }
                 },
                 onDragEnd = {
@@ -1003,6 +1013,10 @@ fun PlayerScreen(
                     } else {
                         // Tarik ke bawah di mode portrait untuk memperkecil ke miniplayer
                         if (dragOffsetY > 200f) {
+                            showMixSheet = false
+                            showDescriptionSheet = false
+                            showCommentsSheet = false
+                            showSettingsSheet = false
                             onMinimize()
                         } else {
                             dragOffsetY = 0f
@@ -1114,15 +1128,30 @@ fun PlayerScreen(
                 }
         }
     ) {
+        // -1.5 STATIONARY STATUS BAR PROTECTION (Stays at phone top, fades during drag)
+        if (!isMinimized && !isFullscreen) {
+            val statusBarAlpha = (fullSheetProgress.value * (1f - dragProgress * 2f)).coerceIn(0f, 1f)
+            if (statusBarAlpha > 0f) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .statusBarsPadding()
+                        .alpha(statusBarAlpha)
+                        .background(ObsidianDark)
+                )
+            }
+        }
+
         // -1. SOLID SHEET BACKGROUND (Surfaces smoothly upwards under the player and content)
         if (!isMinimized && !isFullscreen) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
+                    .statusBarsPadding()
                     .graphicsLayer {
                         translationY = totalOffsetY
-                        shape = RoundedCornerShape(topStart = openCornerRadius, topEnd = openCornerRadius)
-                        clip = openCornerRadius > 0.dp
+                        shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
+                        clip = true
                     }
                     .background(ObsidianDark)
             )
@@ -1208,13 +1237,14 @@ fun PlayerScreen(
             }
             else -> Modifier
                 .fillMaxWidth()
+                .statusBarsPadding()
+                .padding(horizontal = (dragProgress * 10f).dp)
                 .graphicsLayer {
                     translationY = totalOffsetY
-                    shape = RoundedCornerShape(openCornerRadius)
-                    clip = openCornerRadius > 0.dp
-                    shadowElevation = if (openCornerRadius > 0.dp) 18f else 0f
+                    shape = RoundedCornerShape(14.dp)
+                    clip = true
+                    shadowElevation = if (dragProgress > 0f) 16f else 4f
                 }
-                .statusBarsPadding()
                 .aspectRatio(16f / 9f)
                 .align(Alignment.TopCenter)
         }
@@ -1301,7 +1331,15 @@ fun PlayerScreen(
                     .pointerInput(doubleTapSeekSeconds) {
                         detectTapGestures(
                             onTap = {
-                                if (isQualityMenuExpanded) {
+                                if (showMixSheet) {
+                                    showMixSheet = false
+                                } else if (showDescriptionSheet) {
+                                    showDescriptionSheet = false
+                                } else if (showCommentsSheet) {
+                                    showCommentsSheet = false
+                                } else if (showSettingsSheet) {
+                                    showSettingsSheet = false
+                                } else if (isQualityMenuExpanded) {
                                     isQualityMenuExpanded = false
                                 } else {
                                     isControlsVisible = !isControlsVisible
@@ -2463,7 +2501,7 @@ fun PlayerScreen(
         // 4. FLOATING MIX QUEUE SHEET (Only in full player mode)
         if (!isMinimized) {
             PlayerMixSheet(
-                visible = showMixSheet,
+                visible = showMixSheet && !isMinimized && dragOffsetY < 20f,
                 isFullscreen = isFullscreen,
                 mixTitle = mixTitle,
                 mixPlaylist = mixPlaylist,
@@ -2472,6 +2510,9 @@ fun PlayerScreen(
                 onDismiss = { showMixSheet = false },
                 modifier = Modifier
                     .fillMaxSize()
+                    .graphicsLayer {
+                        translationY = totalOffsetY
+                    }
                     .zIndex(5f)
             )
         }
