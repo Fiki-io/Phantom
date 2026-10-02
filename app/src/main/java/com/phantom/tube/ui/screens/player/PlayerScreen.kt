@@ -34,6 +34,7 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutLinearInEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -234,6 +235,12 @@ fun PlayerScreen(
     var playerState by remember { mutableStateOf(PlayerState(videoId = video.id)) }
     var isControlsVisible by remember { mutableStateOf(true) }
     var isFullscreen by remember { mutableStateOf(false) }
+
+    val centerControlsScale by animateFloatAsState(
+        targetValue = if (isControlsVisible) 1.0f else 0.88f,
+        animationSpec = spring(dampingRatio = 0.72f, stiffness = 400f),
+        label = "centerControlsScale"
+    )
 
     val configuration = LocalConfiguration.current
     val isDeviceLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
@@ -1474,8 +1481,8 @@ fun PlayerScreen(
             // Layer 4: 100% Native Liquid Glass Controls Overlay
             androidx.compose.animation.AnimatedVisibility(
                 visible = isControlsVisible,
-                enter = fadeIn(tween(180)) + scaleIn(initialScale = 0.94f, animationSpec = spring(dampingRatio = 0.78f, stiffness = 380f)),
-                exit = fadeOut(tween(180)) + scaleOut(targetScale = 0.96f, animationSpec = tween(180)),
+                enter = fadeIn(tween(220, easing = LinearOutSlowInEasing)),
+                exit = fadeOut(tween(200, easing = FastOutLinearInEasing)),
                 modifier = Modifier.matchParentSize()
             ) {
                 Box(
@@ -1720,7 +1727,12 @@ fun PlayerScreen(
 
                     // Center Row: SkipPrevious, Replay10, Play/Pause, Forward10, SkipNext
                     Row(
-                        modifier = Modifier.align(Alignment.Center),
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .graphicsLayer {
+                                scaleX = centerControlsScale
+                                scaleY = centerControlsScale
+                            },
                         horizontalArrangement = Arrangement.spacedBy(16.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -1868,15 +1880,21 @@ fun PlayerScreen(
                 }
             }
 
-            // Layer 5: Persistent Idle Progress Line (When controls are hidden)
-            if (!isControlsVisible) {
+            // Layer 5: Persistent Idle Progress Line (Smooth crossfade when controls are hidden)
+            androidx.compose.animation.AnimatedVisibility(
+                visible = !isControlsVisible,
+                enter = fadeIn(tween(220, easing = LinearOutSlowInEasing)),
+                exit = fadeOut(tween(180, easing = FastOutLinearInEasing)),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .align(Alignment.BottomCenter)
+            ) {
                 PhantomScrubber(
                     progress = playerState.progressFraction,
                     bufferedFraction = playerState.bufferedFraction,
                     showThumb = false,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .align(Alignment.BottomCenter)
                         .height(2.5.dp)
                 )
             }
