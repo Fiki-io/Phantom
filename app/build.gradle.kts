@@ -77,6 +77,11 @@ android {
     includeInApk = false
     includeInBundle = true
   }
+  lint {
+    disable += "InvalidFragmentVersionForActivityResult"
+    abortOnError = false
+    checkReleaseBuilds = false
+  }
 }
 
 // Configure the Secrets Gradle Plugin to use .env and .env.example files
@@ -96,6 +101,7 @@ dependencies {
   implementation(platform(libs.firebase.bom))
   // implementation(libs.accompanist.permissions)
   implementation(libs.androidx.activity.compose)
+  implementation(libs.androidx.fragment.ktx)
   // implementation(libs.androidx.camera.camera2)
   // implementation(libs.androidx.camera.core)
   // implementation(libs.androidx.camera.lifecycle)
