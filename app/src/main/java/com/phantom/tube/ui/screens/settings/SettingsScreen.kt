@@ -6,6 +6,7 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.widget.Toast
+import com.phantom.tube.BuildConfig
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.Image
@@ -127,9 +128,9 @@ fun SettingsScreen(
                 @Suppress("DEPRECATION")
                 context.packageManager.getPackageInfo(context.packageName, 0)
             }
-            pInfo.versionName ?: "2.0.1"
+            pInfo.versionName ?: BuildConfig.VERSION_NAME
         } catch (e: Exception) {
-            "2.0.1"
+            BuildConfig.VERSION_NAME
         }
     }
 
