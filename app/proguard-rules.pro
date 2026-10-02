@@ -34,15 +34,6 @@
 -renamesourcefileattribute ''
 -optimizationpasses 5
 -overloadaggressively
-
-# Strip debug line numbers, source file names, and unneeded attributes
--dontkeepattributes SourceFile,LineNumberTable,EnclosingMethod,InnerClasses,Deprecated
-
-# Strip Kotlin metadata annotations (saves significant DEX bytecode size)
--dontkeepclassmembers class * {
-    @kotlin.Metadata <fields>;
-}
-
 # Eliminate Kotlin null check assertions in release bytecode
 -assumenosideeffects class kotlin.jvm.internal.Intrinsics {
     public static void checkNotNullParameter(...);
