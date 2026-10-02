@@ -888,17 +888,76 @@ fun SettingsScreen(
                             appendLine("Tanggal: ${java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale.getDefault()).format(java.util.Date())}")
                         }
 
-                        val emailIntent = Intent(Intent.ACTION_SENDTO).apply {
-                            data = Uri.parse("mailto:totoyu379@gmail.com")
-                            putExtra(Intent.EXTRA_EMAIL, arrayOf("totoyu379@gmail.com"))
-                            putExtra(Intent.EXTRA_SUBJECT, subject)
-                            putExtra(Intent.EXTRA_TEXT, emailBody)
+                        val uriString = "mailto:totoyu379@gmail.com" +
+                            "?subject=" + Uri.encode(subject) +
+                            "&body=" + Uri.encode(emailBody)
+                        val mailtoUri = Uri.parse(uriString)
+
+                        var isSent = false
+
+                        // Method 1: Direct ACTION_SENDTO with encoded mailto URI (Preferred by Android system)
+                        try {
+                            val directIntent = Intent(Intent.ACTION_SENDTO, mailtoUri).apply {
+                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            }
+                            context.startActivity(directIntent)
+                            isSent = true
+                        } catch (_: Exception) {}
+
+                        // Method 2: ACTION_SENDTO with Chooser
+                        if (!isSent) {
+                            try {
+                                val sendToChooser = Intent(Intent.ACTION_SENDTO).apply {
+                                    data = Uri.parse("mailto:totoyu379@gmail.com")
+                                    putExtra(Intent.EXTRA_EMAIL, arrayOf("totoyu379@gmail.com"))
+                                    putExtra(Intent.EXTRA_SUBJECT, subject)
+                                    putExtra(Intent.EXTRA_TEXT, emailBody)
+                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                }
+                                context.startActivity(Intent.createChooser(sendToChooser, "Kirim masukan via...").apply {
+                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                })
+                                isSent = true
+                            } catch (_: Exception) {}
                         }
 
-                        try {
-                            context.startActivity(Intent.createChooser(emailIntent, "Kirim masukan via..."))
+                        // Method 3: Standard ACTION_SEND with message/rfc822
+                        if (!isSent) {
+                            try {
+                                val sendIntent = Intent(Intent.ACTION_SEND).apply {
+                                    type = "message/rfc822"
+                                    putExtra(Intent.EXTRA_EMAIL, arrayOf("totoyu379@gmail.com"))
+                                    putExtra(Intent.EXTRA_SUBJECT, subject)
+                                    putExtra(Intent.EXTRA_TEXT, emailBody)
+                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                }
+                                context.startActivity(Intent.createChooser(sendIntent, "Kirim masukan via...").apply {
+                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                })
+                                isSent = true
+                            } catch (_: Exception) {}
+                        }
+
+                        // Method 4: Fallback to ACTION_SEND text/plain
+                        if (!isSent) {
+                            try {
+                                val textIntent = Intent(Intent.ACTION_SEND).apply {
+                                    type = "text/plain"
+                                    putExtra(Intent.EXTRA_EMAIL, arrayOf("totoyu379@gmail.com"))
+                                    putExtra(Intent.EXTRA_SUBJECT, subject)
+                                    putExtra(Intent.EXTRA_TEXT, emailBody)
+                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                }
+                                context.startActivity(Intent.createChooser(textIntent, "Kirim masukan via...").apply {
+                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                })
+                                isSent = true
+                            } catch (_: Exception) {}
+                        }
+
+                        if (isSent) {
                             showFeedbackDialog = false
-                        } catch (e: Exception) {
+                        } else {
                             val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager
                             clipboard?.setPrimaryClip(android.content.ClipData.newPlainText("Developer Email", "totoyu379@gmail.com"))
                             Toast.makeText(context, context.getString(R.string.feedback_no_email_app), Toast.LENGTH_LONG).show()
