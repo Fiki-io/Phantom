@@ -7,7 +7,7 @@ import androidx.room.RoomDatabase
 
 @Database(
     entities = [WatchHistoryEntity::class, FavoriteEntity::class, SearchHistoryEntity::class, SubscriptionEntity::class],
-    version = 3,
+    version = 4,
     exportSchema = false
 )
 abstract class PhantomDatabase : RoomDatabase() {

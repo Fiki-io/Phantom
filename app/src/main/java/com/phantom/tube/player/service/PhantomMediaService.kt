@@ -9,7 +9,6 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.os.Binder
 import android.os.Build
 import android.os.IBinder
@@ -26,9 +25,10 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import java.util.concurrent.TimeUnit
+import android.graphics.drawable.BitmapDrawable
+import coil.imageLoader
+import coil.request.ImageRequest
+import coil.request.SuccessResult
 
 class PhantomMediaService : Service() {
 
@@ -45,10 +45,6 @@ class PhantomMediaService : Service() {
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private var currentBitmap: Bitmap? = null
     private var currentThumbnailUrl: String = ""
-    private val httpClient = OkHttpClient.Builder()
-        .connectTimeout(5, TimeUnit.SECONDS)
-        .readTimeout(5, TimeUnit.SECONDS)
-        .build()
 
     var onPlayAction: (() -> Unit)? = null
     var onPauseAction: (() -> Unit)? = null
@@ -168,20 +164,19 @@ class PhantomMediaService : Service() {
 
         serviceScope.launch(Dispatchers.IO) {
             try {
-                val request = Request.Builder().url(url).build()
-                val response = httpClient.newCall(request).execute()
-                if (response.isSuccessful) {
-                    response.body?.byteStream()?.use { stream ->
-                        val bitmap = BitmapFactory.decodeStream(stream)
-                        if (bitmap != null) {
-                            withContext(Dispatchers.Main) {
-                                if (currentThumbnailUrl == url) {
-                                    currentBitmap = bitmap
-                                    applyMetadata(bitmap)
-                                    val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-                                    notificationManager.notify(NOTIFICATION_ID, buildNotification())
-                                }
-                            }
+                val imageRequest = ImageRequest.Builder(this@PhantomMediaService)
+                    .data(url)
+                    .allowHardware(false) // Media notification requires software bitmap
+                    .build()
+                val result = (imageLoader.execute(imageRequest) as? SuccessResult)?.drawable
+                val bitmap = (result as? BitmapDrawable)?.bitmap
+                if (bitmap != null) {
+                    withContext(Dispatchers.Main) {
+                        if (currentThumbnailUrl == url) {
+                            currentBitmap = bitmap
+                            applyMetadata(bitmap)
+                            val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+                            notificationManager.notify(NOTIFICATION_ID, buildNotification())
                         }
                     }
                 }

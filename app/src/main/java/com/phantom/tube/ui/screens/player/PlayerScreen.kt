@@ -234,6 +234,9 @@ fun PlayerScreen(
     val scope = rememberCoroutineScope()
 
     var playerState by remember { mutableStateOf(PlayerState(videoId = video.id)) }
+    var currentPositionSec by remember { mutableFloatStateOf(0f) }
+    var currentDurationSec by remember { mutableFloatStateOf(0f) }
+    var currentBufferedFraction by remember { mutableFloatStateOf(0f) }
     var isControlsVisible by remember { mutableStateOf(true) }
     var isFullscreen by remember { mutableStateOf(false) }
 
@@ -414,9 +417,10 @@ fun PlayerScreen(
     }
 
     val playPrevious: () -> Boolean = {
-        if (playerState.currentTimeSec > 3f) {
+        if (currentPositionSec > 3f) {
             // Standard media playback: rewinds current track if played past 3 seconds
             controller.seekTo(0f)
+            currentPositionSec = 0f
             true
         } else if (mixPlaylist.isNotEmpty() && currentMixIndex > 0) {
             val prevIndex = currentMixIndex - 1
@@ -508,7 +512,7 @@ fun PlayerScreen(
                 when (state) {
                     1 -> {
                         playerState = playerState.copy(isPlaying = true, isBuffering = false, isEnded = false, errorCode = null)
-                        mediaService?.updatePlaybackState(true, (playerState.currentTimeSec * 1000).toLong())
+                        mediaService?.updatePlaybackState(true, (currentPositionSec * 1000).toLong())
                         if (isCaptionsEnabled) {
                             controller.setCaptionsEnabled(true)
                         }
@@ -528,10 +532,10 @@ fun PlayerScreen(
                     }
                     2 -> {
                         playerState = playerState.copy(isPlaying = false, isBuffering = false)
-                        mediaService?.updatePlaybackState(false, (playerState.currentTimeSec * 1000).toLong())
+                        mediaService?.updatePlaybackState(false, (currentPositionSec * 1000).toLong())
                         val activeVid = currentVideo
-                        val pos = playerState.currentTimeSec
-                        val dur = playerState.durationSec
+                        val pos = currentPositionSec
+                        val dur = currentDurationSec
                         if (pos > 1f) {
                             scope.launch {
                                 repository.recordWatch(
@@ -568,14 +572,13 @@ fun PlayerScreen(
                     return@PhantomPlayerBridge
                 }
 
-                val wasZeroDuration = playerState.durationSec <= 0f && duration > 0f
-                playerState = playerState.copy(
-                    currentTimeSec = current,
-                    durationSec = duration,
-                    bufferedFraction = buffered
-                )
+                val wasZeroDuration = currentDurationSec <= 0f && duration > 0f
+                currentPositionSec = current
+                currentDurationSec = duration
+                currentBufferedFraction = buffered
 
                 if (wasZeroDuration) {
+                    playerState = playerState.copy(durationSec = duration)
                     mediaService?.updateDuration((duration * 1000).toLong(), (current * 1000).toLong())
                 }
 
@@ -658,7 +661,7 @@ fun PlayerScreen(
                                     lastSkippedCategory = seg.category
                                     if (autoSkip) {
                                         controller.seekTo(seg.endSecond)
-                                        playerState = playerState.copy(currentTimeSec = seg.endSecond)
+                                        currentPositionSec = seg.endSecond
                                         mediaService?.updatePlaybackState(playerState.isPlaying, (seg.endSecond * 1000).toLong())
                                     }
                                     showSponsorPill = true
@@ -727,7 +730,7 @@ fun PlayerScreen(
                     onSeekAction = { posMs ->
                         val sec = posMs / 1000f
                         controller.seekTo(sec)
-                        playerState = playerState.copy(currentTimeSec = sec)
+                        currentPositionSec = sec
                         updatePlaybackState(playerState.isPlaying, posMs)
                     }
                 }
@@ -816,7 +819,10 @@ fun PlayerScreen(
             isInternalNavigation = false
         }
 
-        val lastPos = repository.getLastPosition(video.id)
+        val lastPos = repository.getLastPosition(video.id) ?: 0L
+        currentPositionSec = lastPos / 1000f
+        currentDurationSec = 0f
+        currentBufferedFraction = 0f
         playerState = playerState.copy(currentTimeSec = lastPos / 1000f)
         controller.loadVideo(video.id, lastPos / 1000f)
 
@@ -848,10 +854,10 @@ fun PlayerScreen(
                 mediaService?.updateMediaInfo(
                     title = nextData.currentVideo.title.ifBlank { video.title },
                     channel = nextData.currentVideo.channelTitle.ifBlank { video.channelTitle },
-                    durationMs = (playerState.durationSec * 1000).toLong(),
+                    durationMs = (currentDurationSec * 1000).toLong(),
                     playing = playerState.isPlaying,
                     thumbnailUrl = nextData.currentVideo.thumbnailUrl.ifBlank { video.thumbnailUrl },
-                    currentPositionMs = (playerState.currentTimeSec * 1000).toLong()
+                    currentPositionMs = (currentPositionSec * 1000).toLong()
                 )
                 recommendedVideos = nextData.recommendations
                 recContinuationToken = nextData.recommendationsContinuationToken
@@ -1095,15 +1101,25 @@ fun PlayerScreen(
             val layoutInfo = lazyListState.layoutInfo
             val total = layoutInfo.totalItemsCount
             val last = layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
-            total > 0 && last >= total - 3
+            total to last
         }
-            .distinctUntilChanged()
-            .filter { it }
+            .filter { (total, last) -> total > 0 && last >= total - 3 }
             .collect {
                 if (!isLoadingMoreRecs && !isLoadingQueue && canLoadMoreRecs && recommendedVideos.isNotEmpty()) {
                     loadMoreRecommendations()
                 }
             }
+    }
+
+    LaunchedEffect(recContinuationToken, isLoadingMoreRecs) {
+        if (!isLoadingMoreRecs && !isLoadingQueue && canLoadMoreRecs && recContinuationToken != null) {
+            val layoutInfo = lazyListState.layoutInfo
+            val total = layoutInfo.totalItemsCount
+            val last = layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
+            if (total > 0 && last >= total - 3) {
+                loadMoreRecommendations()
+            }
+        }
     }
 
     val sheetOffsetY = if (isFullscreen) 0f else (1f - fullSheetProgress.value) * screenHeightPx
@@ -1359,9 +1375,9 @@ fun PlayerScreen(
                                         delta
                                     }
                                     seekAnimationSide = SeekFeedbackDirection.REWIND
-                                    val newTime = (playerState.currentTimeSec - delta.toFloat()).coerceAtLeast(0f)
+                                    val newTime = (currentPositionSec - delta.toFloat()).coerceAtLeast(0f)
                                     controller.seekTo(newTime)
-                                    playerState = playerState.copy(currentTimeSec = newTime)
+                                    currentPositionSec = newTime
                                     mediaService?.updatePlaybackState(playerState.isPlaying, (newTime * 1000).toLong())
                                 } else {
                                     seekAccumulatedSeconds = if (seekAnimationSide == SeekFeedbackDirection.FORWARD) {
@@ -1370,9 +1386,9 @@ fun PlayerScreen(
                                         delta
                                     }
                                     seekAnimationSide = SeekFeedbackDirection.FORWARD
-                                    val newTime = (playerState.currentTimeSec + delta.toFloat()).coerceAtMost(playerState.durationSec)
+                                    val newTime = (currentPositionSec + delta.toFloat()).coerceAtMost(currentDurationSec)
                                     controller.seekTo(newTime)
-                                    playerState = playerState.copy(currentTimeSec = newTime)
+                                    currentPositionSec = newTime
                                     mediaService?.updatePlaybackState(playerState.isPlaying, (newTime * 1000).toLong())
                                 }
                             }
@@ -1496,7 +1512,7 @@ fun PlayerScreen(
                 isManualMode = isManualSkipMode,
                 onSkip = {
                     controller.seekTo(lastTargetSkipEndSec)
-                    playerState = playerState.copy(currentTimeSec = lastTargetSkipEndSec)
+                    currentPositionSec = lastTargetSkipEndSec
                     mediaService?.updatePlaybackState(playerState.isPlaying, (lastTargetSkipEndSec * 1000).toLong())
                     if (lastSkippedCategory == "outro") {
                         val activeVid = currentVideo
@@ -1512,7 +1528,7 @@ fun PlayerScreen(
                 onUndo = {
                     undoneSegmentUuids.addAll(skippedSegmentUuids)
                     controller.seekTo(lastSkippedFromSec)
-                    playerState = playerState.copy(currentTimeSec = lastSkippedFromSec)
+                    currentPositionSec = lastSkippedFromSec
                     mediaService?.updatePlaybackState(playerState.isPlaying, (lastSkippedFromSec * 1000).toLong())
                     showSponsorPill = false
                 }
@@ -1790,9 +1806,9 @@ fun PlayerScreen(
                             size = 42.dp,
                             iconSize = 22.dp,
                             onClick = {
-                                val newTime = (playerState.currentTimeSec - 10f).coerceAtLeast(0f)
+                                val newTime = (currentPositionSec - 10f).coerceAtLeast(0f)
                                 controller.seekTo(newTime)
-                                playerState = playerState.copy(currentTimeSec = newTime)
+                                currentPositionSec = newTime
                                 mediaService?.updatePlaybackState(playerState.isPlaying, (newTime * 1000).toLong())
                             }
                         )
@@ -1817,9 +1833,9 @@ fun PlayerScreen(
                             size = 42.dp,
                             iconSize = 22.dp,
                             onClick = {
-                                val newTime = (playerState.currentTimeSec + 10f).coerceAtMost(playerState.durationSec)
+                                val newTime = (currentPositionSec + 10f).coerceAtMost(currentDurationSec)
                                 controller.seekTo(newTime)
-                                playerState = playerState.copy(currentTimeSec = newTime)
+                                currentPositionSec = newTime
                                 mediaService?.updatePlaybackState(playerState.isPlaying, (newTime * 1000).toLong())
                             }
                         )
@@ -1834,89 +1850,54 @@ fun PlayerScreen(
                     }
 
                     // Bottom Row: Timestamps + Fullscreen above Scrubber, Scrubber at bottom edge
-                    Column(
+                    PlayerScrubberControls(
+                        currentTimeSecProvider = { currentPositionSec },
+                        durationSecProvider = { currentDurationSec },
+                        bufferedFractionProvider = { currentBufferedFraction },
+                        isFullscreen = isFullscreen,
+                        onToggleFullscreen = {
+                            if (isFullscreen) {
+                                exitFullscreenToPortrait()
+                            } else {
+                                val activity = context.findActivity()
+                                activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+                                isFullscreen = true
+                            }
+                        },
+                        onSeek = { fraction ->
+                            val targetSec = fraction * currentDurationSec
+                            controller.seekTo(targetSec)
+                            currentPositionSec = targetSec
+                            mediaService?.updatePlaybackState(playerState.isPlaying, (targetSec * 1000).toLong())
+                            if (wasPlayingBeforeScrub) {
+                                controller.play()
+                            }
+                        },
+                        onScrubbing = { scrubbing, fraction, touchX ->
+                            if (scrubbing && !isScrubbing) {
+                                wasPlayingBeforeScrub = playerState.isPlaying
+                                if (playerState.isPlaying) {
+                                    controller.pause()
+                                }
+                            }
+                            isScrubbing = scrubbing
+                            scrubFraction = fraction
+                            scrubTouchX = touchX
+                            if (scrubbing) {
+                                isControlsVisible = true
+                                val now = System.currentTimeMillis()
+                                if (now - lastScrubSeekTimeMs >= 50L) {
+                                    lastScrubSeekTimeMs = now
+                                    val targetSec = fraction * currentDurationSec
+                                    controller.seekTo(targetSec)
+                                }
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            }
+                        },
                         modifier = Modifier
                             .fillMaxWidth()
                             .align(Alignment.BottomCenter)
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(start = 12.dp, end = 12.dp, bottom = 2.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(6.dp))
-                                    .background(Color(0x99000000))
-                                    .padding(horizontal = 8.dp, vertical = 3.dp)
-                            ) {
-                                Text(
-                                    text = "${playerState.formattedCurrentTime} / ${playerState.formattedDuration}",
-                                    color = Color.White,
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Medium
-                                )
-                            }
-
-                            PhantomIconButton(
-                                icon = if (isFullscreen) Icons.Default.FullscreenExit else Icons.Default.Fullscreen,
-                                contentDescription = "Fullscreen",
-                                size = 36.dp,
-                                iconSize = 20.dp,
-                                onClick = {
-                                    if (isFullscreen) {
-                                        exitFullscreenToPortrait()
-                                    } else {
-                                        val activity = context.findActivity()
-                                        activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
-                                        isFullscreen = true
-                                    }
-                                }
-                            )
-                        }
-
-                        // Scrubber with thumb dot at the tip of progress, touching bottom edge
-                        PhantomScrubber(
-                            progress = playerState.progressFraction,
-                            bufferedFraction = playerState.bufferedFraction,
-                            showThumb = true,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(22.dp),
-                            onSeek = { fraction ->
-                                val targetSec = fraction * playerState.durationSec
-                                controller.seekTo(targetSec)
-                                playerState = playerState.copy(currentTimeSec = targetSec)
-                                mediaService?.updatePlaybackState(playerState.isPlaying, (targetSec * 1000).toLong())
-                                if (wasPlayingBeforeScrub) {
-                                    controller.play()
-                                }
-                            },
-                            onScrubbing = { scrubbing, fraction, touchX ->
-                                if (scrubbing && !isScrubbing) {
-                                    wasPlayingBeforeScrub = playerState.isPlaying
-                                    if (playerState.isPlaying) {
-                                        controller.pause()
-                                    }
-                                }
-                                isScrubbing = scrubbing
-                                scrubFraction = fraction
-                                scrubTouchX = touchX
-                                if (scrubbing) {
-                                    isControlsVisible = true
-                                    val now = System.currentTimeMillis()
-                                    if (now - lastScrubSeekTimeMs >= 50L) {
-                                        lastScrubSeekTimeMs = now
-                                        val targetSec = fraction * playerState.durationSec
-                                        controller.seekTo(targetSec)
-                                    }
-                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                }
-                            }
-                        )
-                    }
+                    )
                 }
             }
 
@@ -1929,10 +1910,10 @@ fun PlayerScreen(
                     .fillMaxWidth()
                     .align(Alignment.BottomCenter)
             ) {
-                PhantomScrubber(
-                    progress = playerState.progressFraction,
-                    bufferedFraction = playerState.bufferedFraction,
-                    showThumb = false,
+                PlayerIdleProgressBar(
+                    currentTimeSecProvider = { currentPositionSec },
+                    durationSecProvider = { currentDurationSec },
+                    bufferedFractionProvider = { currentBufferedFraction },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(2.5.dp)
@@ -1942,8 +1923,8 @@ fun PlayerScreen(
             // Floating Video Scrubbing Storyboard Preview Card
             ScrubPreviewCard(
                 visible = isScrubbing,
-                targetSeconds = scrubFraction * playerState.durationSec,
-                durationSeconds = playerState.durationSec,
+                targetSeconds = scrubFraction * currentDurationSec,
+                durationSeconds = currentDurationSec,
                 touchX = scrubTouchX,
                 parentWidthPx = videoBoxWidthPx,
                 storyboardData = storyboardData,
@@ -2541,8 +2522,8 @@ fun PlayerScreen(
                 video = video,
                 isPlaying = playerState.isPlaying,
                 isBuffering = playerState.isBuffering,
-                currentTimeSec = playerState.currentTimeSec,
-                durationSec = playerState.durationSec,
+                currentTimeSecProvider = { currentPositionSec },
+                durationSecProvider = { currentDurationSec },
                 onExpand = onExpand,
                 onTogglePlayPause = {
                     if (playerState.isPlaying) controller.pause() else controller.play()
@@ -2668,5 +2649,100 @@ fun PlayerScreen(
                 .fillMaxSize()
                 .zIndex(22f)
         )
+    }
+}
+
+@Composable
+private fun PlayerScrubberControls(
+    currentTimeSecProvider: () -> Float,
+    durationSecProvider: () -> Float,
+    bufferedFractionProvider: () -> Float,
+    isFullscreen: Boolean,
+    onToggleFullscreen: () -> Unit,
+    onSeek: (Float) -> Unit,
+    onScrubbing: (Boolean, Float, Float) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val currentSec = currentTimeSecProvider()
+    val durSec = durationSecProvider()
+    val bufFrac = bufferedFractionProvider()
+    val progFrac = if (durSec > 0f) (currentSec / durSec).coerceIn(0f, 1f) else 0f
+    val formattedCurrent = remember(currentSec.toLong()) { formatSeconds(currentSec.toLong()) }
+    val formattedDuration = remember(durSec.toLong()) { formatSeconds(durSec.toLong()) }
+
+    Column(
+        modifier = modifier
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 12.dp, end = 12.dp, bottom = 2.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(Color(0x99000000))
+                    .padding(horizontal = 8.dp, vertical = 3.dp)
+            ) {
+                Text(
+                    text = "$formattedCurrent / $formattedDuration",
+                    color = Color.White,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+
+            PhantomIconButton(
+                icon = if (isFullscreen) Icons.Default.FullscreenExit else Icons.Default.Fullscreen,
+                contentDescription = "Fullscreen",
+                size = 36.dp,
+                iconSize = 20.dp,
+                onClick = onToggleFullscreen
+            )
+        }
+
+        PhantomScrubber(
+            progress = progFrac,
+            bufferedFraction = bufFrac,
+            showThumb = true,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(22.dp),
+            onSeek = onSeek,
+            onScrubbing = onScrubbing
+        )
+    }
+}
+
+@Composable
+private fun PlayerIdleProgressBar(
+    currentTimeSecProvider: () -> Float,
+    durationSecProvider: () -> Float,
+    bufferedFractionProvider: () -> Float,
+    modifier: Modifier = Modifier
+) {
+    val currentSec = currentTimeSecProvider()
+    val durSec = durationSecProvider()
+    val bufFrac = bufferedFractionProvider()
+    val progFrac = if (durSec > 0f) (currentSec / durSec).coerceIn(0f, 1f) else 0f
+
+    PhantomScrubber(
+        progress = progFrac,
+        bufferedFraction = bufFrac,
+        showThumb = false,
+        modifier = modifier
+    )
+}
+
+private fun formatSeconds(totalSec: Long): String {
+    val hours = totalSec / 3600
+    val minutes = (totalSec % 3600) / 60
+    val seconds = totalSec % 60
+    return if (hours > 0) {
+        String.format("%d:%02d:%02d", hours, minutes, seconds)
+    } else {
+        String.format("%02d:%02d", minutes, seconds)
     }
 }

@@ -60,8 +60,10 @@ fun PhantomMiniPlayer(
     video: VideoItem,
     isPlaying: Boolean,
     isBuffering: Boolean,
-    currentTimeSec: Float,
-    durationSec: Float,
+    currentTimeSec: Float = 0f,
+    durationSec: Float = 0f,
+    currentTimeSecProvider: (() -> Float)? = null,
+    durationSecProvider: (() -> Float)? = null,
     onExpand: () -> Unit,
     onTogglePlayPause: () -> Unit,
     onClose: () -> Unit,
@@ -247,8 +249,10 @@ fun PhantomMiniPlayer(
             }
 
             // Real-time YouTube Red Scrubber Line
-            val safeCurrent = if (currentTimeSec.isNaN() || !currentTimeSec.isFinite()) 0f else currentTimeSec
-            val safeDuration = if (durationSec.isNaN() || !durationSec.isFinite()) 0f else durationSec
+            val current = currentTimeSecProvider?.invoke() ?: currentTimeSec
+            val duration = durationSecProvider?.invoke() ?: durationSec
+            val safeCurrent = if (current.isNaN() || !current.isFinite()) 0f else current
+            val safeDuration = if (duration.isNaN() || !duration.isFinite()) 0f else duration
             val progressFraction = if (safeDuration > 0f) {
                 (safeCurrent / safeDuration).coerceIn(0f, 1f)
             } else 0f

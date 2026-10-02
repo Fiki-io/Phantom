@@ -51,6 +51,7 @@ class PhantomApp : Application(), ImageLoaderFactory {
         PhantomNative.verifySecurity(this)
         database = PhantomDatabase.getInstance(this)
         preferences = PhantomPreferences(this)
+        com.phantom.tube.player.PhantomRenderEngine.init(sharedHttpClient)
         val innerTube = InnerTubeClient(httpClient = sharedHttpClient)
         ChannelAvatarCache.init(innerTube)
         repository = PhantomRepository(

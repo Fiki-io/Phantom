@@ -2,13 +2,17 @@ package com.phantom.tube.core.database
 
 import androidx.room.Dao
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.PrimaryKey
 import androidx.room.Query
 import kotlinx.coroutines.flow.Flow
 
-@Entity(tableName = "favorites")
+@Entity(
+    tableName = "favorites",
+    indices = [Index(value = ["savedAt"])]
+)
 data class FavoriteEntity(
     @PrimaryKey
     val videoId: String,

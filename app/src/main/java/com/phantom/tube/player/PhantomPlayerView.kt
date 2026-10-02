@@ -195,12 +195,23 @@ fun PhantomGhostSurface(
 }
 
 object PhantomRenderEngine {
-    private val httpClient = okhttp3.OkHttpClient.Builder()
-        .connectTimeout(10, java.util.concurrent.TimeUnit.SECONDS)
-        .readTimeout(10, java.util.concurrent.TimeUnit.SECONDS)
-        .followRedirects(true)
-        .followSslRedirects(true)
-        .build()
+    private var customHttpClient: okhttp3.OkHttpClient? = null
+
+    fun init(client: okhttp3.OkHttpClient) {
+        customHttpClient = client
+    }
+
+    private val defaultHttpClient by lazy {
+        okhttp3.OkHttpClient.Builder()
+            .connectTimeout(10, java.util.concurrent.TimeUnit.SECONDS)
+            .readTimeout(10, java.util.concurrent.TimeUnit.SECONDS)
+            .followRedirects(true)
+            .followSslRedirects(true)
+            .build()
+    }
+
+    private val httpClient: okhttp3.OkHttpClient
+        get() = customHttpClient ?: defaultHttpClient
 
     private val cssCache = java.util.concurrent.ConcurrentHashMap<String, ByteArray>()
 
