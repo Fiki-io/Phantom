@@ -131,10 +131,11 @@ object OfflineAudioPlayerManager {
         _isPlaying.value = false
         _currentTrack.value = null
         _queue.value = emptyList()
-        val intent = Intent(context, PhantomOfflineAudioService::class.java).apply {
-            action = PhantomOfflineAudioService.ACTION_STOP
+        try {
+            context.stopService(Intent(context, PhantomOfflineAudioService::class.java))
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
-        startServiceCompat(context, intent)
     }
 
     private fun startServiceCompat(context: Context, intent: Intent) {

@@ -81,9 +81,16 @@ class PhantomOfflineAudioService : Service(), AudioManager.OnAudioFocusChangeLis
         createNotificationChannel()
         setupMediaSession()
         acquireWakeLock()
+
+        // Critical: Must call startForeground immediately in onCreate to satisfy Android ForegroundService requirement
+        val initialTrack = OfflineAudioPlayerManager.currentTrack.value
+        startForegroundCompat(buildNotification(initialTrack, isPlaying = false))
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        val currentTrack = OfflineAudioPlayerManager.currentTrack.value
+        startForegroundCompat(buildNotification(currentTrack, isPlaying = mediaPlayer?.isPlaying ?: false))
+
         when (intent?.action) {
             ACTION_PLAY_QUEUE -> {
                 val index = intent.getIntExtra(EXTRA_INDEX, 0)
@@ -109,6 +116,7 @@ class PhantomOfflineAudioService : Service(), AudioManager.OnAudioFocusChangeLis
                 seekTo(pos)
             }
             ACTION_STOP -> {
+                stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()
             }
         }
@@ -175,6 +183,10 @@ class PhantomOfflineAudioService : Service(), AudioManager.OnAudioFocusChangeLis
         val track = queue[index]
         OfflineAudioPlayerManager.updateTrack(track, index)
 
+        // Update foreground notification immediately before async preparation
+        startForegroundCompat(buildNotification(track, isPlaying = true))
+        loadThumbnailBitmap(track.thumbnailUrl)
+
         try {
             releasePlayer()
 
@@ -231,9 +243,6 @@ class PhantomOfflineAudioService : Service(), AudioManager.OnAudioFocusChangeLis
 
                 prepareAsync()
             }
-
-            loadThumbnailBitmap(track.thumbnailUrl)
-            startForegroundCompat(buildNotification(track, isPlaying = true))
         } catch (e: Exception) {
             e.printStackTrace()
             OfflineAudioPlayerManager.updatePlaybackState(false)
@@ -451,8 +460,8 @@ class PhantomOfflineAudioService : Service(), AudioManager.OnAudioFocusChangeLis
 
         val builder = NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_launcher_foreground)
-            .setContentTitle(track.title)
-            .setContentText(track.channelTitle.ifBlank { "Phantom Offline Music" })
+            .setContentTitle(track?.title ?: "Phantom Player")
+            .setContentText(track?.channelTitle?.ifBlank { "Musik Offline" } ?: "Musik Offline")
             .setSubText("Musik Offline")
             .setContentIntent(contentIntent)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
@@ -478,7 +487,7 @@ class PhantomOfflineAudioService : Service(), AudioManager.OnAudioFocusChangeLis
         return builder.build()
     }
 
-    private fun updateNotification(track: DownloadEntity, isPlaying: Boolean) {
+    private fun updateNotification(track: DownloadEntity? = null, isPlaying: Boolean) {
         val manager = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
         manager?.notify(NOTIFICATION_ID, buildNotification(track, isPlaying))
     }
@@ -522,6 +531,7 @@ class PhantomOfflineAudioService : Service(), AudioManager.OnAudioFocusChangeLis
         mediaSession?.release()
         serviceScope.cancel()
         OfflineAudioPlayerManager.updatePlaybackState(false)
+        stopForeground(STOP_FOREGROUND_REMOVE)
         super.onDestroy()
     }
 }
