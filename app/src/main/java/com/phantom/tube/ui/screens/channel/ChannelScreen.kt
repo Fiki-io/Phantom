@@ -930,6 +930,7 @@ fun ChannelScreen(
  * - Judul video, views & waktu rilis di sisi kanan
  * - Tombol opsi ⋮ di ujung kanan
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChannelVideoHorizontalItem(
     video: VideoItem,

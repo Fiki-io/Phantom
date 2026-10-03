@@ -27,6 +27,7 @@ import androidx.compose.material.icons.filled.QueueMusic
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
@@ -64,6 +65,7 @@ import com.phantom.tube.ui.screens.player.components.DownloadFormatSheet
  * - Judul video, nama channel, dan info penayangan
  * - Tombol opsi
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PhantomVideoCard(
     video: VideoItem,
