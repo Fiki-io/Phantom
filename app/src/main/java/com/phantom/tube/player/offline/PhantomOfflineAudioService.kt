@@ -17,6 +17,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.IBinder
 import android.os.PowerManager
+import android.os.SystemClock
 import android.support.v4.media.MediaMetadataCompat
 import android.support.v4.media.session.MediaSessionCompat
 import android.support.v4.media.session.PlaybackStateCompat
@@ -68,15 +69,24 @@ class PhantomOfflineAudioService : Service(), AudioManager.OnAudioFocusChangeLis
         const val ACTION_PREVIOUS = "com.phantom.tube.offline.PREVIOUS"
         const val ACTION_SEEK = "com.phantom.tube.offline.SEEK"
         const val ACTION_STOP = "com.phantom.tube.offline.STOP"
+        const val ACTION_UPDATE_LOOP = "com.phantom.tube.offline.UPDATE_LOOP"
+        const val ACTION_UPDATE_SHUFFLE = "com.phantom.tube.offline.UPDATE_SHUFFLE"
 
         const val EXTRA_INDEX = "extra_index"
         const val EXTRA_POSITION_MS = "extra_position_ms"
+        const val EXTRA_LOOP_MODE = "extra_loop_mode"
+        const val EXTRA_SHUFFLE_MODE = "extra_shuffle_mode"
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onCreate() {
         super.onCreate()
+        // Hentikan service pemutar online jika sedang jalan agar audio tidak dobel
+        try {
+            stopService(Intent(this, com.phantom.tube.player.service.PhantomMediaService::class.java))
+        } catch (_: Exception) {}
+
         audioManager = getSystemService(Context.AUDIO_SERVICE) as? AudioManager
         createNotificationChannel()
         setupMediaSession()
@@ -114,6 +124,13 @@ class PhantomOfflineAudioService : Service(), AudioManager.OnAudioFocusChangeLis
             ACTION_SEEK -> {
                 val pos = intent.getLongExtra(EXTRA_POSITION_MS, 0L)
                 seekTo(pos)
+            }
+            ACTION_UPDATE_LOOP -> {
+                val mode = OfflineAudioPlayerManager.repeatMode.value
+                mediaPlayer?.isLooping = (mode == OfflineRepeatMode.ONE)
+            }
+            ACTION_UPDATE_SHUFFLE -> {
+                // Status shuffle dikelola di OfflineAudioPlayerManager
             }
             ACTION_STOP -> {
                 stopForeground(STOP_FOREGROUND_REMOVE)
@@ -224,15 +241,18 @@ class PhantomOfflineAudioService : Service(), AudioManager.OnAudioFocusChangeLis
                     val dur = mp.duration.toLong().coerceAtLeast(0L)
                     OfflineAudioPlayerManager.updateDuration(dur)
                     OfflineAudioPlayerManager.updatePlaybackState(true)
+                    mp.isLooping = (OfflineAudioPlayerManager.repeatMode.value == OfflineRepeatMode.ONE)
                     wakeLock?.acquire(dur + 60000L)
                     startProgressTracker()
+                    applyMetadata(track, currentBitmap)
                     updateMediaSessionState(true, 0L)
                     updateNotification(track, true)
                 }
 
                 setOnCompletionListener {
-                    // OTOMATIS LANJUT KE LAGU BERIKUTNYA DALAM ANTREAN
-                    playNext()
+                    if (OfflineAudioPlayerManager.repeatMode.value != OfflineRepeatMode.ONE) {
+                        playNext()
+                    }
                 }
 
                 setOnErrorListener { _, _, _ ->
@@ -292,9 +312,10 @@ class PhantomOfflineAudioService : Service(), AudioManager.OnAudioFocusChangeLis
 
         val currentIndex = OfflineAudioPlayerManager.currentIndex.value
         val isShuffle = OfflineAudioPlayerManager.isShuffle.value
-        val isLooping = OfflineAudioPlayerManager.isLooping.value
+        val repeatMode = OfflineAudioPlayerManager.repeatMode.value
 
         val nextIndex = when {
+            repeatMode == OfflineRepeatMode.ONE -> currentIndex
             isShuffle && queue.size > 1 -> {
                 var randomIdx = Random.nextInt(queue.size)
                 while (randomIdx == currentIndex && queue.size > 1) {
@@ -303,7 +324,7 @@ class PhantomOfflineAudioService : Service(), AudioManager.OnAudioFocusChangeLis
                 randomIdx
             }
             currentIndex < queue.lastIndex -> currentIndex + 1
-            isLooping -> 0
+            repeatMode == OfflineRepeatMode.ALL -> 0
             else -> {
                 // Selesai seluruh antrean
                 pausePlayback()
@@ -389,10 +410,13 @@ class PhantomOfflineAudioService : Service(), AudioManager.OnAudioFocusChangeLis
     }
 
     private fun applyMetadata(track: DownloadEntity, bitmap: Bitmap?) {
+        val dur = OfflineAudioPlayerManager.durationMs.value.takeIf { it > 0 }
+            ?: mediaPlayer?.duration?.toLong()?.coerceAtLeast(0L)
+            ?: 0L
         val metadataBuilder = MediaMetadataCompat.Builder()
             .putString(MediaMetadataCompat.METADATA_KEY_TITLE, track.title)
             .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, track.channelTitle)
-            .putLong(MediaMetadataCompat.METADATA_KEY_DURATION, OfflineAudioPlayerManager.durationMs.value)
+            .putLong(MediaMetadataCompat.METADATA_KEY_DURATION, dur)
 
         if (bitmap != null) {
             metadataBuilder.putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, bitmap)
@@ -410,10 +434,11 @@ class PhantomOfflineAudioService : Service(), AudioManager.OnAudioFocusChangeLis
                 PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS or
                 PlaybackStateCompat.ACTION_SEEK_TO
 
+        val playbackSpeed = if (isPlaying) 1.0f else 0.0f
         mediaSession?.setPlaybackState(
             PlaybackStateCompat.Builder()
                 .setActions(actions)
-                .setState(state, positionMs, 1.0f)
+                .setState(state, positionMs, playbackSpeed, SystemClock.elapsedRealtime())
                 .build()
         )
     }

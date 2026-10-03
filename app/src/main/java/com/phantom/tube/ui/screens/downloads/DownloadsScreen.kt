@@ -7,6 +7,8 @@ import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -38,8 +40,11 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Repeat
+import androidx.compose.material.icons.filled.RepeatOne
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material.icons.filled.VideoLibrary
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -107,6 +112,8 @@ fun DownloadsScreen(
     val downloads by repository.getDownloads().collectAsState(initial = emptyList())
     val activeTrack by OfflineAudioPlayerManager.currentTrack.collectAsState()
     val isAudioPlaying by OfflineAudioPlayerManager.isPlaying.collectAsState()
+    val repeatMode by OfflineAudioPlayerManager.repeatMode.collectAsState()
+    val isShuffle by OfflineAudioPlayerManager.isShuffle.collectAsState()
 
     var selectedFilter by remember { mutableStateOf(DownloadFilter.ALL) }
     var searchQuery by remember { mutableStateOf("") }
@@ -211,73 +218,144 @@ fun DownloadsScreen(
             }
         }
 
-        // FILTER CHIPS & PLAY ALL BUTTON
+        // FILTER CHIPS ROW (Horizontally Scrollable)
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
+                .horizontalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp, vertical = 6.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                FilterChip(
-                    selected = selectedFilter == DownloadFilter.ALL,
-                    onClick = { selectedFilter = DownloadFilter.ALL },
-                    label = { Text("Semua (${downloads.size})", fontSize = 12.sp) },
-                    colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = YouTubeRed,
-                        selectedLabelColor = Color.White,
-                        containerColor = GlassSurface,
-                        labelColor = TextSecondary
-                    ),
-                    border = null
-                )
+            FilterChip(
+                selected = selectedFilter == DownloadFilter.ALL,
+                onClick = { selectedFilter = DownloadFilter.ALL },
+                label = { Text("Semua (${downloads.size})", fontSize = 12.sp) },
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = YouTubeRed,
+                    selectedLabelColor = Color.White,
+                    containerColor = GlassSurface,
+                    labelColor = TextSecondary
+                ),
+                border = null
+            )
 
-                FilterChip(
-                    selected = selectedFilter == DownloadFilter.AUDIO,
-                    onClick = { selectedFilter = DownloadFilter.AUDIO },
-                    label = { Text("Musik MP3", fontSize = 12.sp) },
-                    colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = YouTubeRed,
-                        selectedLabelColor = Color.White,
-                        containerColor = GlassSurface,
-                        labelColor = TextSecondary
-                    ),
-                    border = null
-                )
+            FilterChip(
+                selected = selectedFilter == DownloadFilter.AUDIO,
+                onClick = { selectedFilter = DownloadFilter.AUDIO },
+                label = { Text("Musik MP3 (${downloads.count { it.format.equals("MP3", true) }})", fontSize = 12.sp) },
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = YouTubeRed,
+                    selectedLabelColor = Color.White,
+                    containerColor = GlassSurface,
+                    labelColor = TextSecondary
+                ),
+                border = null
+            )
 
-                FilterChip(
-                    selected = selectedFilter == DownloadFilter.VIDEO,
-                    onClick = { selectedFilter = DownloadFilter.VIDEO },
-                    label = { Text("Video MP4", fontSize = 12.sp) },
-                    colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = YouTubeRed,
-                        selectedLabelColor = Color.White,
-                        containerColor = GlassSurface,
-                        labelColor = TextSecondary
-                    ),
-                    border = null
-                )
-            }
+            FilterChip(
+                selected = selectedFilter == DownloadFilter.VIDEO,
+                onClick = { selectedFilter = DownloadFilter.VIDEO },
+                label = { Text("Video MP4 (${downloads.count { it.format.equals("MP4", true) }})", fontSize = 12.sp) },
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = YouTubeRed,
+                    selectedLabelColor = Color.White,
+                    containerColor = GlassSurface,
+                    labelColor = TextSecondary
+                ),
+                border = null
+            )
+        }
 
-            // Quick Play All MP3s button
-            if (audioTracks.isNotEmpty() && (selectedFilter == DownloadFilter.ALL || selectedFilter == DownloadFilter.AUDIO)) {
+        // PLAYBACK ACTION BAR (Putar Semua, Acak, Ulangi)
+        if (audioTracks.isNotEmpty() && (selectedFilter == DownloadFilter.ALL || selectedFilter == DownloadFilter.AUDIO)) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 6.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Sleek Pill-shaped "Putar Semua" Button
                 Button(
                     onClick = {
-                        OfflineAudioPlayerManager.playQueue(context, audioTracks, 0)
-                        Toast.makeText(context, "Memutar antrean ${audioTracks.size} musik offline", Toast.LENGTH_SHORT).show()
+                        val tracksToPlay = if (isShuffle) audioTracks.shuffled() else audioTracks
+                        OfflineAudioPlayerManager.playQueue(context, tracksToPlay, 0)
+                        Toast.makeText(context, "Memutar ${tracksToPlay.size} musik offline", Toast.LENGTH_SHORT).show()
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = YouTubeRed),
-                    shape = RoundedCornerShape(20.dp),
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                    shape = RoundedCornerShape(24.dp),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                    modifier = Modifier.height(38.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Default.PlayArrow,
                         contentDescription = null,
-                        modifier = Modifier.size(16.dp)
+                        modifier = Modifier.size(18.dp)
                     )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Putar Semua", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "Putar Semua (${audioTracks.size})",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+
+                // Shuffle & Repeat Quick Action Toggles
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Quick Shuffle Button
+                    Box(
+                        modifier = Modifier
+                            .size(38.dp)
+                            .clip(CircleShape)
+                            .background(if (isShuffle) YouTubeRed.copy(alpha = 0.22f) else GlassSurface)
+                            .border(1.dp, if (isShuffle) YouTubeRed else BubbleDockBorder, CircleShape)
+                            .clickable {
+                                OfflineAudioPlayerManager.toggleShuffle(context)
+                                Toast.makeText(
+                                    context,
+                                    if (!isShuffle) "Acak lagu diaktifkan" else "Acak lagu dinonaktifkan",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Shuffle,
+                            contentDescription = "Acak Lagu",
+                            tint = if (isShuffle) YouTubeRed else TextSecondary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+
+                    // Quick Repeat Button
+                    Box(
+                        modifier = Modifier
+                            .size(38.dp)
+                            .clip(CircleShape)
+                            .background(if (repeatMode != com.phantom.tube.player.offline.OfflineRepeatMode.OFF) YouTubeRed.copy(alpha = 0.22f) else GlassSurface)
+                            .border(1.dp, if (repeatMode != com.phantom.tube.player.offline.OfflineRepeatMode.OFF) YouTubeRed else BubbleDockBorder, CircleShape)
+                            .clickable {
+                                OfflineAudioPlayerManager.toggleRepeatMode(context)
+                                val msg = when (OfflineAudioPlayerManager.repeatMode.value) {
+                                    com.phantom.tube.player.offline.OfflineRepeatMode.OFF -> "Ulangi: Nonaktif"
+                                    com.phantom.tube.player.offline.OfflineRepeatMode.ALL -> "Ulangi: Semua antrean"
+                                    com.phantom.tube.player.offline.OfflineRepeatMode.ONE -> "Ulangi: Lagu ini (Loop 1)"
+                                }
+                                Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = if (repeatMode == com.phantom.tube.player.offline.OfflineRepeatMode.ONE) Icons.Default.RepeatOne else Icons.Default.Repeat,
+                            contentDescription = "Ulangi Lagu",
+                            tint = if (repeatMode != com.phantom.tube.player.offline.OfflineRepeatMode.OFF) YouTubeRed else TextSecondary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
                 }
             }
         }
@@ -329,7 +407,7 @@ fun DownloadsScreen(
                     .fillMaxSize()
                     .padding(horizontal = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
-                contentPadding = PaddingValues(top = 8.dp, bottom = 100.dp)
+                contentPadding = PaddingValues(top = 8.dp, bottom = 130.dp)
             ) {
                 items(filteredList, key = { it.id }) { item ->
                     val isAudio = item.format.equals("MP3", ignoreCase = true)
@@ -580,7 +658,10 @@ private fun openInExternalPlayer(context: Context, item: DownloadEntity) {
             setDataAndType(uri, mimeType)
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
         }
-        context.startActivity(Intent.createChooser(intent, "Putar dengan..."))
+        val chooser = Intent.createChooser(intent, "Putar dengan...").apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        context.startActivity(chooser)
     } catch (_: Exception) {
         Toast.makeText(context, "Tidak ada pemutar eksternal yang kompatibel", Toast.LENGTH_SHORT).show()
     }
@@ -595,7 +676,10 @@ private fun shareMediaFile(context: Context, item: DownloadEntity) {
             putExtra(Intent.EXTRA_STREAM, uri)
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
         }
-        context.startActivity(Intent.createChooser(intent, "Bagikan '${item.title}'"))
+        val chooser = Intent.createChooser(intent, "Bagikan '${item.title}'").apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        context.startActivity(chooser)
     } catch (_: Exception) {
         Toast.makeText(context, "Gagal membagikan file", Toast.LENGTH_SHORT).show()
     }

@@ -302,7 +302,10 @@ object PhantomDownloader {
                 setDataAndType(uri, mimeType)
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
             }
-            context.startActivity(Intent.createChooser(intent, "Buka file dengan"))
+            val chooser = Intent.createChooser(intent, "Buka file dengan").apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            context.startActivity(chooser)
         } catch (e: Exception) {
             android.widget.Toast.makeText(context, "Tidak dapat membuka file: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()
         }

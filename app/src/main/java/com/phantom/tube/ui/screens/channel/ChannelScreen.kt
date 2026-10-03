@@ -1097,8 +1097,11 @@ fun ChannelVideoHorizontalItem(
                             type = "text/plain"
                             putExtra(Intent.EXTRA_SUBJECT, video.title)
                             putExtra(Intent.EXTRA_TEXT, "${video.title}\nhttps://youtu.be/${video.id}")
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                         }
-                        val shareIntent = Intent.createChooser(sendIntent, "Bagikan")
+                        val shareIntent = Intent.createChooser(sendIntent, "Bagikan").apply {
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        }
                         context.startActivity(shareIntent)
                     }
                 )

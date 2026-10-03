@@ -27,12 +27,14 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.GraphicEq
+import android.widget.Toast
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.QueueMusic
 import androidx.compose.material.icons.filled.Repeat
+import androidx.compose.material.icons.filled.RepeatOne
 import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
@@ -95,6 +97,7 @@ fun OfflineAudioPlayerSheet(
     val currentIndex by OfflineAudioPlayerManager.currentIndex.collectAsState()
     val isLooping by OfflineAudioPlayerManager.isLooping.collectAsState()
     val isShuffle by OfflineAudioPlayerManager.isShuffle.collectAsState()
+    val repeatMode by OfflineAudioPlayerManager.repeatMode.collectAsState()
 
     var showQueue by remember { mutableStateOf(false) }
     var isUserScrubbing by remember { mutableStateOf(false) }
@@ -256,7 +259,14 @@ fun OfflineAudioPlayerSheet(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     // Shuffle Toggle
-                    IconButton(onClick = { OfflineAudioPlayerManager.toggleShuffle() }) {
+                    IconButton(onClick = {
+                        OfflineAudioPlayerManager.toggleShuffle(context)
+                        Toast.makeText(
+                            context,
+                            if (!isShuffle) "Acak lagu aktif" else "Acak lagu nonaktif",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }) {
                         Icon(
                             imageVector = Icons.Default.Shuffle,
                             contentDescription = "Acak",
@@ -308,12 +318,20 @@ fun OfflineAudioPlayerSheet(
                         )
                     }
 
-                    // Loop Toggle
-                    IconButton(onClick = { OfflineAudioPlayerManager.toggleLoop() }) {
+                    // Repeat Toggle (Cycle OFF -> ALL -> ONE)
+                    IconButton(onClick = {
+                        OfflineAudioPlayerManager.toggleRepeatMode(context)
+                        val msg = when (OfflineAudioPlayerManager.repeatMode.value) {
+                            com.phantom.tube.player.offline.OfflineRepeatMode.OFF -> "Ulangi: Nonaktif"
+                            com.phantom.tube.player.offline.OfflineRepeatMode.ALL -> "Ulangi: Semua antrean"
+                            com.phantom.tube.player.offline.OfflineRepeatMode.ONE -> "Ulangi: Lagu ini (Loop 1)"
+                        }
+                        Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                    }) {
                         Icon(
-                            imageVector = Icons.Default.Repeat,
+                            imageVector = if (repeatMode == com.phantom.tube.player.offline.OfflineRepeatMode.ONE) Icons.Default.RepeatOne else Icons.Default.Repeat,
                             contentDescription = "Ulangi",
-                            tint = if (isLooping) YouTubeRed else TextMuted,
+                            tint = if (repeatMode != com.phantom.tube.player.offline.OfflineRepeatMode.OFF) YouTubeRed else TextMuted,
                             modifier = Modifier.size(24.dp)
                         )
                     }

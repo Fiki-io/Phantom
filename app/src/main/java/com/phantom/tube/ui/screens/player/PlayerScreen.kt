@@ -371,6 +371,24 @@ fun PlayerScreen(
 
     val controller = remember { PhantomPlayerController(context) }
 
+    // Cegah audio dobel: Pause pemutar online jika lagu offline mulai diputar
+    val isOfflinePlaying by com.phantom.tube.player.offline.OfflineAudioPlayerManager.isPlaying.collectAsState()
+    LaunchedEffect(isOfflinePlaying) {
+        if (isOfflinePlaying) {
+            controller.pause()
+        }
+    }
+
+    // Hentikan musik offline saat video online mulai dimuat/dimainkan atau di-resume
+    LaunchedEffect(video.id) {
+        com.phantom.tube.player.offline.OfflineAudioPlayerManager.stop(context)
+    }
+    LaunchedEffect(playerState.isPlaying) {
+        if (playerState.isPlaying) {
+            com.phantom.tube.player.offline.OfflineAudioPlayerManager.stop(context)
+        }
+    }
+
     // Sleep Timer countdown effect
     LaunchedEffect(sleepTimerRemainingSec, playerState.isPlaying) {
         if (sleepTimerRemainingSec != null && (sleepTimerRemainingSec ?: 0) > 0 && playerState.isPlaying) {
@@ -2249,8 +2267,11 @@ fun PlayerScreen(
                                             type = "text/plain"
                                             putExtra(Intent.EXTRA_SUBJECT, activeTitle)
                                             putExtra(Intent.EXTRA_TEXT, "$activeTitle\nhttps://youtu.be/${video.id}")
+                                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                                         }
-                                        val shareIntent = Intent.createChooser(sendIntent, "Bagikan")
+                                        val shareIntent = Intent.createChooser(sendIntent, "Bagikan").apply {
+                                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                        }
                                         context.startActivity(shareIntent)
                                     }
                                     .padding(horizontal = 14.dp, vertical = 7.dp),

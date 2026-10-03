@@ -13,6 +13,7 @@ import android.os.Binder
 import android.os.Build
 import android.os.IBinder
 import android.os.PowerManager
+import android.os.SystemClock
 import android.support.v4.media.MediaMetadataCompat
 import android.support.v4.media.session.MediaSessionCompat
 import android.support.v4.media.session.PlaybackStateCompat
@@ -70,6 +71,11 @@ class PhantomMediaService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+        // Hentikan pemutar audio offline jika sedang jalan agar suara tidak dobel
+        try {
+            com.phantom.tube.player.offline.OfflineAudioPlayerManager.stop(this)
+        } catch (_: Exception) {}
+
         createNotificationChannel()
         setupMediaSession()
         startForegroundCompat(buildNotification())
@@ -216,11 +222,12 @@ class PhantomMediaService : Service() {
             .setActions(
                 PlaybackStateCompat.ACTION_PLAY or
                 PlaybackStateCompat.ACTION_PAUSE or
+                PlaybackStateCompat.ACTION_PLAY_PAUSE or
                 PlaybackStateCompat.ACTION_SKIP_TO_NEXT or
                 PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS or
                 PlaybackStateCompat.ACTION_SEEK_TO
             )
-            .setState(state, this.currentPositionMs, playbackSpeed)
+            .setState(state, this.currentPositionMs, playbackSpeed, SystemClock.elapsedRealtime())
             .build()
         mediaSession?.setPlaybackState(playbackState)
 

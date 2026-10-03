@@ -263,18 +263,6 @@ class MainActivity : ComponentActivity() {
                         )
                     }
 
-                    // 2.5 OFFLINE MINI PLAYER BAR (When an offline MP3 is playing)
-                    val offlineTrack by OfflineAudioPlayerManager.currentTrack.collectAsState()
-                    if (offlineTrack != null && (activeVideo == null || isPlayerMinimized) && !isInPipMode) {
-                        val hasBottomNav = activeChannelId == null && !isSettingsOpen && !isDownloadsOpen
-                        OfflineMiniPlayer(
-                            modifier = Modifier
-                                .align(Alignment.BottomCenter)
-                                .navigationBarsPadding()
-                                .padding(bottom = if (hasBottomNav) 76.dp else 10.dp)
-                        )
-                    }
-
                     // 3. CHANNEL SCREEN OVERLAY
                     AnimatedVisibility(
                         visible = activeChannelId != null,
@@ -344,6 +332,18 @@ class MainActivity : ComponentActivity() {
                             repository = repository,
                             onBackClick = { isDownloadsOpen = false },
                             modifier = Modifier.fillMaxSize()
+                        )
+                    }
+
+                    // 3.7 OFFLINE MINI PLAYER BAR (Floats on top of tabs and DownloadsScreen when an offline MP3 is playing)
+                    val offlineTrack by OfflineAudioPlayerManager.currentTrack.collectAsState()
+                    if (offlineTrack != null && (activeVideo == null || isPlayerMinimized) && !isInPipMode) {
+                        val hasBottomNav = activeChannelId == null && !isSettingsOpen && !isDownloadsOpen
+                        OfflineMiniPlayer(
+                            modifier = Modifier
+                                .align(Alignment.BottomCenter)
+                                .navigationBarsPadding()
+                                .padding(bottom = if (hasBottomNav) 76.dp else 12.dp)
                         )
                     }
 

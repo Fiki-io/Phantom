@@ -7,6 +7,12 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
+enum class OfflineRepeatMode {
+    OFF,
+    ALL,
+    ONE
+}
+
 /**
  * Manajer terpusat untuk pemutaran audio offline (MP3).
  * Mengatur antrean playlist, lagu aktif, status play/pause, durasi, dan posisi putar.
@@ -32,7 +38,10 @@ object OfflineAudioPlayerManager {
     private val _currentIndex = MutableStateFlow(0)
     val currentIndex: StateFlow<Int> = _currentIndex.asStateFlow()
 
-    private val _isLooping = MutableStateFlow(false)
+    private val _repeatMode = MutableStateFlow(OfflineRepeatMode.ALL)
+    val repeatMode: StateFlow<OfflineRepeatMode> = _repeatMode.asStateFlow()
+
+    private val _isLooping = MutableStateFlow(true)
     val isLooping: StateFlow<Boolean> = _isLooping.asStateFlow()
 
     private val _isShuffle = MutableStateFlow(false)
@@ -67,7 +76,17 @@ object OfflineAudioPlayerManager {
     // Public controller commands
     fun playQueue(context: Context, tracks: List<DownloadEntity>, startIndex: Int = 0) {
         if (tracks.isEmpty()) return
-        val clampedIndex = startIndex.coerceIn(0, tracks.lastIndex)
+
+        // Matikan pemutar video/musik online agar audio tidak bertabrakan / dobel
+        try {
+            context.stopService(Intent(context, com.phantom.tube.player.service.PhantomMediaService::class.java))
+        } catch (_: Exception) {}
+
+        val clampedIndex = if (_isShuffle.value && tracks.size > 1 && startIndex == 0) {
+            (0 until tracks.size).random()
+        } else {
+            startIndex.coerceIn(0, tracks.lastIndex)
+        }
         _queue.value = tracks
         _currentIndex.value = clampedIndex
         _currentTrack.value = tracks[clampedIndex]
@@ -119,12 +138,39 @@ object OfflineAudioPlayerManager {
         startServiceCompat(context, intent)
     }
 
-    fun toggleLoop() {
-        _isLooping.value = !_isLooping.value
+    fun toggleRepeatMode(context: Context? = null): OfflineRepeatMode {
+        val next = when (_repeatMode.value) {
+            OfflineRepeatMode.OFF -> OfflineRepeatMode.ALL
+            OfflineRepeatMode.ALL -> OfflineRepeatMode.ONE
+            OfflineRepeatMode.ONE -> OfflineRepeatMode.OFF
+        }
+        _repeatMode.value = next
+        _isLooping.value = (next != OfflineRepeatMode.OFF)
+        context?.let { ctx ->
+            val intent = Intent(ctx, PhantomOfflineAudioService::class.java).apply {
+                action = PhantomOfflineAudioService.ACTION_UPDATE_LOOP
+                putExtra(PhantomOfflineAudioService.EXTRA_LOOP_MODE, next.name)
+            }
+            startServiceCompat(ctx, intent)
+        }
+        return next
     }
 
-    fun toggleShuffle() {
-        _isShuffle.value = !_isShuffle.value
+    fun toggleShuffle(context: Context? = null): Boolean {
+        val next = !_isShuffle.value
+        _isShuffle.value = next
+        context?.let { ctx ->
+            val intent = Intent(ctx, PhantomOfflineAudioService::class.java).apply {
+                action = PhantomOfflineAudioService.ACTION_UPDATE_SHUFFLE
+                putExtra(PhantomOfflineAudioService.EXTRA_SHUFFLE_MODE, next)
+            }
+            startServiceCompat(ctx, intent)
+        }
+        return next
+    }
+
+    fun toggleLoop(context: Context? = null) {
+        toggleRepeatMode(context)
     }
 
     fun stop(context: Context) {
