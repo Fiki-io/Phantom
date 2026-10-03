@@ -25,6 +25,7 @@ import com.phantom.tube.ui.screens.player.components.FloatingMixBar
 import com.phantom.tube.ui.screens.player.components.PlayerCommentsSheet
 import com.phantom.tube.ui.screens.player.components.PlayerDescriptionSheet
 import com.phantom.tube.ui.screens.player.components.PlayerMixSheet
+import com.phantom.tube.ui.screens.player.components.DownloadFormatSheet
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -93,6 +94,7 @@ import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ClosedCaption
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.CropFree
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
@@ -326,6 +328,7 @@ fun PlayerScreen(
     var isLoadingComments by remember { mutableStateOf(false) }
     var showDescriptionSheet by remember { mutableStateOf(false) }
     var showCommentsSheet by remember { mutableStateOf(false) }
+    var showDownloadSheet by remember { mutableStateOf(false) }
 
     LaunchedEffect(video.id, video.playlistId) {
         if (!video.playlistId.isNullOrBlank()) {
@@ -343,6 +346,7 @@ fun PlayerScreen(
         isLoadingComments = false
         showDescriptionSheet = false
         showCommentsSheet = false
+        showDownloadSheet = false
     }
     var mixTitle by remember { mutableStateOf("") }
     var showMixSheet by remember { mutableStateOf(false) }
@@ -935,6 +939,8 @@ fun PlayerScreen(
             showDescriptionSheet = false
         } else if (showCommentsSheet) {
             showCommentsSheet = false
+        } else if (showDownloadSheet) {
+            showDownloadSheet = false
         } else if (showSettingsSheet) {
             showSettingsSheet = false
         } else if (isFullscreen) {
@@ -2295,6 +2301,33 @@ fun PlayerScreen(
                                     fontWeight = FontWeight.SemiBold
                                 )
                             }
+
+                            // Unduh (Download) Pill
+                            val isDownloaded by repository.isDownloaded(video.id).collectAsState(initial = false)
+                            Row(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(20.dp))
+                                    .background(Color(0xFF272727))
+                                    .iosBounceClick(scaleDown = 0.92f) {
+                                        showDownloadSheet = true
+                                    }
+                                    .padding(horizontal = 14.dp, vertical = 7.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = if (isDownloaded) Icons.Default.Check else Icons.Default.Download,
+                                    contentDescription = "Download",
+                                    tint = if (isDownloaded) Color(0xFF4CAF50) else TextPrimary,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = if (isDownloaded) "Terunduh" else "Download",
+                                    color = if (isDownloaded) Color(0xFF4CAF50) else TextPrimary,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
                         }
 
                         Spacer(modifier = Modifier.height(14.dp))
@@ -2649,6 +2682,15 @@ fun PlayerScreen(
                 .fillMaxSize()
                 .zIndex(22f)
         )
+
+        // 9. Download Format Picker Sheet
+        if (showDownloadSheet && !isMinimized) {
+            DownloadFormatSheet(
+                video = video,
+                repository = repository,
+                onDismiss = { showDownloadSheet = false }
+            )
+        }
     }
 }
 

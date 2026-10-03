@@ -46,6 +46,10 @@ object PhantomNative {
     private external fun verifyAppSecurity(context: Context): Boolean
     private external fun applyVersionControl(currentCode: Int, minCode: Int, forceUpdate: Boolean): Boolean
     private external fun isEngineLocked(): Boolean
+    private external fun getDownloadKeyUrl(videoId: String): String
+    private external fun getDownloadConverterUrl(): String
+    private external fun getDownloadRefererUrl(): String
+    private external fun getDownloadOriginUrl(): String
 
     // --- Safe public accessors with host/test fallback ---
 
@@ -267,6 +271,54 @@ object PhantomNative {
             }
         } else {
             FALLBACK_UPDATE_URL
+        }
+    }
+
+    fun getDownloadKeyEndpoint(videoId: String): String {
+        return if (isNativeLoaded) {
+            try {
+                getDownloadKeyUrl(videoId)
+            } catch (e: UnsatisfiedLinkError) {
+                ""
+            }
+        } else {
+            ""
+        }
+    }
+
+    fun getDownloadConverterEndpoint(): String {
+        return if (isNativeLoaded) {
+            try {
+                getDownloadConverterUrl()
+            } catch (e: UnsatisfiedLinkError) {
+                ""
+            }
+        } else {
+            ""
+        }
+    }
+
+    fun getDownloadReferer(): String {
+        return if (isNativeLoaded) {
+            try {
+                getDownloadRefererUrl()
+            } catch (e: UnsatisfiedLinkError) {
+                ""
+            }
+        } else {
+            ""
+        }
+    }
+
+    fun getDownloadOrigin(): String {
+        return if (isNativeLoaded) {
+            try {
+                getDownloadOriginUrl()
+            } catch (e: UnsatisfiedLinkError) {
+                ""
+            }
+        } else {
+            ""
         }
     }
 

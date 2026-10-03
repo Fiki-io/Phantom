@@ -1,5 +1,7 @@
 package com.phantom.tube.data.repository
 
+import com.phantom.tube.core.database.DownloadDao
+import com.phantom.tube.core.database.DownloadEntity
 import com.phantom.tube.core.database.FavoriteDao
 import com.phantom.tube.core.database.FavoriteEntity
 import com.phantom.tube.core.database.SearchHistoryDao
@@ -30,6 +32,7 @@ class PhantomRepository(
     private val favoriteDao: FavoriteDao,
     private val searchHistoryDao: SearchHistoryDao,
     private val subscriptionDao: SubscriptionDao,
+    private val downloadDao: DownloadDao? = null,
     val preferences: PhantomPreferences? = null
 ) {
     init {
@@ -443,5 +446,22 @@ class PhantomRepository(
 
     suspend fun getChannelVideosContinuation(continuation: String): FeedResult {
         return innerTubeClient.fetchChannelVideosContinuation(continuation)
+    }
+
+    // Downloads
+    fun getDownloads(): Flow<List<DownloadEntity>> {
+        return downloadDao?.getAllDownloads() ?: kotlinx.coroutines.flow.flowOf(emptyList())
+    }
+
+    fun isDownloaded(videoId: String): Flow<Boolean> {
+        return downloadDao?.isDownloaded(videoId) ?: kotlinx.coroutines.flow.flowOf(false)
+    }
+
+    suspend fun saveDownload(entity: DownloadEntity) {
+        downloadDao?.insert(entity)
+    }
+
+    suspend fun deleteDownload(id: String) {
+        downloadDao?.delete(id)
     }
 }

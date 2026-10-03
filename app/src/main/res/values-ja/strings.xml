@@ -129,4 +129,19 @@
     <string name="feedback_device_info_note">問題解決を円滑にするため、端末の技術情報が自動で添付されます。</string>
     <string name="feedback_send_button">メールで送信</string>
     <string name="feedback_no_email_app">メールアプリが見つかりません。開発者のメールアドレスをコピーしました: totoyu379@gmail.com</string>
+
+    <!-- Downloads -->
+    <string name="action_download">ダウンロード</string>
+    <string name="action_downloaded">ダウンロード済み</string>
+    <string name="download_sheet_title">オフラインメディアをダウンロード</string>
+    <string name="download_audio_tab">音楽オーディオ (MP3)</string>
+    <string name="download_video_tab">動画 (MP4)</string>
+    <string name="download_storage_note">権限不要で Music/Phantom (MP3) および Download/Phantom (MP4) に保存されます</string>
+    <string name="settings_section_downloads">メディアダウンロード</string>
+    <string name="settings_downloads_list">ダウンロード済みファイル</string>
+    <string name="settings_open_downloads_folder">ダウンロードフォルダを開く</string>
+    <string name="downloads_title">マイダウンロード</string>
+    <string name="downloads_play_all">すべて再生</string>
+    <string name="downloads_empty_title">ダウンロードはありません</string>
+    <string name="downloads_empty_desc">お気に入りの音楽や動画をダウンロードして、通信量を消費せずにいつでもオフライン再生できます。</string>
 </resources>

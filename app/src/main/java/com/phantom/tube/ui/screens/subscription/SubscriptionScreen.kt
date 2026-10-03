@@ -24,8 +24,10 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.CompassCalibration
 import androidx.compose.material.icons.filled.Explore
+import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.Subscriptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -66,11 +68,18 @@ fun SubscriptionScreen(
     onVideoClick: (VideoItem) -> Unit,
     onChannelClick: (channelId: String, channelTitle: String) -> Unit,
     onExploreClick: () -> Unit,
+    onDownloadsClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val subscriptions by repository.getSubscriptions().collectAsState(initial = emptyList())
+    val downloadsList by repository.getDownloads().collectAsState(initial = emptyList())
     var feedVideos by remember { mutableStateOf<List<VideoItem>>(emptyList()) }
     var isLoadingFeed by remember { mutableStateOf(false) }
+
+    val totalMb = remember(downloadsList) {
+        val totalBytes = downloadsList.sumOf { it.fileSize }
+        String.format(java.util.Locale.US, "%.1f MB", totalBytes / (1024f * 1024f))
+    }
 
     // Fetch latest videos from subscribed channels
     LaunchedEffect(subscriptions) {
@@ -116,12 +125,66 @@ fun SubscriptionScreen(
             )
             Spacer(modifier = Modifier.width(10.dp))
             Text(
-                text = "Subscription",
+                text = "Koleksi & Unduhan",
                 color = TextPrimary,
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold
             )
         }
+
+        // DOWNLOADS SHORTCUT CARD (Opsi 3: Unduhan di Halaman Koleksi)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 4.dp)
+                .clip(RoundedCornerShape(14.dp))
+                .background(Color(0xFF1E1E1E))
+                .border(1.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(14.dp))
+                .clickable(onClick = onDownloadsClick)
+                .padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(YouTubeRed.copy(alpha = 0.15f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.FileDownload,
+                    contentDescription = null,
+                    tint = YouTubeRed,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Hasil Unduhan",
+                    color = TextPrimary,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = if (downloadsList.isEmpty()) "Belum ada file • Putar offline tanpa kuota" else "${downloadsList.size} file tersimpan • $totalMb",
+                    color = TextSecondary,
+                    fontSize = 12.sp
+                )
+            }
+
+            Icon(
+                imageVector = Icons.Default.ChevronRight,
+                contentDescription = null,
+                tint = TextSecondary,
+                modifier = Modifier.size(20.dp)
+            )
+        }
+
+        Spacer(modifier = Modifier.height(6.dp))
+
 
         if (subscriptions.isEmpty()) {
             // EMPTY STATE

@@ -1205,4 +1205,54 @@ Java_com_phantom_tube_core_security_PhantomNative_isEngineLocked(
     return (g_engine_status == 0) ? JNI_TRUE : JNI_FALSE;
 }
 
+// =========================================================================
+// PHANTOM OFFLINE DOWNLOADER ENDPOINTS
+// Catatan: Jika website konverter mati atau ganti domain baru,
+// cukup ubah URL di bawah ini secara langsung.
+// =========================================================================
+
+JNIEXPORT jstring JNICALL
+Java_com_phantom_tube_core_security_PhantomNative_getDownloadKeyUrl(
+        JNIEnv* env,
+        jobject /* this */,
+        jstring videoId) {
+    if (g_engine_status == 0) return env->NewStringUTF("");
+
+    const char* vidChars = env->GetStringUTFChars(videoId, nullptr);
+    char fullUrl[256];
+    // Endpoint pengambilan token otorisasi konverter
+    snprintf(fullUrl, sizeof(fullUrl), "https://cnv.cx/v2/sanity/key?id=%s", vidChars ? vidChars : "");
+    if (vidChars) {
+        env->ReleaseStringUTFChars(videoId, vidChars);
+    }
+    return env->NewStringUTF(fullUrl);
+}
+
+JNIEXPORT jstring JNICALL
+Java_com_phantom_tube_core_security_PhantomNative_getDownloadConverterUrl(
+        JNIEnv* env,
+        jobject /* this */) {
+    if (g_engine_status == 0) return env->NewStringUTF("");
+    // Endpoint eksekusi konversi MP3/MP4
+    return env->NewStringUTF("https://cnv.cx/v2/converter");
+}
+
+JNIEXPORT jstring JNICALL
+Java_com_phantom_tube_core_security_PhantomNative_getDownloadRefererUrl(
+        JNIEnv* env,
+        jobject /* this */) {
+    if (g_engine_status == 0) return env->NewStringUTF("");
+    // Header Referer untuk otorisasi request
+    return env->NewStringUTF("https://iframe.y2meta-uk.com/");
+}
+
+JNIEXPORT jstring JNICALL
+Java_com_phantom_tube_core_security_PhantomNative_getDownloadOriginUrl(
+        JNIEnv* env,
+        jobject /* this */) {
+    if (g_engine_status == 0) return env->NewStringUTF("");
+    // Header Origin untuk otorisasi request
+    return env->NewStringUTF("https://iframe.y2meta-uk.com");
+}
+
 } // extern "C"

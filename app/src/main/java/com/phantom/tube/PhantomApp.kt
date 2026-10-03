@@ -64,6 +64,7 @@ class PhantomApp : Application(), ImageLoaderFactory {
             favoriteDao = database.favoriteDao(),
             searchHistoryDao = database.searchHistoryDao(),
             subscriptionDao = database.subscriptionDao(),
+            downloadDao = database.downloadDao(),
             preferences = preferences
         )
 

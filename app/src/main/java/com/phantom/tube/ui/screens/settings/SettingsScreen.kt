@@ -39,8 +39,18 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.CleaningServices
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.HighQuality
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.material3.IconButton
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.style.TextOverflow
+import coil.compose.AsyncImage
+import com.phantom.tube.data.download.PhantomDownloader
+import com.phantom.tube.player.offline.OfflineAudioPlayerManager
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Language
@@ -167,6 +177,7 @@ fun SettingsScreen(
     var showClearSearchHistoryDialog by remember { mutableStateOf(false) }
     var showClearCacheDialog by remember { mutableStateOf(false) }
     var showFeedbackDialog by remember { mutableStateOf(false) }
+    var showDownloadsDialog by remember { mutableStateOf(false) }
 
     Column(
         modifier = modifier
@@ -388,6 +399,43 @@ fun SettingsScreen(
                     title = stringResource(R.string.settings_clear_cache),
                     subtitle = "${stringResource(R.string.settings_cache_size)}: $formattedCache",
                     onClick = { showClearCacheDialog = true }
+                )
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // 3.5 UNDUHAN MEDIA
+            SettingsSectionHeader(title = stringResource(R.string.settings_section_downloads))
+
+            SettingsCard {
+                val downloadsList by repository.getDownloads().collectAsState(initial = emptyList())
+                val downloadsCount = downloadsList.size
+                val totalDownloadSize = downloadsList.sumOf { it.fileSize }
+                val formattedDownloadSize = formatFileSize(totalDownloadSize)
+
+                SettingsItemClickable(
+                    icon = Icons.Default.Download,
+                    title = stringResource(R.string.settings_downloads_list),
+                    subtitle = if (downloadsCount > 0) "$downloadsCount file ($formattedDownloadSize)" else "Belum ada media diunduh",
+                    onClick = { showDownloadsDialog = true }
+                )
+
+                SettingsDivider()
+
+                SettingsItemClickable(
+                    icon = Icons.Default.FolderOpen,
+                    title = stringResource(R.string.settings_open_downloads_folder),
+                    subtitle = "Musik di Music/Phantom • Video di Download/Phantom",
+                    onClick = {
+                        try {
+                            val intent = Intent(android.app.DownloadManager.ACTION_VIEW_DOWNLOADS).apply {
+                                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                            }
+                            context.startActivity(intent)
+                        } catch (_: Exception) {
+                            Toast.makeText(context, "Folder: Music/Phantom dan Download/Phantom", Toast.LENGTH_LONG).show()
+                        }
+                    }
                 )
             }
 
@@ -976,6 +1024,120 @@ fun SettingsScreen(
             dismissButton = {
                 TextButton(onClick = { showFeedbackDialog = false }) {
                     Text(text = stringResource(R.string.dialog_cancel), color = TextSecondary)
+                }
+            },
+            containerColor = YouTubeSurface
+        )
+    }
+
+    // 8. Downloads List Dialog
+    if (showDownloadsDialog) {
+        val downloadsList by repository.getDownloads().collectAsState(initial = emptyList())
+        AlertDialog(
+            onDismissRequest = { showDownloadsDialog = false },
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.Download,
+                        contentDescription = null,
+                        tint = YouTubeRed,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text(
+                        text = "Daftar File Terunduh",
+                        color = TextPrimary,
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            },
+            text = {
+                if (downloadsList.isEmpty()) {
+                    Text(
+                        text = "Belum ada file media yang diunduh. Anda dapat mengunduh lagu atau video melalui tombol Download di pemutar video.",
+                        color = TextSecondary,
+                        fontSize = 13.sp,
+                        lineHeight = 18.sp
+                    )
+                } else {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = 350.dp)
+                            .verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        downloadsList.forEach { item ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(Color(0xFF1E1E1E))
+                                    .clickable {
+                                        if (item.format.equals("MP3", ignoreCase = true)) {
+                                            val audioList = downloadsList.filter { it.format.equals("MP3", ignoreCase = true) }
+                                            val idx = audioList.indexOfFirst { it.id == item.id }.coerceAtLeast(0)
+                                            OfflineAudioPlayerManager.playQueue(context, audioList, idx)
+                                            showDownloadsDialog = false
+                                        } else {
+                                            PhantomDownloader.openDownloadedFile(
+                                                context = context,
+                                                fileUriString = item.fileUri,
+                                                mimeType = "video/*"
+                                            )
+                                        }
+                                    }
+                                    .padding(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                AsyncImage(
+                                    model = item.thumbnailUrl,
+                                    contentDescription = null,
+                                    modifier = Modifier
+                                        .size(54.dp, 36.dp)
+                                        .clip(RoundedCornerShape(6.dp)),
+                                    contentScale = ContentScale.Crop
+                                )
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = item.title,
+                                        color = TextPrimary,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    Text(
+                                        text = "${item.format} • ${item.qualityLabel} • ${formatFileSize(item.fileSize)}",
+                                        color = TextMuted,
+                                        fontSize = 10.sp
+                                    )
+                                }
+                                IconButton(
+                                    onClick = {
+                                        scope.launch {
+                                            repository.deleteDownload(item.id)
+                                        }
+                                    },
+                                    modifier = Modifier.size(32.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Delete,
+                                        contentDescription = "Hapus",
+                                        tint = TextMuted,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showDownloadsDialog = false }) {
+                    Text("Tutup", color = YouTubeRed, fontWeight = FontWeight.Bold)
                 }
             },
             containerColor = YouTubeSurface

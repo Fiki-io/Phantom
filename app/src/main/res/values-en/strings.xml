@@ -129,4 +129,19 @@
     <string name="feedback_device_info_note">Device technical info will be automatically attached to help resolve issues faster.</string>
     <string name="feedback_send_button">Send via Email</string>
     <string name="feedback_no_email_app">No email client found. Developer email copied to clipboard: totoyu379@gmail.com</string>
+
+    <!-- Downloads -->
+    <string name="action_download">Download</string>
+    <string name="action_downloaded">Downloaded</string>
+    <string name="download_sheet_title">Download Offline Media</string>
+    <string name="download_audio_tab">Music Audio (MP3)</string>
+    <string name="download_video_tab">Video (MP4)</string>
+    <string name="download_storage_note">Directly saved to Music/Phantom (MP3) &amp; Download/Phantom (MP4) with zero permissions</string>
+    <string name="settings_section_downloads">Media Downloads</string>
+    <string name="settings_downloads_list">Downloaded Files</string>
+    <string name="settings_open_downloads_folder">Open Downloads Folder</string>
+    <string name="downloads_title">My Downloads</string>
+    <string name="downloads_play_all">Play All</string>
+    <string name="downloads_empty_title">No Downloads Yet</string>
+    <string name="downloads_empty_desc">Download your favorite music or videos to play offline anytime without using data.</string>
 </resources>

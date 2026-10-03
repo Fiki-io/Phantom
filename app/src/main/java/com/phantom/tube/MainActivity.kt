@@ -57,9 +57,11 @@ import kotlinx.coroutines.launch
 import com.phantom.tube.ui.screens.channel.ChannelScreen
 import com.phantom.tube.ui.screens.player.PlayerScreen
 import com.phantom.tube.ui.screens.search.SearchScreen
-import android.annotation.SuppressLint
 import com.phantom.tube.ui.screens.settings.SettingsScreen
 import com.phantom.tube.ui.screens.subscription.SubscriptionScreen
+import com.phantom.tube.ui.screens.downloads.DownloadsScreen
+import com.phantom.tube.ui.screens.player.components.OfflineMiniPlayer
+import com.phantom.tube.player.offline.OfflineAudioPlayerManager
 
 @SuppressLint("InvalidFragmentVersionForActivityResult")
 class MainActivity : ComponentActivity() {
@@ -111,6 +113,7 @@ class MainActivity : ComponentActivity() {
                 var activeChannelId by remember { mutableStateOf<String?>(null) }
                 var activeChannelTitle by remember { mutableStateOf("") }
                 var isSettingsOpen by remember { mutableStateOf(false) }
+                var isDownloadsOpen by remember { mutableStateOf(false) }
 
                 val updateManager = app.updateManager
                 val scope = rememberCoroutineScope()
@@ -149,7 +152,7 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
-                // Intercept system back press when ChannelScreen or SettingsScreen is active
+                // Intercept system back press when ChannelScreen, SettingsScreen, or DownloadsScreen is active
                 if (activeChannelId != null) {
                     BackHandler {
                         activeChannelId = null
@@ -159,6 +162,12 @@ class MainActivity : ComponentActivity() {
                 if (isSettingsOpen) {
                     BackHandler {
                         isSettingsOpen = false
+                    }
+                }
+
+                if (isDownloadsOpen) {
+                    BackHandler {
+                        isDownloadsOpen = false
                     }
                 }
 
@@ -194,6 +203,7 @@ class MainActivity : ComponentActivity() {
                                 NavTab.HOME -> HomeScreen(
                                     repository = repository,
                                     onVideoClick = { video: VideoItem ->
+                                        OfflineAudioPlayerManager.stop(this@MainActivity)
                                         activeVideo = video
                                         isPlayerMinimized = false
                                     },
@@ -207,6 +217,7 @@ class MainActivity : ComponentActivity() {
                                 NavTab.SEARCH -> SearchScreen(
                                     repository = repository,
                                     onVideoClick = { video: VideoItem ->
+                                        OfflineAudioPlayerManager.stop(this@MainActivity)
                                         activeVideo = video
                                         isPlayerMinimized = false
                                     },
@@ -219,6 +230,7 @@ class MainActivity : ComponentActivity() {
                                 NavTab.HISTORY -> HistoryScreen(
                                     repository = repository,
                                     onVideoClick = { video: VideoItem ->
+                                        OfflineAudioPlayerManager.stop(this@MainActivity)
                                         activeVideo = video
                                         isPlayerMinimized = false
                                     }
@@ -226,6 +238,7 @@ class MainActivity : ComponentActivity() {
                                 NavTab.SUBSCRIPTION -> SubscriptionScreen(
                                     repository = repository,
                                     onVideoClick = { video: VideoItem ->
+                                        OfflineAudioPlayerManager.stop(this@MainActivity)
                                         activeVideo = video
                                         isPlayerMinimized = false
                                     },
@@ -233,18 +246,31 @@ class MainActivity : ComponentActivity() {
                                         activeChannelId = chId
                                         activeChannelTitle = chTitle
                                     },
-                                    onExploreClick = { currentTab = NavTab.HOME }
+                                    onExploreClick = { currentTab = NavTab.HOME },
+                                    onDownloadsClick = { isDownloadsOpen = true }
                                 )
                             }
                         }
                     }
 
                     // 2. BUBBLE BOTTOM NAVIGATION DOCK
-                    if (!isInPipMode && (activeVideo == null || isPlayerMinimized) && activeChannelId == null && !isSettingsOpen) {
+                    if (!isInPipMode && (activeVideo == null || isPlayerMinimized) && activeChannelId == null && !isSettingsOpen && !isDownloadsOpen) {
                         BubbleBottomNav(
                             currentTab = currentTab,
                             onTabSelected = { currentTab = it },
                             modifier = Modifier.align(Alignment.BottomCenter)
+                        )
+                    }
+
+                    // 2.5 OFFLINE MINI PLAYER BAR (When an offline MP3 is playing)
+                    val offlineTrack by OfflineAudioPlayerManager.currentTrack.collectAsState()
+                    if (offlineTrack != null && (activeVideo == null || isPlayerMinimized) && !isInPipMode) {
+                        val hasBottomNav = activeChannelId == null && !isSettingsOpen && !isDownloadsOpen
+                        OfflineMiniPlayer(
+                            modifier = Modifier
+                                .align(Alignment.BottomCenter)
+                                .navigationBarsPadding()
+                                .padding(bottom = if (hasBottomNav) 76.dp else 10.dp)
                         )
                     }
 
@@ -266,6 +292,7 @@ class MainActivity : ComponentActivity() {
                                 initialChannelTitle = activeChannelTitle,
                                 repository = repository,
                                 onVideoClick = { video: VideoItem ->
+                                    OfflineAudioPlayerManager.stop(this@MainActivity)
                                     activeVideo = video
                                     isPlayerMinimized = false
                                 },
@@ -300,13 +327,32 @@ class MainActivity : ComponentActivity() {
                         )
                     }
 
+                    // 3.6 DOWNLOADS SCREEN OVERLAY (Opsi 3: Buka Halaman Unduhan Lengkap)
+                    AnimatedVisibility(
+                        visible = isDownloadsOpen,
+                        enter = slideInHorizontally(
+                            initialOffsetX = { fullWidth -> fullWidth },
+                            animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing)
+                        ) + fadeIn(animationSpec = tween(200)),
+                        exit = slideOutHorizontally(
+                            targetOffsetX = { fullWidth -> fullWidth },
+                            animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing)
+                        ) + fadeOut(animationSpec = tween(200))
+                    ) {
+                        DownloadsScreen(
+                            repository = repository,
+                            onBackClick = { isDownloadsOpen = false },
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
+
                     // 4. PERSISTENT PLAYER (Full screen OR Miniplayer)
                     if (activeVideo != null) {
                         PlayerScreen(
                             video = activeVideo!!,
                             repository = repository,
                             isMinimized = isPlayerMinimized,
-                            isBottomNavVisible = (activeChannelId == null && !isSettingsOpen),
+                            isBottomNavVisible = (activeChannelId == null && !isSettingsOpen && !isDownloadsOpen),
                             onMinimize = {
                                 isPlayerMinimized = true
                             },
