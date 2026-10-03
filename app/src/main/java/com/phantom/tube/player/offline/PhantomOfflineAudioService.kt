@@ -418,7 +418,7 @@ class PhantomOfflineAudioService : Service(), AudioManager.OnAudioFocusChangeLis
         )
     }
 
-    private fun buildNotification(track: DownloadEntity, isPlaying: Boolean): Notification {
+    private fun buildNotification(track: DownloadEntity? = null, isPlaying: Boolean = false): Notification {
         val contentIntent = PendingIntent.getActivity(
             this,
             0,
