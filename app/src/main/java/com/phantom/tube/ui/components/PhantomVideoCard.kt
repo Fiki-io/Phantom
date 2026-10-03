@@ -17,10 +17,16 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import android.content.Intent
+import androidx.compose.foundation.border
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.QueueMusic
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
@@ -35,17 +41,20 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.phantom.tube.PhantomApp
 import com.phantom.tube.core.theme.TextPrimary
 import com.phantom.tube.core.theme.TextSecondary
 import com.phantom.tube.core.theme.YouTubeRed
 import com.phantom.tube.data.innertube.cache.ChannelAvatarCache
 import com.phantom.tube.data.innertube.parser.InnerTubeHelpers
 import com.phantom.tube.data.model.VideoItem
+import com.phantom.tube.ui.screens.player.components.DownloadFormatSheet
 
 /**
  * Kartu item video standar:
@@ -62,8 +71,16 @@ fun PhantomVideoCard(
     progressFraction: Float = 0f,
     onChannelClick: ((String) -> Unit)? = null,
     onMoreClick: (() -> Unit)? = null,
+    onDownloadClick: ((VideoItem) -> Unit)? = null,
     onClick: () -> Unit
 ) {
+    val context = LocalContext.current
+    var showMenu by remember { mutableStateOf(false) }
+    var showDownloadSheet by remember { mutableStateOf(false) }
+    val repository = remember(context) {
+        (context.applicationContext as? PhantomApp)?.repository
+    }
+
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -270,19 +287,99 @@ fun PhantomVideoCard(
                 )
             }
 
-            IconButton(
-                onClick = { onMoreClick?.invoke() },
-                modifier = Modifier
-                    .size(32.dp)
-                    .padding(top = 2.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.MoreVert,
-                    contentDescription = "Opsi",
-                    tint = TextSecondary,
-                    modifier = Modifier.size(18.dp)
-                )
+            Box {
+                IconButton(
+                    onClick = {
+                        if (onMoreClick != null) {
+                            onMoreClick()
+                        } else {
+                            showMenu = true
+                        }
+                    },
+                    modifier = Modifier
+                        .size(32.dp)
+                        .padding(top = 2.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.MoreVert,
+                        contentDescription = "Opsi",
+                        tint = TextSecondary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+
+                DropdownMenu(
+                    expanded = showMenu,
+                    onDismissRequest = { showMenu = false },
+                    modifier = Modifier
+                        .background(Color(0xFF212121))
+                        .border(1.dp, Color(0x22FFFFFF), RoundedCornerShape(8.dp))
+                ) {
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                text = "Download",
+                                color = TextPrimary,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                        },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.Download,
+                                contentDescription = "Download",
+                                tint = TextPrimary,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        },
+                        onClick = {
+                            showMenu = false
+                            if (onDownloadClick != null) {
+                                onDownloadClick(video)
+                            } else {
+                                showDownloadSheet = true
+                            }
+                        }
+                    )
+
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                text = "Bagikan",
+                                color = TextPrimary,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                        },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.Share,
+                                contentDescription = "Bagikan",
+                                tint = TextPrimary,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        },
+                        onClick = {
+                            showMenu = false
+                            val sendIntent = Intent(Intent.ACTION_SEND).apply {
+                                type = "text/plain"
+                                putExtra(Intent.EXTRA_SUBJECT, video.title)
+                                putExtra(Intent.EXTRA_TEXT, "${video.title}\nhttps://youtu.be/${video.id}")
+                            }
+                            val shareIntent = Intent.createChooser(sendIntent, "Bagikan")
+                            context.startActivity(shareIntent)
+                        }
+                    )
+                }
             }
         }
+    }
+
+    if (showDownloadSheet && repository != null) {
+        DownloadFormatSheet(
+            video = video,
+            repository = repository,
+            onDismiss = { showDownloadSheet = false }
+        )
     }
 }

@@ -48,6 +48,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
@@ -89,8 +91,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Bookmark
-import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ClosedCaption
@@ -362,7 +362,6 @@ fun PlayerScreen(
     var sleepTimerOption by remember { mutableStateOf(SleepTimerOption.OFF) }
     var sleepTimerRemainingSec by remember { mutableStateOf<Int?>(null) }
     var lastRecordedPositionSec by remember { mutableFloatStateOf(0f) }
-    val isFavorite by repository.isFavorite(video.id).collectAsState(initial = false)
 
     var mediaService by remember { mutableStateOf<PhantomMediaService?>(null) }
 
@@ -2194,13 +2193,11 @@ fun PlayerScreen(
 
                         Spacer(modifier = Modifier.height(14.dp))
 
-                        // 4. Action Buttons Row (Like/Dislike total display pill, Bagikan intent pill, Simpan pill)
-                        // User instruction:
-                        // - Like/Dislike: tampilkan total aja gak usah tambah fitur like asli
-                        // - Bagikan: harus punya fungsi
-                        // - Gemini titik tiga: gak usah
+                        // 4. Action Buttons Row (Like/Dislike total display pill, Bagikan intent pill, Unduh pill)
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(rememberScrollState()),
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -2269,34 +2266,6 @@ fun PlayerScreen(
                                 Text(
                                     text = "Bagikan",
                                     color = TextPrimary,
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                            }
-
-                            // Simpan (Favorite) Pill
-                            Row(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(20.dp))
-                                    .background(Color(0xFF272727))
-                                    .iosBounceClick(scaleDown = 0.92f) {
-                                        scope.launch {
-                                            repository.toggleFavorite(video, isFavorite)
-                                        }
-                                    }
-                                    .padding(horizontal = 14.dp, vertical = 7.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    imageVector = if (isFavorite) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
-                                    contentDescription = "Simpan",
-                                    tint = if (isFavorite) YouTubeRed else TextPrimary,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    text = if (isFavorite) "Tersimpan" else "Simpan",
-                                    color = if (isFavorite) YouTubeRed else TextPrimary,
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.SemiBold
                                 )

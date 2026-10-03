@@ -136,7 +136,7 @@
     <string name="download_sheet_title">オフラインメディアをダウンロード</string>
     <string name="download_audio_tab">音楽オーディオ (MP3)</string>
     <string name="download_video_tab">動画 (MP4)</string>
-    <string name="download_storage_note">権限不要で Music/Phantom (MP3) および Download/Phantom (MP4) に保存されます</string>
+    <string name="download_storage_note">MP3/MP4をダウンロードして、いつでもオフライン再生を楽しめます</string>
     <string name="settings_section_downloads">メディアダウンロード</string>
     <string name="settings_downloads_list">ダウンロード済みファイル</string>
     <string name="settings_open_downloads_folder">ダウンロードフォルダを開く</string>

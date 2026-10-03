@@ -37,12 +37,17 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Link
+import android.content.Intent
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -68,6 +73,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -75,6 +81,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import coil.compose.AsyncImage
+import com.phantom.tube.PhantomApp
 import com.phantom.tube.core.database.SubscriptionEntity
 import com.phantom.tube.core.theme.ObsidianDark
 import com.phantom.tube.core.theme.TextMuted
@@ -89,6 +96,7 @@ import com.phantom.tube.data.repository.PhantomRepository
 import com.phantom.tube.ui.components.ChannelScreenSkeleton
 import com.phantom.tube.ui.components.PhantomIconButton
 import com.phantom.tube.ui.components.PhantomVideoCard
+import com.phantom.tube.ui.screens.player.components.DownloadFormatSheet
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
@@ -928,7 +936,13 @@ fun ChannelVideoHorizontalItem(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     val interactionSource = remember { MutableInteractionSource() }
+    var showMenu by remember { mutableStateOf(false) }
+    var showDownloadSheet by remember { mutableStateOf(false) }
+    val repository = remember(context) {
+        (context.applicationContext as? PhantomApp)?.repository
+    }
 
     Row(
         modifier = modifier
@@ -1016,16 +1030,86 @@ fun ChannelVideoHorizontalItem(
         }
 
         // More options icon
-        IconButton(
-            onClick = { /* Opsi */ },
-            modifier = Modifier.size(32.dp)
-        ) {
-            Icon(
-                imageVector = Icons.Default.MoreVert,
-                contentDescription = "Opsi",
-                tint = TextSecondary,
-                modifier = Modifier.size(17.dp)
-            )
+        Box {
+            IconButton(
+                onClick = { showMenu = true },
+                modifier = Modifier.size(32.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.MoreVert,
+                    contentDescription = "Opsi",
+                    tint = TextSecondary,
+                    modifier = Modifier.size(17.dp)
+                )
+            }
+
+            DropdownMenu(
+                expanded = showMenu,
+                onDismissRequest = { showMenu = false },
+                modifier = Modifier
+                    .background(Color(0xFF212121))
+                    .border(1.dp, Color(0x22FFFFFF), RoundedCornerShape(8.dp))
+            ) {
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            text = "Download",
+                            color = TextPrimary,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.Download,
+                            contentDescription = "Download",
+                            tint = TextPrimary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    },
+                    onClick = {
+                        showMenu = false
+                        showDownloadSheet = true
+                    }
+                )
+
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            text = "Bagikan",
+                            color = TextPrimary,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.Share,
+                            contentDescription = "Bagikan",
+                            tint = TextPrimary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    },
+                    onClick = {
+                        showMenu = false
+                        val sendIntent = Intent(Intent.ACTION_SEND).apply {
+                            type = "text/plain"
+                            putExtra(Intent.EXTRA_SUBJECT, video.title)
+                            putExtra(Intent.EXTRA_TEXT, "${video.title}\nhttps://youtu.be/${video.id}")
+                        }
+                        val shareIntent = Intent.createChooser(sendIntent, "Bagikan")
+                        context.startActivity(shareIntent)
+                    }
+                )
+            }
         }
+    }
+
+    if (showDownloadSheet && repository != null) {
+        DownloadFormatSheet(
+            video = video,
+            repository = repository,
+            onDismiss = { showDownloadSheet = false }
+        )
     }
 }

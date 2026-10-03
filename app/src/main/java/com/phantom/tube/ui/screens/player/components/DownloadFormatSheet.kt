@@ -55,9 +55,11 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.phantom.tube.R
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.phantom.tube.core.database.DownloadEntity
@@ -279,7 +281,7 @@ fun DownloadFormatSheet(
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "Langsung tersimpan di Music/Phantom (MP3) & Download/Phantom (MP4) tanpa izin khusus",
+                    text = stringResource(R.string.download_storage_note),
                     color = Color(0xFFA5D6A7),
                     fontSize = 11.sp,
                     lineHeight = 15.sp,

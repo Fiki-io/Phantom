@@ -136,7 +136,7 @@
     <string name="download_sheet_title">Unduh Media Offline</string>
     <string name="download_audio_tab">Audio Musik (MP3)</string>
     <string name="download_video_tab">Video (MP4)</string>
-    <string name="download_storage_note">Langsung tersimpan di Music/Phantom (MP3) &amp; Download/Phantom (MP4) tanpa izin khusus</string>
+    <string name="download_storage_note">Download MP3/MP4 &amp; nikmati pemutaran offline kapan saja</string>
     <string name="settings_section_downloads">Unduhan Media</string>
     <string name="settings_downloads_list">Daftar File Terunduh</string>
     <string name="settings_open_downloads_folder">Buka Folder Unduhan</string>

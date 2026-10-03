@@ -136,7 +136,7 @@
     <string name="download_sheet_title">Скачать медиа офлайн</string>
     <string name="download_audio_tab">Аудио музыка (MP3)</string>
     <string name="download_video_tab">Видео (MP4)</string>
-    <string name="download_storage_note">Сохраняется напрямую в Music/Phantom (MP3) и Download/Phantom (MP4) без специальных разрешений</string>
+    <string name="download_storage_note">Скачивайте MP3/MP4 и наслаждайтесь воспроизведением офлайн</string>
     <string name="settings_section_downloads">Загрузки медиа</string>
     <string name="settings_downloads_list">Скачанные файлы</string>
     <string name="settings_open_downloads_folder">Открыть папку загрузок</string>
