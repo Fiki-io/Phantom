@@ -450,7 +450,7 @@ class PhantomOfflineAudioService : Service(), AudioManager.OnAudioFocusChangeLis
         )
 
         val builder = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_phantom_translucent)
+            .setSmallIcon(R.drawable.ic_launcher_foreground)
             .setContentTitle(track.title)
             .setContentText(track.channelTitle.ifBlank { "Phantom Offline Music" })
             .setSubText("Musik Offline")
