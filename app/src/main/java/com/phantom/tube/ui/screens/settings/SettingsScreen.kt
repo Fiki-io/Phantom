@@ -88,6 +88,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.phantom.tube.core.theme.CardBackground
 import com.phantom.tube.core.theme.CardBackgroundAlt
 import com.phantom.tube.core.theme.CardBorder

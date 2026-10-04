@@ -8,6 +8,11 @@ android {
     namespace = "com.phantom.tube"
     compileSdk = 34
 
+    val envNdk = System.getenv("ANDROID_NDK_ROOT") ?: System.getenv("ANDROID_NDK_HOME")
+    if (!envNdk.isNullOrBlank() && file(envNdk).exists()) {
+        ndkPath = envNdk
+    }
+
     defaultConfig {
         applicationId = "com.phantom.tube"
         minSdk = 26
