@@ -30,9 +30,11 @@ jobs:
           if [ -d "$ANDROID_SDK_ROOT/ndk" ]; then
             PREINSTALLED_NDK=$(ls -1d $ANDROID_SDK_ROOT/ndk/* 2>/dev/null | sort -V | tail -n 1)
             if [ -n "$PREINSTALLED_NDK" ]; then
+              NDK_VER=$(basename "$PREINSTALLED_NDK")
               echo "ANDROID_NDK_ROOT=$PREINSTALLED_NDK" >> $GITHUB_ENV
               echo "ANDROID_NDK_HOME=$PREINSTALLED_NDK" >> $GITHUB_ENV
-              echo "Using preinstalled NDK: $PREINSTALLED_NDK"
+              echo "ANDROID_NDK_VERSION=$NDK_VER" >> $GITHUB_ENV
+              echo "Using preinstalled NDK: $PREINSTALLED_NDK (version $NDK_VER)"
             fi
           fi
 
@@ -45,7 +47,7 @@ jobs:
         run: chmod +x gradlew
 
       - name: Build Release APK
-        run: ./gradlew assembleRelease --build-cache --parallel -Pandroid.ndkPath=${ANDROID_NDK_ROOT}
+        run: ./gradlew assembleRelease --build-cache --parallel -Pandroid.ndkPath=${ANDROID_NDK_ROOT} -Pandroid.ndkVersion=${ANDROID_NDK_VERSION}
 
       - name: Upload Release APK Artifact
         uses: actions/upload-artifact@v4

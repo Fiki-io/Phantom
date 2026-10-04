@@ -10,7 +10,9 @@ android {
 
     val envNdk = System.getenv("ANDROID_NDK_ROOT") ?: System.getenv("ANDROID_NDK_HOME")
     if (!envNdk.isNullOrBlank() && file(envNdk).exists()) {
-        ndkPath = envNdk
+        val ndkDir = file(envNdk)
+        ndkPath = ndkDir.absolutePath
+        ndkVersion = ndkDir.name
     }
 
     defaultConfig {
