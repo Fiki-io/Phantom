@@ -51,14 +51,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.phantom.tube.MainActivity
-import com.phantom.tube.core.theme.NeonAmber
-import com.phantom.tube.core.theme.NeonCyan
-import com.phantom.tube.core.theme.NeonPink
+import com.phantom.tube.core.theme.CardBackground
+import com.phantom.tube.core.theme.CardBorder
 import com.phantom.tube.core.theme.ObsidianDark
 import com.phantom.tube.core.theme.PhantomTheme
 import com.phantom.tube.core.theme.TextMuted
 import com.phantom.tube.core.theme.TextPrimary
 import com.phantom.tube.core.theme.TextSecondary
+import com.phantom.tube.core.theme.YouTubeRed
+import com.phantom.tube.core.theme.YouTubeSurfaceLight
 import com.phantom.tube.core.theme.phantomSurface
 
 class CrashActivity : ComponentActivity() {
@@ -125,19 +126,18 @@ fun CrashScreen(
                     modifier = Modifier
                         .size(46.dp)
                         .phantomSurface(
-                            shape = RoundedCornerShape(14.dp),
+                            shape = RoundedCornerShape(12.dp),
                             borderWidth = 1.dp,
-                            tintColor = Color(0xFF330C18),
-                            surfaceAlpha = 0.9f,
-                            accentGlow = NeonPink
+                            tintColor = CardBackground,
+                            surfaceAlpha = 1f
                         ),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Default.BugReport,
                         contentDescription = "Crash Icon",
-                        tint = NeonPink,
-                        modifier = Modifier.size(26.dp)
+                        tint = YouTubeRed,
+                        modifier = Modifier.size(24.dp)
                     )
                 }
 
@@ -166,17 +166,16 @@ fun CrashScreen(
                     .fillMaxWidth()
                     .phantomSurface(
                         shape = RoundedCornerShape(12.dp),
-                        borderWidth = 0.8.dp,
-                        tintColor = Color(0xFF261016),
-                        surfaceAlpha = 0.8f,
-                        accentGlow = NeonAmber
+                        borderWidth = 1.dp,
+                        tintColor = CardBackground,
+                        surfaceAlpha = 1f
                     )
-                    .padding(12.dp)
+                    .padding(14.dp)
             ) {
                 Column {
                     Text(
                         text = "Detail Error",
-                        color = NeonAmber,
+                        color = YouTubeRed,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -207,10 +206,10 @@ fun CrashScreen(
                     .weight(1f)
                     .fillMaxWidth()
                     .phantomSurface(
-                        shape = RoundedCornerShape(14.dp),
+                        shape = RoundedCornerShape(12.dp),
                         borderWidth = 1.dp,
-                        tintColor = Color(0xFF090A12),
-                        surfaceAlpha = 0.95f
+                        tintColor = Color(0xFF121212),
+                        surfaceAlpha = 1f
                     )
                     .padding(12.dp)
             ) {
@@ -249,23 +248,23 @@ fun CrashScreen(
                 },
                 modifier = Modifier
                     .weight(1f)
-                    .height(50.dp),
+                    .height(48.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF1B2338)
+                    containerColor = YouTubeSurfaceLight
                 ),
-                shape = RoundedCornerShape(14.dp)
+                shape = RoundedCornerShape(12.dp)
             ) {
                 Icon(
                     imageVector = Icons.Default.ContentCopy,
                     contentDescription = "Salin Log",
-                    tint = NeonCyan,
+                    tint = TextPrimary,
                     modifier = Modifier.size(18.dp)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = if (isCopied) "Disalin!" else "Salin Log",
-                    color = NeonCyan,
-                    fontWeight = FontWeight.Bold,
+                    color = TextPrimary,
+                    fontWeight = FontWeight.SemiBold,
                     fontSize = 13.sp
                 )
             }
@@ -275,11 +274,11 @@ fun CrashScreen(
                 onClick = onRestartApp,
                 modifier = Modifier
                     .weight(1f)
-                    .height(50.dp),
+                    .height(48.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = NeonPink
+                    containerColor = YouTubeRed
                 ),
-                shape = RoundedCornerShape(14.dp)
+                shape = RoundedCornerShape(12.dp)
             ) {
                 Icon(
                     imageVector = Icons.Default.Refresh,
@@ -289,7 +288,7 @@ fun CrashScreen(
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "Mulai Ulang Aplikasi",
+                    text = "Mulai Ulang",
                     color = Color.White,
                     fontWeight = FontWeight.Bold,
                     fontSize = 13.sp

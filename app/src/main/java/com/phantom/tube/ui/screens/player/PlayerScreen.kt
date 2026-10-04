@@ -160,12 +160,15 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.phantom.tube.core.theme.CardBackground
+import com.phantom.tube.core.theme.CardBorder
 import com.phantom.tube.core.theme.ObsidianDark
 import com.phantom.tube.core.theme.TextMuted
 import com.phantom.tube.core.theme.TextPrimary
 import com.phantom.tube.core.theme.TextSecondary
 import com.phantom.tube.core.theme.YouTubeRed
 import com.phantom.tube.core.theme.YouTubeSurface
+import com.phantom.tube.core.theme.YouTubeSurfaceLight
 import com.phantom.tube.core.theme.phantomSurface
 import com.phantom.tube.data.model.NextQueue
 import com.phantom.tube.data.model.SponsorSegment
@@ -1228,25 +1231,10 @@ fun PlayerScreen(
                     modifier = Modifier
                         .fillMaxSize()
                         .background(
-                            Brush.radialGradient(
-                                colors = listOf(
-                                    Color(0x44FF0033),
-                                    Color(0x223EA6FF),
-                                    Color.Transparent
-                                ),
-                                radius = 750f
-                            )
-                        )
-                )
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(
                             Brush.verticalGradient(
                                 listOf(
                                     Color.Transparent,
-                                    ObsidianDark.copy(alpha = 0.25f),
-                                    ObsidianDark.copy(alpha = 0.75f),
+                                    ObsidianDark.copy(alpha = 0.4f),
                                     ObsidianDark
                                 )
                             )
@@ -2126,11 +2114,7 @@ fun PlayerScreen(
                                     modifier = Modifier
                                         .size(36.dp)
                                         .clip(CircleShape)
-                                        .background(
-                                            Brush.linearGradient(
-                                                listOf(Color(0xFF2C2D42), Color(0xFF1B1C28))
-                                            )
-                                        ),
+                                        .background(YouTubeSurfaceLight),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     if (currentAvatar.isNotBlank()) {
@@ -2337,7 +2321,8 @@ fun PlayerScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(12.dp))
-                                .background(Color(0xFF212121))
+                                .background(CardBackground)
+                                .border(1.dp, CardBorder, RoundedCornerShape(12.dp))
                                 .iosBounceClick(scaleDown = 0.97f) {
                                     showDescriptionSheet = false
                                     showMixSheet = false

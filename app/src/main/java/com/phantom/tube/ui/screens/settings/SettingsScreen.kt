@@ -88,13 +88,16 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import com.phantom.tube.core.theme.CardBackground
+import com.phantom.tube.core.theme.CardBackgroundAlt
+import com.phantom.tube.core.theme.CardBorder
 import com.phantom.tube.core.theme.ObsidianDark
 import com.phantom.tube.core.theme.TextMuted
 import com.phantom.tube.core.theme.TextPrimary
 import com.phantom.tube.core.theme.TextSecondary
 import com.phantom.tube.core.theme.YouTubeRed
 import com.phantom.tube.core.theme.YouTubeSurface
+import com.phantom.tube.core.theme.YouTubeSurfaceLight
 import com.phantom.tube.data.repository.PhantomRepository
 import com.phantom.tube.data.settings.PhantomPreferences
 import com.phantom.tube.ui.components.PhantomIconButton
@@ -1009,9 +1012,9 @@ private fun SettingsCard(content: @Composable () -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .background(Color(0xFF161616))
-            .border(1.dp, Color(0xFF262626), RoundedCornerShape(16.dp))
+            .clip(RoundedCornerShape(12.dp))
+            .background(CardBackground)
+            .border(1.dp, CardBorder, RoundedCornerShape(12.dp))
     ) {
         Column {
             content()
@@ -1025,7 +1028,7 @@ private fun SettingsDivider() {
         modifier = Modifier
             .fillMaxWidth()
             .height(1.dp)
-            .background(Color(0xFF222222))
+            .background(Color(0xFF272727))
     )
 }
 
@@ -1047,7 +1050,7 @@ private fun SettingsItemClickable(
             modifier = Modifier
                 .size(36.dp)
                 .clip(CircleShape)
-                .background(Color(0xFF222222)),
+                .background(CardBackgroundAlt),
             contentAlignment = Alignment.Center
         ) {
             Icon(
@@ -1106,7 +1109,7 @@ private fun SettingsItemSwitch(
             modifier = Modifier
                 .size(36.dp)
                 .clip(CircleShape)
-                .background(Color(0xFF222222)),
+                .background(CardBackgroundAlt),
             contentAlignment = Alignment.Center
         ) {
             Icon(
@@ -1144,7 +1147,7 @@ private fun SettingsItemSwitch(
                 checkedThumbColor = Color.White,
                 checkedTrackColor = YouTubeRed,
                 uncheckedThumbColor = TextMuted,
-                uncheckedTrackColor = Color(0xFF2B2B2B)
+                uncheckedTrackColor = YouTubeSurfaceLight
             )
         )
     }
@@ -1177,7 +1180,7 @@ private fun SettingsSubItemSwitch(
                 checkedThumbColor = Color.White,
                 checkedTrackColor = YouTubeRed,
                 uncheckedThumbColor = TextMuted,
-                uncheckedTrackColor = Color(0xFF2B2B2B)
+                uncheckedTrackColor = YouTubeSurfaceLight
             )
         )
     }

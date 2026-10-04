@@ -15,8 +15,8 @@ import androidx.compose.ui.graphics.Color
 private val DarkColorScheme = darkColorScheme(
     primary = YouTubeRed,
     onPrimary = Color.White,
-    secondary = Color(0xFF3EA6FF),
-    onSecondary = Color.White,
+    secondary = YouTubeSurfaceLight,
+    onSecondary = TextPrimary,
     tertiary = YouTubeRed,
     background = YouTubeDark,
     onBackground = TextPrimary,

@@ -52,6 +52,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.phantom.tube.core.theme.CardBackground
+import com.phantom.tube.core.theme.CardBorder
 import com.phantom.tube.core.theme.ObsidianDark
 import com.phantom.tube.core.theme.TextMuted
 import com.phantom.tube.core.theme.TextPrimary
@@ -137,9 +139,9 @@ fun SubscriptionScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 4.dp)
-                .clip(RoundedCornerShape(14.dp))
-                .background(Color(0xFF1E1E1E))
-                .border(1.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(14.dp))
+                .clip(RoundedCornerShape(12.dp))
+                .background(CardBackground)
+                .border(1.dp, CardBorder, RoundedCornerShape(12.dp))
                 .clickable(onClick = onDownloadsClick)
                 .padding(horizontal = 14.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically

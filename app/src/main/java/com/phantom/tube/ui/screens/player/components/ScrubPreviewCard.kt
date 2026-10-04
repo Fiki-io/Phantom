@@ -41,7 +41,9 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.phantom.tube.core.theme.YouTubeDark
 import com.phantom.tube.core.theme.YouTubeRed
+import com.phantom.tube.core.theme.YouTubeSurface
 import com.phantom.tube.player.StoryboardData
 import com.phantom.tube.player.StoryboardHelper
 
@@ -124,12 +126,12 @@ fun ScrubPreviewCard(
                     .shadow(
                         elevation = 14.dp,
                         shape = RoundedCornerShape(10.dp),
-                        ambientColor = Color(0x66FF0033),
+                        ambientColor = Color(0x66000000),
                         spotColor = Color(0xDD000000)
                     )
                     .clip(RoundedCornerShape(10.dp))
-                    .background(Color(0xFF141414))
-                    .border(BorderStroke(1.5.dp, Color.White.copy(alpha = 0.9f)), RoundedCornerShape(10.dp))
+                    .background(YouTubeDark)
+                    .border(BorderStroke(1.dp, Color.White.copy(alpha = 0.5f)), RoundedCornerShape(10.dp))
             ) {
                 Image(
                     bitmap = currentBmp.asImageBitmap(),
@@ -164,12 +166,12 @@ fun ScrubPreviewCard(
                     .shadow(
                         elevation = 12.dp,
                         shape = RoundedCornerShape(17.dp),
-                        ambientColor = Color(0x77FF0033),
+                        ambientColor = Color(0x66000000),
                         spotColor = Color(0xDD000000)
                     )
                     .clip(RoundedCornerShape(17.dp))
-                    .background(Color(0xE61E1E1E))
-                    .border(BorderStroke(1.dp, Color.White.copy(alpha = 0.7f)), RoundedCornerShape(17.dp))
+                    .background(YouTubeSurface)
+                    .border(BorderStroke(1.dp, Color.White.copy(alpha = 0.35f)), RoundedCornerShape(17.dp))
                     .padding(horizontal = 8.dp),
                 contentAlignment = Alignment.Center
             ) {

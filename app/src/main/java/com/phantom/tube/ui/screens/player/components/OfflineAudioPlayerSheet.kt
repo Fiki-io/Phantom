@@ -66,6 +66,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.phantom.tube.core.theme.CardBackground
+import com.phantom.tube.core.theme.CardBorder
 import com.phantom.tube.core.theme.GlassBorderLight
 import com.phantom.tube.core.theme.GlassSurface
 import com.phantom.tube.core.theme.ObsidianDark
@@ -74,6 +76,7 @@ import com.phantom.tube.core.theme.TextPrimary
 import com.phantom.tube.core.theme.TextSecondary
 import com.phantom.tube.core.theme.YouTubeDark
 import com.phantom.tube.core.theme.YouTubeRed
+import com.phantom.tube.core.theme.YouTubeSurface
 import com.phantom.tube.player.offline.OfflineAudioPlayerManager
 import java.util.Locale
 
@@ -166,10 +169,10 @@ fun OfflineAudioPlayerSheet(
                 Box(
                     modifier = Modifier
                         .size(260.dp)
-                        .clip(RoundedCornerShape(20.dp))
-                        .background(Color(0xFF1E1E1E))
-                        .border(1.dp, GlassBorderLight, RoundedCornerShape(20.dp))
-                        .shadow(12.dp, RoundedCornerShape(20.dp)),
+                        .shadow(8.dp, RoundedCornerShape(16.dp))
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(YouTubeSurface)
+                        .border(1.dp, CardBorder, RoundedCornerShape(16.dp)),
                     contentAlignment = Alignment.Center
                 ) {
                     if (track.thumbnailUrl.isNotBlank()) {
@@ -385,7 +388,7 @@ fun OfflineAudioPlayerSheet(
                                     modifier = Modifier
                                         .size(44.dp)
                                         .clip(RoundedCornerShape(8.dp))
-                                        .background(Color(0xFF242424)),
+                                        .background(Color(0xFF181818)),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     if (item.thumbnailUrl.isNotBlank()) {

@@ -54,10 +54,13 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.border
 import coil.compose.AsyncImage
+import com.phantom.tube.core.theme.CardBorder
 import com.phantom.tube.core.theme.TextMuted
 import com.phantom.tube.core.theme.TextPrimary
 import com.phantom.tube.core.theme.TextSecondary
+import com.phantom.tube.core.theme.YouTubeSurface
 import com.phantom.tube.data.innertube.parser.InnerTubeHelpers
 import com.phantom.tube.data.model.NextQueue
 import com.phantom.tube.data.model.VideoItem
@@ -299,7 +302,8 @@ fun PlayerDescriptionSheet(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clip(RoundedCornerShape(12.dp))
-                                    .background(Color(0xFF2B2B2B))
+                                    .background(YouTubeSurface)
+                                    .border(1.dp, CardBorder, RoundedCornerShape(12.dp))
                                     .padding(vertical = 12.dp, horizontal = 8.dp)
                             ) {
                                 Row(
@@ -325,7 +329,7 @@ fun PlayerDescriptionSheet(
                                         modifier = Modifier
                                             .height(26.dp)
                                             .width(1.dp)
-                                            .background(Color(0xFF424242))
+                                            .background(Color(0xFF272727))
                                     )
 
                                     Column(
@@ -346,7 +350,7 @@ fun PlayerDescriptionSheet(
                                         modifier = Modifier
                                             .height(26.dp)
                                             .width(1.dp)
-                                            .background(Color(0xFF424242))
+                                            .background(Color(0xFF272727))
                                     )
 
                                     Column(
@@ -376,7 +380,8 @@ fun PlayerDescriptionSheet(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clip(RoundedCornerShape(12.dp))
-                                    .background(Color(0xFF282828))
+                                    .background(YouTubeSurface)
+                                    .border(1.dp, CardBorder, RoundedCornerShape(12.dp))
                                     .padding(14.dp)
                             ) {
                                 SelectionContainer {

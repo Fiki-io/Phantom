@@ -38,6 +38,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.phantom.tube.core.database.SubscriptionEntity
+import com.phantom.tube.core.theme.CardBackground
+import com.phantom.tube.core.theme.CardBackgroundAlt
+import com.phantom.tube.core.theme.CardBorder
 import com.phantom.tube.core.theme.TextMuted
 import com.phantom.tube.core.theme.TextPrimary
 import com.phantom.tube.core.theme.TextSecondary
@@ -47,10 +50,6 @@ import com.phantom.tube.data.model.SearchChannelItem
 import com.phantom.tube.data.repository.PhantomRepository
 import kotlinx.coroutines.launch
 
-/**
- * Premium YouTube-styled Channel Card displayed at the top of search results
- * when searching for channel names or matching channel creators.
- */
 @Composable
 fun SearchChannelCard(
     channel: SearchChannelItem,
@@ -64,9 +63,9 @@ fun SearchChannelCard(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .background(Color(0xFF161616))
-            .border(1.dp, Color(0x18FFFFFF), RoundedCornerShape(16.dp))
+            .clip(RoundedCornerShape(12.dp))
+            .background(CardBackground)
+            .border(1.dp, CardBorder, RoundedCornerShape(12.dp))
             .clickable(onClick = onClick)
             .padding(14.dp)
     ) {
@@ -94,7 +93,7 @@ fun SearchChannelCard(
                     modifier = Modifier
                         .size(64.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFF262626)),
+                        .background(CardBackgroundAlt),
                     contentAlignment = Alignment.Center
                 ) {
                     if (avatarUrl.isNotBlank()) {

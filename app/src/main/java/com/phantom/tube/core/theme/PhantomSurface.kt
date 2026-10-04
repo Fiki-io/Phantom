@@ -10,16 +10,12 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
-private val DefaultBorderColor = Color.White.copy(alpha = 0.08f)
+private val DefaultBorderColor = Color.White.copy(alpha = 0.12f)
 
-/**
- * Styling modifier ringan dan berkinerja tinggi untuk container permukaan YouTube Dark.
- * Menggunakan flat solid GPU rendering tanpa alokasi objek pada draw pass.
- */
 fun Modifier.phantomSurface(
-    shape: Shape = RoundedCornerShape(16.dp),
+    shape: Shape = RoundedCornerShape(12.dp),
     borderWidth: Dp = 1.dp,
-    tintColor: Color = Color(0xFF212121),
+    tintColor: Color = YouTubeSurface,
     surfaceAlpha: Float = 0.95f,
     accentGlow: Color? = null
 ): Modifier = this

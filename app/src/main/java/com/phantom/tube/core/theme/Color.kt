@@ -16,8 +16,8 @@ val ObsidianSurface = YouTubeSurface
 val ObsidianSurfaceLight = YouTubeSurfaceLight
 
 // Bubble Dock Palette (Translucent floating frosted pill)
-val BubbleDockBg = Color(0x66181818) // Semi-transparent frosted glass
-val BubbleDockBorder = Color(0x33FFFFFF) // Subtle 20% white glass border
+val BubbleDockBg = Color(0x66181818)
+val BubbleDockBorder = Color(0x26FFFFFF)
 val BubbleDockActive = YouTubeRed
 
 // Clean dark surface tokens
@@ -29,14 +29,19 @@ val GlassBorderDim = Color(0x14FFFFFF)
 val GlassBorderRefractCyan = Color(0x1FFFFFFF)
 val GlassBorderRefractViolet = Color(0x1FFFFFFF)
 
-// Accent Neons & Status (YouTube Red & clean accents)
-val NeonCyan = YouTubeRed // Primary active accent is now YouTube Red
-val NeonViolet = Color(0xFF3EA6FF) // YouTube Blue
-val NeonPurple = Color(0xFFA29BFE)
-val NeonPink = Color(0xFFFF4E45)
-val NeonAmber = Color(0xFFFFB142)
+// Standard Card Tokens
+val CardBackground = YouTubeSurface
+val CardBorder = Color(0x24FFFFFF)
+val CardBackgroundAlt = YouTubeSurfaceLight
 
-// Text Colors (High contrast YouTube text)
+// Status & Accent Tokens (Clean, neutral & comfortable)
+val NeonCyan = YouTubeRed
+val NeonViolet = YouTubeSurfaceLight
+val NeonPurple = YouTubeSurfaceLight
+val NeonPink = YouTubeRed
+val NeonAmber = Color(0xFFE5A93C)
+
+// Text Colors
 val TextPrimary = Color(0xFFFFFFFF)
 val TextSecondary = Color(0xFFAAAAAA)
 val TextMuted = Color(0xFF717171)

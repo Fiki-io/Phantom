@@ -43,18 +43,14 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
-import com.phantom.tube.core.theme.BubbleDockBorder
+import com.phantom.tube.core.theme.CardBorder
 import com.phantom.tube.core.theme.TextPrimary
 import com.phantom.tube.core.theme.TextSecondary
 import com.phantom.tube.core.theme.YouTubeDark
 import com.phantom.tube.core.theme.YouTubeRed
+import com.phantom.tube.core.theme.YouTubeSurface
 import com.phantom.tube.player.offline.OfflineAudioPlayerManager
 
-/**
- * Mini player mengambang di bagian bawah layar saat memutar musik offline.
- * Menampilkan cover, judul, tombol play/pause, next, dan progress bar tipis.
- * Mengetuk bar ini akan membuka [OfflineAudioPlayerSheet] penuh.
- */
 @Composable
 fun OfflineMiniPlayer(
     modifier: Modifier = Modifier
@@ -72,11 +68,10 @@ fun OfflineMiniPlayer(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 6.dp)
-            .shadow(16.dp, RoundedCornerShape(16.dp))
-            .clip(RoundedCornerShape(16.dp))
-            .background(Color(0xE61C1C1C))
-            .border(1.dp, BubbleDockBorder, RoundedCornerShape(16.dp))
+            .padding(horizontal = 12.dp, vertical = 4.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(YouTubeSurface)
+            .border(1.dp, CardBorder, RoundedCornerShape(12.dp))
             .clickable { showFullSheet = true }
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
@@ -91,7 +86,7 @@ fun OfflineMiniPlayer(
                     modifier = Modifier
                         .size(42.dp)
                         .clip(RoundedCornerShape(8.dp))
-                        .background(Color(0xFF2B2B2B)),
+                        .background(Color(0xFF181818)),
                     contentAlignment = Alignment.Center
                 ) {
                     if (track.thumbnailUrl.isNotBlank()) {

@@ -79,6 +79,8 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.phantom.tube.core.database.DownloadEntity
 import com.phantom.tube.core.theme.BubbleDockBorder
+import com.phantom.tube.core.theme.CardBackground
+import com.phantom.tube.core.theme.CardBorder
 import com.phantom.tube.core.theme.GlassSurface
 import com.phantom.tube.core.theme.ObsidianDark
 import com.phantom.tube.core.theme.TextMuted
@@ -509,12 +511,12 @@ private fun DownloadItemRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp))
-            .background(if (isCurrentActive) Color(0xFF261818) else GlassSurface)
+            .clip(RoundedCornerShape(12.dp))
+            .background(if (isCurrentActive) Color(0xFF261818) else CardBackground)
             .border(
                 1.dp,
-                if (isCurrentActive) YouTubeRed.copy(alpha = 0.5f) else BubbleDockBorder,
-                RoundedCornerShape(14.dp)
+                if (isCurrentActive) YouTubeRed.copy(alpha = 0.5f) else CardBorder,
+                RoundedCornerShape(12.dp)
             )
             .clickable(onClick = onItemClick)
             .padding(10.dp),
@@ -525,7 +527,7 @@ private fun DownloadItemRow(
             modifier = Modifier
                 .size(width = 68.dp, height = 52.dp)
                 .clip(RoundedCornerShape(8.dp))
-                .background(Color(0xFF242424)),
+                .background(Color(0xFF181818)),
             contentAlignment = Alignment.Center
         ) {
             if (item.thumbnailUrl.isNotBlank()) {

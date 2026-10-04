@@ -61,7 +61,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.border
 import coil.compose.AsyncImage
+import com.phantom.tube.core.theme.CardBackground
+import com.phantom.tube.core.theme.CardBorder
 import com.phantom.tube.core.theme.TextMuted
 import com.phantom.tube.core.theme.TextPrimary
 import com.phantom.tube.core.theme.TextSecondary
@@ -119,7 +122,7 @@ fun MixPlaylistItemCard(
                     .width(100.dp)
                     .aspectRatio(16f / 9f)
                     .clip(RoundedCornerShape(8.dp))
-                    .background(Color(0xFF101018))
+                    .background(Color(0xFF181818))
             ) {
                 AsyncImage(
                     model = video.thumbnailUrl,
@@ -182,7 +185,8 @@ fun FloatingMixBar(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
-            .background(Color(0xFF212121))
+            .background(CardBackground)
+            .border(1.dp, CardBorder, RoundedCornerShape(12.dp))
             .clickable(onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 8.dp)
     ) {
