@@ -293,6 +293,38 @@ object WatchNextParser {
                 }
             }
 
+            // 4. Endscreen Videos from playerOverlays
+            val endscreenList = mutableListOf<VideoItem>()
+            val playerOverlays = root.optJSONObject("playerOverlays")
+            val endscreen = playerOverlays?.optJSONObject("playerOverlayRenderer")
+                ?.optJSONObject("endscreen")
+                ?.optJSONObject("endscreenRenderer")
+            val endscreenElements = endscreen?.optJSONArray("elements")
+            if (endscreenElements != null) {
+                for (e in 0 until endscreenElements.length()) {
+                    val elem = endscreenElements.optJSONObject(e) ?: continue
+                    val renderer = elem.optJSONObject("endscreenElementRenderer") ?: continue
+                    val endpoint = renderer.optJSONObject("endpoint")?.optJSONObject("watchEndpoint")
+                    val vidId = endpoint?.optString("videoId") ?: ""
+                    if (vidId.isBlank() || vidId == currentVideoId) continue
+
+                    val title = InnerTubeHelpers.parseRunsText(renderer.optJSONObject("title")).ifBlank {
+                        renderer.optJSONObject("title")?.optString("simpleText") ?: ""
+                    }
+                    val durationText = renderer.optJSONObject("videoDuration")?.optString("simpleText") ?: ""
+                    val thumb = FeedParser.extractThumbnailUrl(renderer.optJSONObject("image"))
+
+                    endscreenList.add(
+                        VideoItem(
+                            id = vidId,
+                            title = title,
+                            thumbnailUrl = thumb.ifBlank { "https://i.ytimg.com/vi/$vidId/hqdefault.jpg" },
+                            durationText = durationText
+                        )
+                    )
+                }
+            }
+
             val currentVideo = VideoItem(
                 id = currentVideoId,
                 title = currentTitle,
@@ -309,6 +341,7 @@ object WatchNextParser {
                 mixPlaylist = fullPlaylist,
                 recommendations = recommendationsList,
                 recommendationsContinuationToken = recContinuationToken,
+                endscreenVideos = endscreenList,
                 playlistTitle = playlistTitle,
                 playlistId = detectedPlaylistId,
                 currentIndex = detectedCurrentIndex,

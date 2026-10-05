@@ -43,6 +43,7 @@ data class NextQueue(
     val mixPlaylist: List<VideoItem> = emptyList(),
     val recommendations: List<VideoItem> = emptyList(),
     val recommendationsContinuationToken: String? = null,
+    val endscreenVideos: List<VideoItem> = emptyList(),
     val playlistTitle: String = "",
     val playlistId: String? = null,
     val currentIndex: Int = 0,
@@ -62,6 +63,12 @@ data class NextQueue(
         recommendations
     }
     val mixQueue: List<VideoItem> get() = upNext
+
+    val effectiveEndscreens: List<VideoItem> get() = if (endscreenVideos.isNotEmpty()) {
+        endscreenVideos
+    } else {
+        recommendations.filter { it.id != currentVideo.id }.take(2)
+    }
 }
 
 @Immutable

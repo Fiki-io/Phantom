@@ -367,6 +367,12 @@ const char* RAW_ENGINE_HTML = R"HTML(
                         if (window.PhantomBridge) {
                             window.PhantomBridge.onTimeUpdate(activeVideoId, current, duration, loaded);
                         }
+                        try {
+                            var ifr = document.querySelector('iframe');
+                            if (ifr && ifr.contentWindow) {
+                                ifr.contentWindow.postMessage({ type: 'PHANTOM_CLEAN' }, '*');
+                            }
+                        } catch(e) {}
                     }
                 } catch(e) {}
             }, 250);
@@ -764,6 +770,13 @@ const char* RAW_CLEAN_SCRIPT = R"JS(
     ];
 
     function clean() {
+        try {
+            var ceNodes = document.querySelectorAll('.ytp-ce-covering-overlay, .ytp-ce-element, .html5-endscreen, .ytp-endscreen-content, [class*="ytp-ce"], [class*="endscreen"]');
+            for (var c = 0; c < ceNodes.length; c++) {
+                try { ceNodes[c].remove(); } catch(e) {}
+            }
+        } catch(e) {}
+
         for (var s = 0; s < selectors.length; s++) {
             try {
                 var els = document.querySelectorAll(selectors[s]);
@@ -879,6 +892,8 @@ const char* RAW_CLEAN_SCRIPT = R"JS(
                     sEl.textContent = '.ytp-caption-window-container, .caption-window, .captions-text, .caption-visual-line, .ytp-caption-segment { display: none !important; visibility: hidden !important; opacity: 0 !important; }';
                 }
             } catch(err) {}
+        } else if (e.data && e.data.type === 'PHANTOM_CLEAN') {
+            clean();
         }
     });
 
