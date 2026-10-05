@@ -311,13 +311,17 @@ object WatchNextParser {
                     val title = InnerTubeHelpers.parseRunsText(renderer.optJSONObject("title")).ifBlank {
                         renderer.optJSONObject("title")?.optString("simpleText") ?: ""
                     }
+                    val channelTitle = InnerTubeHelpers.parseRunsText(renderer.optJSONObject("shortBylineText")).ifBlank {
+                        InnerTubeHelpers.parseRunsText(renderer.optJSONObject("longBylineText"))
+                    }
                     val durationText = renderer.optJSONObject("videoDuration")?.optString("simpleText") ?: ""
-                    val thumb = FeedParser.extractThumbnailUrl(renderer.optJSONObject("image"))
+                    val thumb = InnerTubeHelpers.extractThumbnail(renderer.optJSONObject("image"), vidId)
 
                     endscreenList.add(
                         VideoItem(
                             id = vidId,
                             title = title,
+                            channelTitle = channelTitle,
                             thumbnailUrl = thumb.ifBlank { "https://i.ytimg.com/vi/$vidId/hqdefault.jpg" },
                             durationText = durationText
                         )

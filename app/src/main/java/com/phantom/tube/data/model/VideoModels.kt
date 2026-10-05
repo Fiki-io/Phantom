@@ -6,7 +6,7 @@ import androidx.compose.runtime.Immutable
 data class VideoItem(
     val id: String,
     val title: String,
-    val channelTitle: String,
+    val channelTitle: String = "",
     val channelId: String = "",
     val thumbnailUrl: String,
     val channelAvatarUrl: String = "",
