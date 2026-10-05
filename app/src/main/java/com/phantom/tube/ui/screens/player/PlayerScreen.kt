@@ -334,6 +334,7 @@ fun PlayerScreen(
     var showCommentsSheet by remember { mutableStateOf(false) }
     var showDownloadSheet by remember { mutableStateOf(false) }
     var isEndscreenDismissed by remember(video.id) { mutableStateOf(false) }
+    var liveEndscreenVideos by remember(video.id) { mutableStateOf<List<VideoItem>>(emptyList()) }
 
     LaunchedEffect(video.id, video.playlistId) {
         if (!video.playlistId.isNullOrBlank()) {
@@ -351,6 +352,7 @@ fun PlayerScreen(
         isLoadingComments = false
         showDescriptionSheet = false
         isEndscreenDismissed = false
+        liveEndscreenVideos = emptyList()
         showCommentsSheet = false
         showDownloadSheet = false
     }
@@ -729,6 +731,33 @@ fun PlayerScreen(
             },
             onCaptionsAvailableCallback = { available ->
                 hasCaptions = available
+            },
+            onEndscreenDataCallback = { itemsJson ->
+                try {
+                    val arr = org.json.JSONArray(itemsJson)
+                    val items = mutableListOf<VideoItem>()
+                    for (i in 0 until arr.length()) {
+                        val obj = arr.getJSONObject(i)
+                        val id = obj.optString("id")
+                        if (id.isNotBlank() && id != currentVideo.id) {
+                            items.add(
+                                VideoItem(
+                                    id = id,
+                                    title = obj.optString("title"),
+                                    channelTitle = obj.optString("channel"),
+                                    durationText = obj.optString("duration"),
+                                    thumbnailUrl = obj.optString("thumbnail").ifBlank { "https://i.ytimg.com/vi/$id/hqdefault.jpg" }
+                                )
+                            )
+                        }
+                    }
+                    if (items.isNotEmpty()) {
+                        scope.launch {
+                            liveEndscreenVideos = items
+                        }
+                    }
+                } catch (_: Exception) {
+                }
             }
         )
     }
@@ -1550,12 +1579,16 @@ fun PlayerScreen(
 
             // Layer 3.5: Native Endscreen Recommendations Overlay
             val isNearEnd = remember(currentPositionSec, currentDurationSec) {
-                currentDurationSec > 25f && (currentDurationSec - currentPositionSec) in 0.5f..18f
+                currentDurationSec > 25f && (currentDurationSec - currentPositionSec) in 0.5f..20f
             }
-            val endscreenCards = remember(nextQueueData, recommendedVideos) {
-                nextQueueData?.effectiveEndscreens?.ifEmpty {
-                    recommendedVideos.filter { it.id != video.id }.take(2)
-                } ?: recommendedVideos.filter { it.id != video.id }.take(2)
+            val endscreenCards = remember(liveEndscreenVideos, nextQueueData, recommendedVideos) {
+                if (liveEndscreenVideos.isNotEmpty()) {
+                    liveEndscreenVideos
+                } else {
+                    nextQueueData?.effectiveEndscreens?.ifEmpty {
+                        recommendedVideos.filter { it.id != video.id }.take(2)
+                    } ?: recommendedVideos.filter { it.id != video.id }.take(2)
+                }
             }
             PlayerEndscreenOverlay(
                 visible = isNearEnd && !isEndscreenDismissed && !isControlsVisible && endscreenCards.isNotEmpty(),
