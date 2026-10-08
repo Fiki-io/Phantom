@@ -4,20 +4,26 @@ A very lightweight alternative YouTube client for Android.
 
 I initially wanted to keep this project private, but I have other things to work on. So, why not make it public? Maybe other developers will find it useful and continue developing it further.
 
-Preview
+## Preview
 
 <p align="center">
-  <img src="screenshots/1.png" width="180">
-  <img src="screenshots/2.png" width="180">
-  <img src="screenshots/3.png" width="180">
-</p><p align="center">
-  <img src="screenshots/4.png" width="180">
-  <img src="screenshots/5.png" width="180">
-  <img src="screenshots/6.png" width="180">
-</p><p align="center">
-  <img src="screenshots/7.png" width="180">
-  <img src="screenshots/8.png" width="180">
-  <img src="screenshots/9.png" width="180">
+  <img src="screenshots/Screenshot_20261008-191503.jpg" width="180">
+  <img src="screenshots/Screenshot_20261008-191506.jpg" width="180">
+  <img src="screenshots/Screenshot_20261008-191509.jpg" width="180">
+</p>
+
+<p align="center">
+  <img src="screenshots/Screenshot_20261008-191520.jpg" width="180">
+  <img src="screenshots/Screenshot_20261008-191524.jpg" width="180">
+  <img src="screenshots/Screenshot_20261008-191531.jpg" width="180">
+</p>
+
+<p align="center">
+  <img src="screenshots/Screenshot_20261008-191544.jpg" width="180">
+  <img src="screenshots/Screenshot_20261008-191549.jpg" width="180">
+  <img src="screenshots/Screenshot_20261008-191552.jpg" width="180">
+</p>
+
 </p>Features
 
 Phantom is designed to provide a lightweight and stable YouTube client while keeping the application as small as possible.
