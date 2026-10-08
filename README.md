@@ -7,21 +7,21 @@ I initially wanted to keep this project private, but I have other things to work
 ## Preview
 
 <p align="center">
-  <img src="screenshots/Screenshot_20261008-191503.jpg" width="180">
-  <img src="screenshots/Screenshot_20261008-191506.jpg" width="180">
-  <img src="screenshots/Screenshot_20261008-191509.jpg" width="180">
+  <img src="screenshots/Screenshot_20261008-191503.jpg" width="150">
+  <img src="screenshots/Screenshot_20261008-191506.jpg" width="150">
+  <img src="screenshots/Screenshot_20261008-191509.jpg" width="150">
 </p>
 
 <p align="center">
-  <img src="screenshots/Screenshot_20261008-191520.jpg" width="180">
-  <img src="screenshots/Screenshot_20261008-191524.jpg" width="180">
-  <img src="screenshots/Screenshot_20261008-191531.jpg" width="180">
+  <img src="screenshots/Screenshot_20261008-191520.jpg" width="150">
+  <img src="screenshots/Screenshot_20261008-191524.jpg" width="150">
+  <img src="screenshots/Screenshot_20261008-191531.jpg" width="150">
 </p>
 
 <p align="center">
-  <img src="screenshots/Screenshot_20261008-191544.jpg" width="180">
-  <img src="screenshots/Screenshot_20261008-191549.jpg" width="180">
-  <img src="screenshots/Screenshot_20261008-191552.jpg" width="180">
+  <img src="screenshots/Screenshot_20261008-191544.jpg" width="150">
+  <img src="screenshots/Screenshot_20261008-191549.jpg" width="150">
+  <img src="screenshots/Screenshot_20261008-191552.jpg" width="150">
 </p>
 
 </p>Features
