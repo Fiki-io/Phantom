@@ -1,6 +1,0 @@
-{
-  "name": "Phantom",
-  "description": "A YouTube client with background playback and SponsorBlock integration",
-  "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
-}
