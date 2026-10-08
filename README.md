@@ -22,6 +22,7 @@ I initially wanted to keep this project private, but I have other things to work
   <img src="screenshots/Screenshot_20261008-191544.jpg" width="150">
   <img src="screenshots/Screenshot_20261008-191549.jpg" width="150">
   <img src="screenshots/Screenshot_20261008-191552.jpg" width="150">
+  <img src="screenshots/Screenshot_20261008-192812.jpg" width="150">
 </p>
 
 </p>Features
